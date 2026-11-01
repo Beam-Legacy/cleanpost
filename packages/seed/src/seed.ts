@@ -1,25 +1,28 @@
 /**
- * Development seed: the synthetic world from ui/CONVENTIONS.md. Synthetic data only.
- * Runs as the system role (it creates tenants, which the apps cannot). Idempotent: fixed IDs.
- * M1 extends this with patients, encounters and charges from @cleanpost/testing generators.
+ * Development and preview seed: the synthetic world from ui/CONVENTIONS.md (src/world.ts).
+ * Runs as the system role because it creates tenants, which the apps cannot. Idempotent: fixed IDs
+ * and natural keys, so it runs on every preview deploy.
  */
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
+import { PROFILES } from '@cleanpost/adapters';
 import { createAuth, createUserWithPassword } from '@cleanpost/auth';
 import type { Database } from '@cleanpost/db';
-import { clients, memberships, tenants, users } from '@cleanpost/db';
+import {
+  clientPayerSettings,
+  clients,
+  connections,
+  encryptField,
+  locations,
+  memberships,
+  payers,
+  providers,
+  tenants,
+  users,
+} from '@cleanpost/db';
 import { memoryMailer } from '@cleanpost/email';
+import { CLIENTS, HARBOR_RCM, NORTHWIND, PAYERS, npi } from './world';
 
-export const NORTHWIND = '01a00000-0000-7000-8000-000000000001';
-export const HARBOR_RCM = '01a00000-0000-7000-8000-000000000002';
-
-const CLIENTS = [
-  { id: '01a00000-0000-7000-8000-0000000000c1', name: 'Lakeside Family Medicine', status: 'live', mode: 'A' },
-  { id: '01a00000-0000-7000-8000-0000000000c2', name: 'Cascade Pediatrics', status: 'live', mode: 'B' },
-  { id: '01a00000-0000-7000-8000-0000000000c3', name: 'Willamette Ortho', status: 'live', mode: 'C' },
-  { id: '01a00000-0000-7000-8000-0000000000c4', name: 'Riverbend Counseling', status: 'live', mode: 'A' },
-  { id: '01a00000-0000-7000-8000-0000000000c5', name: 'Harbor Dermatology', status: 'onboarding', mode: 'A' },
-] as const;
-const HARBOR_CLIENT = { id: '01a00000-0000-7000-8000-0000000000d1', name: 'Seaside Physical Therapy' };
+export { HARBOR_RCM, NORTHWIND } from './world';
 
 interface SeedUser {
   name: string;
@@ -31,6 +34,8 @@ interface SeedUser {
     clientIds?: string[];
   }[];
 }
+
+const NW_CLIENT_IDS = CLIENTS.filter((c) => c.tenantId === NORTHWIND).map((c) => c.id);
 
 export const SEED_USERS: SeedUser[] = [
   {
@@ -49,7 +54,7 @@ export const SEED_USERS: SeedUser[] = [
   {
     name: 'Dana Reyes',
     email: 'dana@northwind.test',
-    memberships: [{ tenantId: NORTHWIND, role: 'biller', clientIds: CLIENTS.slice(0, 4).map((c) => c.id) }],
+    memberships: [{ tenantId: NORTHWIND, role: 'biller', clientIds: NW_CLIENT_IDS.slice(0, 4) }],
   },
   {
     name: 'Marcus Lee',
@@ -65,6 +70,14 @@ export const SEED_USERS: SeedUser[] = [
 
 export async function seed(systemDb: Database, password: string): Promise<{ created: string[] }> {
   const created: string[] = [];
+
+  for (const payer of PAYERS) {
+    await systemDb
+      .insert(payers)
+      .values({ id: payer.id, name: payer.name, aliases: [...payer.aliases] })
+      .onConflictDoUpdate({ target: payers.id, set: { name: payer.name, aliases: [...payer.aliases] } });
+  }
+
   await systemDb
     .insert(tenants)
     .values([
@@ -77,19 +90,80 @@ export async function seed(systemDb: Database, password: string): Promise<{ crea
       { id: HARBOR_RCM, name: 'Harbor RCM', legalName: 'Harbor RCM Inc.', timezone: 'America/Los_Angeles' },
     ])
     .onConflictDoNothing();
-  await systemDb
-    .insert(clients)
-    .values([
-      ...CLIENTS.map((c) => ({
-        id: c.id,
-        tenantId: NORTHWIND,
-        name: c.name,
-        status: c.status,
-        defaultMode: c.mode,
-      })),
-      { id: HARBOR_CLIENT.id, tenantId: HARBOR_RCM, name: HARBOR_CLIENT.name, status: 'live' },
-    ])
-    .onConflictDoNothing();
+
+  for (const c of CLIENTS) {
+    const details = {
+      name: c.name,
+      status: c.status,
+      defaultMode: c.mode,
+      billingNpi: npi(c.npiBase),
+      address: { line1: '100 Synthetic Way', city: c.city, state: 'OR', zip: '97000' },
+      pmBatchTime: c.pmBatchTime ?? null,
+      goLiveAt: c.status === 'live' ? new Date('2026-09-15T16:00:00Z') : null,
+    };
+    await systemDb
+      .insert(clients)
+      .values({ id: c.id, tenantId: c.tenantId, taxIdEncrypted: encryptField(c.taxId), ...details })
+      .onConflictDoUpdate({
+        target: clients.id,
+        set: {
+          ...details,
+          taxIdEncrypted: sql`coalesce(${clients.taxIdEncrypted}, excluded.tax_id_encrypted)`,
+        },
+      });
+
+    const scope = { tenantId: c.tenantId, clientId: c.id };
+    for (const pr of c.providers) {
+      await systemDb
+        .insert(providers)
+        .values({ ...scope, npi: npi(pr.npiBase), name: pr.name, taxonomy: pr.taxonomy })
+        .onConflictDoNothing();
+    }
+    for (const loc of c.locations) {
+      const [existing] = await systemDb
+        .select({ id: locations.id })
+        .from(locations)
+        .where(and(eq(locations.clientId, c.id), eq(locations.name, loc.name)));
+      if (!existing)
+        await systemDb.insert(locations).values({ ...scope, name: loc.name, placeOfService: loc.pos });
+    }
+    for (const [i, payerId] of c.payerIds.entries()) {
+      const payer = PAYERS.find((x) => x.id === payerId)!;
+      const era =
+        c.mode === 'A' ? 'not_required' : c.mode === 'B' ? (i < 4 ? 'active' : 'pending') : 'not_started';
+      await systemDb
+        .insert(clientPayerSettings)
+        .values({
+          ...scope,
+          payerId,
+          timelyFilingDays: payer.filing,
+          eraEnrollmentStatus: era,
+          pmPayerName: payer.name,
+        })
+        .onConflictDoNothing();
+    }
+
+    const [conn] = await systemDb
+      .select({ id: connections.id })
+      .from(connections)
+      .where(eq(connections.clientId, c.id));
+    if (!conn) {
+      // Preview and local connect to the mock PM running the practice's PM profile; real
+      // connections are created in onboarding (O-04). They start in setup until a sync runs.
+      await systemDb.insert(connections).values({
+        ...scope,
+        adapterKey: c.adapterKey,
+        levels: PROFILES[c.profile],
+        pmAccountRef: c.pmAccountRef ?? null,
+        settings: {
+          pmName: c.pmName,
+          profile: c.profile,
+          ...(c.onboardingStep ? { onboardingStep: c.onboardingStep } : {}),
+        },
+        status: 'setup',
+      });
+    }
+  }
 
   // Users go through better-auth so passwords are hashed exactly as sign-in expects.
   const auth = createAuth({

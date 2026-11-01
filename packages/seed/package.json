@@ -12,9 +12,11 @@
     "seed": "tsx src/cli.ts"
   },
   "dependencies": {
+    "@cleanpost/adapters": "workspace:*",
     "@cleanpost/auth": "workspace:*",
     "@cleanpost/config": "workspace:*",
     "@cleanpost/db": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
     "@cleanpost/email": "workspace:*",
     "@cleanpost/log": "workspace:*",
     "drizzle-orm": "^0.45.4",

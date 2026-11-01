@@ -241,6 +241,9 @@ importers:
 
   packages/seed:
     dependencies:
+      '@cleanpost/adapters':
+        specifier: workspace:*
+        version: link:../adapters
       '@cleanpost/auth':
         specifier: workspace:*
         version: link:../auth
@@ -250,6 +253,9 @@ importers:
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../db
+      '@cleanpost/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@cleanpost/email':
         specifier: workspace:*
         version: link:../email
