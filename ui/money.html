@@ -169,9 +169,9 @@
     <div class="ref-title"><span class="ref-id">R-04</span><h2>Remittance detail: verification (Modes A and C)</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /remittances/:id</span></div></div>
     <dl class="ref-spec">
       <dt>Purpose</dt><dd>Check that what the PM posted automatically matches the 835, line by line, and work the differences.</dd>
-      <dt>Data</dt><dd>Parsed 835 (from the PM via pullRemittances, or uploaded); PM postings via pullPostings; per-line comparison: paid, each adjustment translated to the PM code, patient responsibility; unmatched remit_claims.</dd>
+      <dt>Data</dt><dd>Parsed 835 (from the PM via pullRemittances, or uploaded; always uploaded for Tebra, whose API has no remittance files); PM postings via pullPostings; per-line comparison: paid, each adjustment translated to the PM code, patient responsibility; unmatched remit_claims.</dd>
       <dt>Actions</dt><dd><ul><li>Show differences first (default on).</li><li>Per difference: Correct in PM (adapter or manual task), Accept PM posting with reason, Create posting task when nothing was posted.</li><li>Unmatched claim: Link to claim (R-05) or Mark as before go-live.</li></ul></dd>
-      <dt>States</dt><dd>All lines match: green banner "Verified" and the table collapses to a summary. PM has not posted yet: lines show "Waiting for PM" with the next sync time; becomes a difference after 2 syncs.</dd>
+      <dt>States</dt><dd>All lines match: green banner "Verified" and the table collapses to a summary. PM has not posted yet: lines show "Waiting for PM" with the next sync time; becomes a difference after 2 syncs. PM postings without adjustment codes (possible for Tebra; confirm in the Tebra test): the comparison checks amounts per line and shows "Code not available from Tebra" in place of the PM code.</dd>
       <dt>Rules</dt><dd>Cleanpost never posts in Modes A and C. Two separate checks, labeled separately: "835 balances" (before) and "PM posting matches" (after). Differences auto-resolve when a later sync matches.</dd>
     </dl>
   </div>
@@ -186,7 +186,7 @@
             <div class="balance"><i data-lucide="circle-check"></i><b>835 balances</b><span>Payment $6,482.37 = claims paid $6,470.17 + interest $12.20</span></div>
             <div class="balance bad"><i data-lucide="circle-x"></i><b>PM posting does not match</b><span>2 of 21 lines differ · 18 match · 1 claim unmatched</span></div>
           </div>
-          <dl class="dl"><div><dt>Claims</dt><dd class="fig">9</dd></div><div><dt>Lines</dt><dd class="fig">21</dd></div><div><dt>Lines matching</dt><dd class="fig" style="color:var(--success)">18</dd></div><div><dt>Differences</dt><dd class="fig" style="color:var(--danger)">2</dd></div><div><dt>Unmatched</dt><dd class="fig" style="color:var(--warning)">1</dd></div><div><dt>Read from</dt><dd>Tebra · Oct 21, 2:05 pm</dd></div></dl>
+          <dl class="dl"><div><dt>Claims</dt><dd class="fig">9</dd></div><div><dt>Lines</dt><dd class="fig">21</dd></div><div><dt>Lines matching</dt><dd class="fig" style="color:var(--success)">18</dd></div><div><dt>Differences</dt><dd class="fig" style="color:var(--danger)">2</dd></div><div><dt>Unmatched</dt><dd class="fig" style="color:var(--warning)">1</dd></div><div><dt>Sources</dt><dd>835 uploaded · Tebra read 2:05 pm</dd></div></dl>
         </div>
         <div class="card card-body" style="border-color:var(--warning)">
           <div class="row-between">
@@ -454,7 +454,7 @@
         <div class="stack-sm"><div class="row"><span class="codechip bad">CO-197</span><span class="dense">Prior authorization missing or not on the claim</span></div><div class="row"><span class="codechip">N54</span><span class="dense">Claim information does not match the authorization</span></div></div>
         <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Cigna has an authorization for this knee arthroscopy (<span class="code">A2609-55812</span>, approved Sep 18) but it was not on the claim. Add it to the claim and send a corrected claim.</p><div class="evidence">Authorization found in the PM encounter notes field · 3 similar Cigna denials for this client fixed this way, all paid.</div></div>
         <dl class="dl"><div><dt>At risk</dt><dd class="fig">$1,840.00</dd></div><div><dt>Corrected claim by</dt><dd>Nov 12, 2026</dd></div><div><dt>Assigned to</dt><dd>Dana Reyes</dd></div></dl>
-        <div class="stack-sm"><span class="overline">History</span><ul class="timeline"><li><span class="tl-dot bad"></span><div><div class="tl-title">Denied in Cigna EFT 7730551</div><div class="tl-meta">Oct 21 · read from Tebra</div></div></li><li><span class="tl-dot info"></span><div><div class="tl-title">Accepted by Cigna</div><div class="tl-meta">Sep 26 · 277CA via Stedi</div></div></li></ul></div>
+        <div class="stack-sm"><span class="overline">History</span><ul class="timeline"><li><span class="tl-dot bad"></span><div><div class="tl-title">Denied in Cigna EFT 7730551</div><div class="tl-meta">Oct 21 · from uploaded 835</div></div></li><li><span class="tl-dot info"></span><div><div class="tl-title">Accepted by Cigna</div><div class="tl-meta">Sep 26 · 277CA via Stedi</div></div></li></ul></div>
       </div>
       <div class="drawer-foot"><button type="button" class="btn btn-secondary">Write off</button><button type="button" class="btn btn-secondary">Reassign</button><button type="button" class="btn btn-primary">Build correction</button></div>
     </div>

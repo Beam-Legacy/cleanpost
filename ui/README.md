@@ -28,3 +28,4 @@ Static HTML designs for every view in the Cleanpost View Inventory: the app, its
 | `website.html` | Marketing website (WEB-) |
 | `assets/` | Tokens, component CSS, logo files, Lucide copy, reference helpers |
 | `CONVENTIONS.md` | How the reference files are built |
+| `CHANGES.md` | Edits made in this repo after export; apply them at the design source before regenerating |
