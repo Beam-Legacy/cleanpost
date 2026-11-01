@@ -74,16 +74,9 @@ export function adapterContract(name: string, setup: () => Promise<ContractSetup
       for (const op of OPERATIONS) {
         expect([0, 1, 2, 3, 4, 'unavailable'], op).toContain(caps[op]);
       }
-      for (const op of [
-        'pullPatientsAndCoverage',
-        'pullCharges',
-        'pullClaimsAndStatus',
-        'pullRemittances',
-        'pullPostings',
-        'markChargeBilled',
-        'pushChargeCorrection',
-        'postPayment',
-      ] as const) {
+      // docs/05-adapters.md: only these three may be 'unavailable'; everything else falls back to manual.
+      const mayBeUnavailable = new Set(['holdCharge', 'releaseCharge', 'markChargeBilled']);
+      for (const op of OPERATIONS.filter((o) => !mayBeUnavailable.has(o))) {
         expect(caps[op], `${op} must fall back to manual, not 'unavailable'`).not.toBe('unavailable');
       }
     });

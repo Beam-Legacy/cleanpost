@@ -58,6 +58,8 @@ export interface SyncPolicy {
 export interface Page<T> {
   items: T[];
   nextCursor: string | null;
+  /** Records on this page the adapter could not read: the PM's record ID and the field at fault, never values. */
+  rejected?: { externalId: string | null; field: string }[];
 }
 
 export type AdapterErrorCode =

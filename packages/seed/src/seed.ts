@@ -12,6 +12,7 @@ import {
   clients,
   connections,
   encryptField,
+  externalRefs,
   locations,
   memberships,
   payers,
@@ -20,7 +21,7 @@ import {
   users,
 } from '@cleanpost/db';
 import { memoryMailer } from '@cleanpost/email';
-import { CLIENTS, HARBOR_RCM, NORTHWIND, PAYERS, npi } from './world';
+import { CLIENTS, HARBOR_RCM, NORTHWIND, PAYERS, npi, pmLocationId, pmMockSecretRef } from './world';
 
 export { HARBOR_RCM, NORTHWIND } from './world';
 
@@ -143,25 +144,62 @@ export async function seed(systemDb: Database, password: string): Promise<{ crea
         .onConflictDoNothing();
     }
 
-    const [conn] = await systemDb
-      .select({ id: connections.id })
+    // Preview and local connect to the mock PM running the practice's PM profile; real
+    // connections are created in onboarding (O-04). Mock connections start in testing, as if the
+    // connection test had passed, so the first sync makes them healthy. Others start in setup.
+    const connDetails = {
+      adapterKey: c.adapterKey,
+      levels: PROFILES[c.profile],
+      pmAccountRef: c.pmAccountRef ?? null,
+      credentialsSecretRef: c.pmMock ? pmMockSecretRef(c) : null,
+      // A Tebra-profile mock syncs on Tebra's schedule (docs/05-adapters.md), not the mock default.
+      syncIntervalMinutes: c.pmMock && c.profile === 'tebra' ? 120 : null,
+      settings: {
+        pmName: c.pmName,
+        profile: c.profile,
+        ...(c.pmMock ? { practiceId: c.pmMock.practiceId } : {}),
+        ...(c.onboardingStep ? { onboardingStep: c.onboardingStep } : {}),
+      },
+    };
+    let [conn] = await systemDb
+      .select({ id: connections.id, status: connections.status })
       .from(connections)
       .where(eq(connections.clientId, c.id));
     if (!conn) {
-      // Preview and local connect to the mock PM running the practice's PM profile; real
-      // connections are created in onboarding (O-04). They start in setup until a sync runs.
-      await systemDb.insert(connections).values({
-        ...scope,
-        adapterKey: c.adapterKey,
-        levels: PROFILES[c.profile],
-        pmAccountRef: c.pmAccountRef ?? null,
-        settings: {
-          pmName: c.pmName,
-          profile: c.profile,
-          ...(c.onboardingStep ? { onboardingStep: c.onboardingStep } : {}),
-        },
-        status: 'setup',
-      });
+      [conn] = await systemDb
+        .insert(connections)
+        .values({ ...scope, ...connDetails, status: c.pmMock ? 'testing' : 'setup' })
+        .returning({ id: connections.id, status: connections.status });
+    } else if (c.pmMock) {
+      // Older seeds made mock connections without credentials; bring them up to date.
+      await systemDb
+        .update(connections)
+        .set({
+          ...connDetails,
+          ...(conn.status === 'setup' ? { status: 'testing' } : {}),
+        })
+        .where(eq(connections.id, conn.id));
+    }
+
+    // Onboarding maps the PM's locations to the practice's (O-05); the seed records that mapping.
+    if (c.pmMock && conn) {
+      for (const [i, loc] of c.locations.entries()) {
+        const [row] = await systemDb
+          .select({ id: locations.id })
+          .from(locations)
+          .where(and(eq(locations.clientId, c.id), eq(locations.name, loc.name)));
+        if (!row) continue;
+        await systemDb
+          .insert(externalRefs)
+          .values({
+            ...scope,
+            connectionId: conn.id,
+            entityType: 'location',
+            entityId: row.id,
+            externalId: pmLocationId(c, i + 1),
+          })
+          .onConflictDoNothing();
+      }
     }
   }
 

@@ -5,12 +5,15 @@
 import type { AdapterKey, PmAdapter } from './contract';
 import { createFileAdapter, type FileSource } from './file';
 import { createManualAdapter } from './manual';
+import { createMockAdapter, type MockAdapterDeps } from './mock';
 import { createStubAdapter } from './stub';
 import { createTebraAdapter } from './tebra';
 
 export interface RegistryDeps {
   fileSource: FileSource;
-  /** Adapters built elsewhere (the mock adapter lives with apps/pm-mock's client). */
+  /** The mock PM (local and preview only). Registered only when given. */
+  mock?: Omit<MockAdapterDeps, 'fileSource'>;
+  /** Extra adapters, e.g. test doubles. */
   extra?: PmAdapter[];
 }
 
@@ -51,6 +54,7 @@ export function createRegistry(deps: RegistryDeps): AdapterRegistry {
     .register(createFileAdapter(deps.fileSource))
     .register(createTebraAdapter());
   for (const s of STUBS) registry.register(createStubAdapter(s));
+  if (deps.mock) registry.register(createMockAdapter({ ...deps.mock, fileSource: deps.fileSource }));
   for (const a of deps.extra ?? []) registry.register(a);
   return registry;
 }

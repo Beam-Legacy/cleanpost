@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./vitest": "./src/vitest-preset.ts"
+    "./vitest": "./src/vitest-preset.ts",
+    "./synth": "./src/synth/index.ts"
   },
   "bin": {
     "cleanpost-scan-logs": "./src/scan-logs-cli.ts"

@@ -3,6 +3,7 @@
  * synthetic but carry valid check digits so the structural scrub accepts them.
  */
 import type { ProfileKey } from '@cleanpost/adapters';
+import type { SpecialtyKey } from '@cleanpost/testing/synth';
 import { npiFromBase } from '@cleanpost/domain';
 
 export const NORTHWIND = '01a00000-0000-7000-8000-000000000001';
@@ -15,24 +16,51 @@ export const PAYERS = [
     name: 'Medicare (Noridian JF)',
     aliases: ['Medicare', 'Noridian'],
     filing: 365,
+    kind: 'medicare',
   },
   {
     id: '01a00000-0000-7000-8000-0000000000a2',
     name: 'Regence BlueCross BlueShield',
     aliases: ['Regence', 'Regence BCBS'],
     filing: 365,
+    kind: 'commercial',
   },
-  { id: '01a00000-0000-7000-8000-0000000000a3', name: 'Oregon Health Plan', aliases: ['OHP'], filing: 365 },
-  { id: '01a00000-0000-7000-8000-0000000000a4', name: 'UnitedHealthcare', aliases: ['UHC'], filing: 90 },
-  { id: '01a00000-0000-7000-8000-0000000000a5', name: 'Aetna', aliases: [], filing: 120 },
-  { id: '01a00000-0000-7000-8000-0000000000a6', name: 'Cigna', aliases: [], filing: 90 },
-  { id: '01a00000-0000-7000-8000-0000000000a7', name: 'Moda Health', aliases: ['Moda'], filing: 180 },
-  { id: '01a00000-0000-7000-8000-0000000000a8', name: 'PacificSource', aliases: [], filing: 180 },
+  {
+    id: '01a00000-0000-7000-8000-0000000000a3',
+    name: 'Oregon Health Plan',
+    aliases: ['OHP'],
+    filing: 365,
+    kind: 'medicaid',
+  },
+  {
+    id: '01a00000-0000-7000-8000-0000000000a4',
+    name: 'UnitedHealthcare',
+    aliases: ['UHC'],
+    filing: 90,
+    kind: 'commercial',
+  },
+  { id: '01a00000-0000-7000-8000-0000000000a5', name: 'Aetna', aliases: [], filing: 120, kind: 'commercial' },
+  { id: '01a00000-0000-7000-8000-0000000000a6', name: 'Cigna', aliases: [], filing: 90, kind: 'commercial' },
+  {
+    id: '01a00000-0000-7000-8000-0000000000a7',
+    name: 'Moda Health',
+    aliases: ['Moda'],
+    filing: 180,
+    kind: 'commercial',
+  },
+  {
+    id: '01a00000-0000-7000-8000-0000000000a8',
+    name: 'PacificSource',
+    aliases: [],
+    filing: 180,
+    kind: 'commercial',
+  },
   {
     id: '01a00000-0000-7000-8000-0000000000a9',
     name: 'Providence Health Plan',
     aliases: ['Providence'],
     filing: 180,
+    kind: 'commercial',
   },
 ] as const;
 
@@ -55,7 +83,26 @@ export interface WorldClient {
   locations: { name: string; pos: string }[];
   payerIds: string[];
   onboardingStep?: number;
+  /** The practice on the mock PM behind this client (adapterKey 'mock'), loaded by pm-mock's seed. */
+  pmMock?: {
+    accountId: string;
+    accountName: string;
+    practiceId: string;
+    /** Prefix of the PM's record numbers. Location n is `${idPrefix}-L${n}`. */
+    idPrefix: string;
+    specialty: SpecialtyKey;
+    patients: number;
+    encounters: number;
+    zips: string[];
+    areaCode: string;
+  };
 }
+
+/** The PM's ID for a client's nth location (1-based), shared by both seeds. */
+export const pmLocationId = (c: WorldClient, n: number) => `${c.pmMock!.idPrefix}-L${n}`;
+
+/** Secret reference the development resolver turns into the mock PM account's API key. */
+export const pmMockSecretRef = (c: WorldClient) => `pm-mock:${c.pmMock!.accountId}`;
 
 const p = PAYERS.map((x) => x.id);
 
@@ -74,6 +121,17 @@ export const CLIENTS: WorldClient[] = [
     profile: 'tebra',
     pmAccountRef: 'tebra:northwind-billing',
     pmBatchTime: '18:00',
+    pmMock: {
+      accountId: 'northwind-billing',
+      accountName: 'Northwind Billing (Tebra account)',
+      practiceId: 'lakeside',
+      idPrefix: 'LFM',
+      specialty: 'family_medicine',
+      patients: 180,
+      encounters: 320,
+      zips: ['97201', '97205', '97209', '97214'],
+      areaCode: '503',
+    },
     providers: [
       { name: 'Dr. Elena Ruiz', npiBase: '193220441', taxonomy: '207Q00000X' },
       { name: 'Dr. Samuel Okonkwo', npiBase: '176803392', taxonomy: '207Q00000X' },
@@ -93,6 +151,17 @@ export const CLIENTS: WorldClient[] = [
     pmName: 'AdvancedMD',
     adapterKey: 'mock',
     profile: 'managed_api',
+    pmMock: {
+      accountId: 'cascade-pediatrics',
+      accountName: 'Cascade Pediatrics (AdvancedMD)',
+      practiceId: 'cascade',
+      idPrefix: 'CPD',
+      specialty: 'pediatrics',
+      patients: 150,
+      encounters: 260,
+      zips: ['97301', '97302', '97304', '97303'],
+      areaCode: '503',
+    },
     providers: [{ name: 'Dr. Grace Whitfield', npiBase: '184417290', taxonomy: '208000000X' }],
     locations: [
       { name: 'Cascade Pediatrics Salem', pos: '11' },
@@ -114,6 +183,17 @@ export const CLIENTS: WorldClient[] = [
     profile: 'tebra',
     pmAccountRef: 'tebra:northwind-billing',
     pmBatchTime: '18:00',
+    pmMock: {
+      accountId: 'northwind-billing',
+      accountName: 'Northwind Billing (Tebra account)',
+      practiceId: 'willamette',
+      idPrefix: 'WOR',
+      specialty: 'orthopedics',
+      patients: 140,
+      encounters: 240,
+      zips: ['97401', '97403', '97405'],
+      areaCode: '541',
+    },
     providers: [
       { name: 'Dr. Marcus Thibodeaux', npiBase: '155901273', taxonomy: '207X00000X' },
       { name: 'Dr. Priyanka Rao', npiBase: '126648819', taxonomy: '207X00000X' },

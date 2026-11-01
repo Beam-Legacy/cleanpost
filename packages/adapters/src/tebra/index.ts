@@ -6,39 +6,12 @@
 import type { Operation, PmAdapter } from '../contract';
 import { manualTask } from '../results';
 import { createStubAdapter } from '../stub';
-
-const TEBRA_STEPS: Partial<Record<Operation, { title: string; steps: string[] }>> = {
-  releaseCharge: {
-    title: 'Approve the encounter in Tebra',
-    steps: [
-      'In Tebra: Encounters › Find Encounter.',
-      'Open the encounter and check the charges match the claim in Cleanpost.',
-      'Set the status to Approved and save.',
-      'Confirm here.',
-    ],
-  },
-  pushChargeCorrection: {
-    title: 'Correct the encounter in Tebra',
-    steps: [
-      'In Tebra: Encounters › Find Encounter › Edit Encounter.',
-      'Make each change in the worksheet.',
-      'Leave the encounter in Review; Cleanpost re-checks it and approves it.',
-    ],
-  },
-  postPayment: {
-    title: 'Post the payment in Tebra',
-    steps: [
-      'In Tebra: Encounters › Payments › Enter Payment.',
-      'Apply each line from the worksheet with the Tebra adjustment code shown.',
-      'Enter the Tebra payment ID here.',
-    ],
-  },
-};
+import { TEBRA_MANUAL_STEPS } from './steps';
 
 export function createTebraAdapter(): PmAdapter {
   const base = createStubAdapter({ key: 'tebra', pmName: 'Tebra' });
   const task = (op: Operation) => async () => {
-    const t = TEBRA_STEPS[op]!;
+    const t = TEBRA_MANUAL_STEPS[op]!;
     return manualTask(op, t.title, t.steps);
   };
   return {
@@ -52,3 +25,4 @@ export function createTebraAdapter(): PmAdapter {
 
 export { mapChargeToClaimStatus, mapChargeToPosting } from './map';
 export type * from './types';
+export { TEBRA_MANUAL_STEPS } from './steps';

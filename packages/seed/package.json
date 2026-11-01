@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/seed.ts"
+    ".": "./src/seed.ts",
+    "./world": "./src/world.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -20,7 +21,8 @@
     "@cleanpost/email": "workspace:*",
     "@cleanpost/log": "workspace:*",
     "drizzle-orm": "^0.45.4",
-    "zod": "^4.6.7"
+    "zod": "^4.6.7",
+    "@cleanpost/testing": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.23.15"

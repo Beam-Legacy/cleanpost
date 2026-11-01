@@ -1,0 +1,38 @@
+{
+  "name": "@cleanpost/pm-mock",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./keys": "./src/keys.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:adapters": "vitest run test/contract.test.ts",
+    "generate": "drizzle-kit generate",
+    "seed": "tsx src/seed-cli.ts"
+  },
+  "dependencies": {
+    "@cleanpost/config": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "@cleanpost/seed": "workspace:*",
+    "@cleanpost/testing": "workspace:*",
+    "@hono/node-server": "2.1.5",
+    "drizzle-orm": "^0.45.4",
+    "hono": "4.13.16",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cleanpost/adapters": "workspace:*",
+    "@cleanpost/db": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15"
+  }
+}
