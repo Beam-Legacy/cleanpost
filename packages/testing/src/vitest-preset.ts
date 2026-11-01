@@ -29,6 +29,8 @@ export function cleanpostVitestConfig(packageName: string, overrides: ViteUserCo
         NODE_ENV: 'test',
         LOG_LEVEL: 'debug',
         CLEANPOST_LOG_FILE: logFile,
+        // Same name as @cleanpost/db/testing testDatabaseName(packageName).
+        CLEANPOST_TEST_DB: `cleanpost_test_${packageName.replace(/[^a-z0-9_]/gi, '_')}`,
         ...overrides.test?.env,
       },
     },

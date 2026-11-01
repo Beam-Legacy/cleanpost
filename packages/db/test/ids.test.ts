@@ -1,6 +1,8 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { createDatabase } from '../src';
-import { TEST_DATABASE_ADMIN_URL } from './env';
+import { testDatabaseUrls } from '../src/testing';
+
+const { adminUrl: TEST_DATABASE_ADMIN_URL } = testDatabaseUrls();
 
 const admin = createDatabase(TEST_DATABASE_ADMIN_URL, { max: 1 });
 afterAll(() => admin.close());

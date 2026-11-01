@@ -1,0 +1,23 @@
+{
+  "name": "@cleanpost/email",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cleanpost/config": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "nodemailer": "^10.3.1"
+  },
+  "devDependencies": {
+    "@cleanpost/testing": "workspace:*",
+    "@types/nodemailer": "^8.0.0"
+  }
+}

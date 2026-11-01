@@ -8,7 +8,9 @@ import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { v7 as uuidv7 } from 'uuid';
 import { createDatabase, withTenant, withUser, type DatabaseHandle } from '../src';
-import { TEST_DATABASE_ADMIN_URL, TEST_DATABASE_URL } from './env';
+import { testDatabaseUrls } from '../src/testing';
+
+const { adminUrl: TEST_DATABASE_ADMIN_URL, url: TEST_DATABASE_URL } = testDatabaseUrls();
 
 /** Tables with no tenant on purpose: identity and auth (docs/02-data-model.md). */
 const GLOBAL_TABLES = ['accounts', 'passkeys', 'sessions', 'two_factors', 'users', 'verifications'];
