@@ -1,31 +1,105 @@
 /**
- * M0 acceptance: a cross-tenant read is blocked for every table.
+ * Acceptance (M0, extended in M1): a cross-tenant read is blocked for every table.
  *
  * The first test inventories the live schema, so a new table fails here until it is either given
- * tenant RLS (app.enable_tenant_rls) and added to TENANT_TABLES, or listed as global on purpose.
+ * tenant RLS (app.enable_tenant_rls), added to TENANT_TABLES and to the fixture, or listed as
+ * global on purpose.
  */
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { v7 as uuidv7 } from 'uuid';
-import { createDatabase, withTenant, withUser, type DatabaseHandle } from '../src';
+import { createDatabase, payers, rules, withTenant, withUser, type DatabaseHandle } from '../src';
 import { testDatabaseUrls } from '../src/testing';
+import { insertTenantFixture, newFixture } from './fixtures';
 
 const { adminUrl: TEST_DATABASE_ADMIN_URL, url: TEST_DATABASE_URL } = testDatabaseUrls();
 
-/** Tables with no tenant on purpose: identity and auth (docs/02-data-model.md). */
-const GLOBAL_TABLES = ['accounts', 'passkeys', 'sessions', 'two_factors', 'users', 'verifications'];
+/** Tables with no tenant on purpose: identity, auth and reference data (docs/02-data-model.md). */
+const GLOBAL_TABLES = [
+  'accounts',
+  'code_sets',
+  'ncci_edits',
+  'passkeys',
+  'payers',
+  'platform_banners',
+  'sessions',
+  'two_factors',
+  'users',
+  'verifications',
+  'webhook_events',
+];
 
 /** Every tenant table and the column its policy checks. */
 const TENANT_TABLES: Record<string, 'tenant_id' | 'id'> = {
   tenants: 'id',
-  memberships: 'tenant_id',
-  clients: 'tenant_id',
-  user_preferences: 'tenant_id',
-  audit_events: 'tenant_id',
+  ...Object.fromEntries(
+    [
+      'memberships',
+      'clients',
+      'user_preferences',
+      'audit_events',
+      'client_payer_settings',
+      'providers',
+      'locations',
+      'patients',
+      'coverages',
+      'eligibility_checks',
+      'documents',
+      'encounters',
+      'charge_lines',
+      'diagnoses',
+      'claims',
+      'claim_versions',
+      'claim_lines',
+      'scrub_results',
+      'claim_events',
+      'remittances',
+      'remit_claims',
+      'remit_lines',
+      'remit_adjustments',
+      'remit_remarks',
+      'provider_adjustments',
+      'adjustment_mappings',
+      'postings',
+      'work_items',
+      'corrections',
+      'rules',
+      'saved_views',
+      'notification_rules',
+      'notifications',
+      'connections',
+      'sync_runs',
+      'external_refs',
+      'manual_tasks',
+      'tenant_agreements',
+      'exports',
+      'invoices',
+      'integration_requests',
+      'break_glass_grants',
+      'usage_records',
+    ].map((t) => [t, 'tenant_id' as const]),
+  ),
 };
 
-const A = { tenant: uuidv7(), user: uuidv7(), client: uuidv7() };
-const B = { tenant: uuidv7(), user: uuidv7(), client: uuidv7() };
+/** Never deleted (docs/02-data-model.md): the app role has no DELETE on these at all. */
+const NEVER_DELETED = new Set([
+  'tenants',
+  'claims',
+  'claim_versions',
+  'claim_lines',
+  'claim_events',
+  'scrub_results',
+  'remittances',
+  'remit_claims',
+  'remit_lines',
+  'remit_adjustments',
+  'remit_remarks',
+  'provider_adjustments',
+]);
+
+const A = newFixture();
+const B = newFixture();
+let aClaimVersionId = '';
 
 let admin: DatabaseHandle;
 let app: DatabaseHandle;
@@ -33,21 +107,23 @@ let app: DatabaseHandle;
 beforeAll(async () => {
   admin = createDatabase(TEST_DATABASE_ADMIN_URL, { max: 1 });
   app = createDatabase(TEST_DATABASE_URL, { max: 2 });
-  for (const [t, label] of [
-    [A, 'Northwind Billing'],
-    [B, 'Harbor RCM'],
-  ] as const) {
-    const statements = [
-      sql`insert into users (id, name, email) values (${t.user}, ${'User ' + label}, ${t.user + '@example.test'})`,
-      sql`insert into tenants (id, name) values (${t.tenant}, ${label})`,
-      sql`insert into memberships (tenant_id, user_id, role, is_owner) values (${t.tenant}, ${t.user}, 'admin', true)`,
-      sql`insert into clients (id, tenant_id, name) values (${t.client}, ${t.tenant}, ${'Client of ' + label})`,
-      sql`insert into user_preferences (tenant_id, user_id) values (${t.tenant}, ${t.user})`,
-      sql`insert into audit_events (tenant_id, actor, action, entity_type, entity_id)
-          values (${t.tenant}, ${'user:' + t.user}, 'client.created', 'client', ${t.client})`,
-    ];
-    for (const statement of statements) await admin.db.execute(statement);
-  }
+  const [payer] = await admin.db.insert(payers).values({ name: 'Aetna' }).returning();
+  ({ claimVersionId: aClaimVersionId } = await insertTenantFixture(
+    admin.db,
+    A,
+    'Northwind Billing',
+    payer!.id,
+  ));
+  await insertTenantFixture(admin.db, B, 'Harbor RCM', payer!.id);
+  await admin.db.insert(rules).values({
+    scope: 'global',
+    name: 'Global rule',
+    kind: 'validate',
+    condition: {},
+    action: {},
+    severity: 'block',
+    source: 'seed',
+  });
 });
 
 afterAll(async () => {
@@ -115,23 +191,35 @@ describe('cross-tenant access is blocked', () => {
     });
 
     it(`${table}: returns nothing when no tenant is set`, async () => {
-      const res = await app.pool.query<{ n: number }>(`select count(*)::int as n from ${table}`);
+      // Global seed rules (tenant_id null) are readable by design; no tenant's rows may show.
+      const where = table === 'rules' ? ' where tenant_id is not null' : '';
+      const res = await app.pool.query<{ n: number }>(`select count(*)::int as n from ${table}${where}`);
       expect(res.rows[0]!.n).toBe(0);
     });
 
     it(`${table}: cannot update or delete another tenant's rows`, async () => {
       if (table === 'audit_events') return; // append-only; covered below
-      const affected = await withTenant(app.db, { tenantId: A.tenant, userId: A.user }, async (tx) => {
+      const updated = await withTenant(app.db, { tenantId: A.tenant, userId: A.user }, async (tx) => {
         const upd = await tx.execute(
           sql.raw(`update ${table} set updated_at = now() where ${column} = '${B.tenant}'`),
         );
-        const del =
-          table === 'tenants'
-            ? { rowCount: 0 } // apps have no DELETE on tenants at all
-            : await tx.execute(sql.raw(`delete from ${table} where ${column} = '${B.tenant}'`));
-        return (upd.rowCount ?? 0) + (del.rowCount ?? 0);
+        return upd.rowCount ?? 0;
       });
-      expect(affected).toBe(0);
+      expect(updated).toBe(0);
+      if (NEVER_DELETED.has(table)) {
+        // No DELETE privilege at all, not even on the tenant's own rows.
+        await expect(
+          withTenant(app.db, { tenantId: A.tenant }, (tx) =>
+            tx.execute(sql.raw(`delete from ${table} where ${column} = '${A.tenant}'`)),
+          ),
+        ).rejects.toMatchObject({ cause: { code: '42501' } });
+      } else {
+        const deleted = await withTenant(app.db, { tenantId: A.tenant, userId: A.user }, async (tx) => {
+          const del = await tx.execute(sql.raw(`delete from ${table} where ${column} = '${B.tenant}'`));
+          return del.rowCount ?? 0;
+        });
+        expect(deleted).toBe(0);
+      }
     });
   }
 
@@ -141,6 +229,9 @@ describe('cross-tenant access is blocked', () => {
       sql`insert into memberships (tenant_id, user_id, role) values (${B.tenant}, ${A.user}, 'admin')`,
       sql`insert into user_preferences (tenant_id, user_id) values (${B.tenant}, ${A.user})`,
       sql`insert into audit_events (tenant_id, actor, action, entity_type) values (${B.tenant}, 'system', 'x', 'y')`,
+      sql`insert into work_items (tenant_id, type, due_at, reason_code, summary) values (${B.tenant}, 'system', now(), 'x', 'x')`,
+      sql`insert into rules (tenant_id, scope, name, kind, condition, action, severity, source)
+          values (null, 'global', 'Injected', 'validate', '{}', '{}', 'block', 'user')`,
       sql`insert into tenants (id, name) values (${uuidv7()}, 'Injected')`,
     ];
     for (const attempt of attempts) {
@@ -187,5 +278,30 @@ describe('audit_events', () => {
     await expect(admin.db.execute(sql`delete from audit_events`)).rejects.toMatchObject({
       cause: { code: '42501' },
     });
+  });
+});
+
+describe('rules', () => {
+  it('shows global rules to every tenant but lets none change them', async () => {
+    const seen = await withTenant(app.db, { tenantId: A.tenant }, async (tx) => {
+      const r = await tx.execute<{ n: number }>(
+        sql`select count(*)::int as n from rules where tenant_id is null`,
+      );
+      const u = await tx.execute(sql`update rules set enabled = false where tenant_id is null`);
+      return { globals: r.rows[0]!.n, updated: u.rowCount };
+    });
+    expect(seen).toEqual({ globals: 1, updated: 0 });
+  });
+});
+
+describe('claim versions', () => {
+  it('cannot change once released, even for the owner', async () => {
+    await admin.db.execute(sql`update claim_versions set released_at = now() where id = ${aClaimVersionId}`);
+    await expect(
+      admin.db.execute(sql`update claim_versions set payload = '{}' where id = ${aClaimVersionId}`),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
+    await expect(
+      admin.db.execute(sql`update claim_lines set units = 2 where claim_version_id = ${aClaimVersionId}`),
+    ).rejects.toMatchObject({ cause: { code: '42501' } });
   });
 });

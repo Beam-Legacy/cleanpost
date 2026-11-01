@@ -70,6 +70,9 @@ export const clients = pgTable(
     id: id(),
     tenantId: tenantId().references(() => tenants.id),
     name: text('name').notNull(),
+    /** Field-encrypted (see src/crypto.ts); never stored or logged in plain text. */
+    taxIdEncrypted: text('tax_id_encrypted'),
+    address: jsonb('address'),
     billingNpi: text('billing_npi'),
     taxonomy: text('taxonomy'),
     timezone: text('timezone').notNull().default('America/Los_Angeles'),

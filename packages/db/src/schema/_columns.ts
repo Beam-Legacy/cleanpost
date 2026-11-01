@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { timestamp, uuid } from 'drizzle-orm/pg-core';
+import { bigint, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { v7 as uuidv7 } from 'uuid';
 
 /**
@@ -22,3 +22,9 @@ export const timestamps = {
 
 /** Every customer-data table carries tenant_id; RLS policies check it (docs/02-data-model.md). */
 export const tenantId = () => uuid('tenant_id').notNull();
+
+/** Rows scoped to a practice carry both tenant_id and client_id. */
+export const clientId = () => uuid('client_id').notNull();
+
+/** Money is integer cents (CLAUDE.md rule 5). JS numbers hold cents exactly up to $90 trillion. */
+export const cents = (name: string) => bigint(name, { mode: 'number' });
