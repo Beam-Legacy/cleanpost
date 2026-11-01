@@ -41,6 +41,8 @@ export const sessions = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     /** Company chosen for this session (A-07); every tenant-scoped query uses it. */
     activeTenantId: uuid('active_tenant_id'),
+    /** Preview only (PREVIEW_ALLOW_SKIP_2FA): the user skipped two-factor setup for this session. */
+    secondFactorSkippedAt: timestamp('second_factor_skipped_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [index('sessions_user_id_idx').on(t.userId)],

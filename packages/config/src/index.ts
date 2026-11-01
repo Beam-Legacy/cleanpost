@@ -31,6 +31,29 @@ export const emailEnvSchema = z.object({
   EMAIL_FROM: z.string().min(3),
 });
 
+/**
+ * PREVIEW_ALLOW_SKIP_2FA=true shows a "Skip for now" button on two-factor setup (A-03). Allowed only
+ * when CLEANPOST_ENV is local or preview; anywhere else it is a startup error, so it can never reach
+ * an environment with real patient data.
+ */
+export const previewEnvSchema = z
+  .object({
+    CLEANPOST_ENV: z.enum(['local', 'preview', 'staging', 'production']).default('local'),
+    PREVIEW_ALLOW_SKIP_2FA: z.enum(['true', 'false']).default('false'),
+  })
+  .refine(
+    (e) =>
+      e.PREVIEW_ALLOW_SKIP_2FA === 'false' || e.CLEANPOST_ENV === 'local' || e.CLEANPOST_ENV === 'preview',
+    {
+      path: ['PREVIEW_ALLOW_SKIP_2FA'],
+      message: 'only allowed in local or preview',
+    },
+  );
+
+export function secondFactorSkipAllowed(source: Record<string, string | undefined> = process.env): boolean {
+  return parseEnv(previewEnvSchema, source).PREVIEW_ALLOW_SKIP_2FA === 'true';
+}
+
 export class EnvError extends Error {
   constructor(readonly keys: string[]) {
     super(`Invalid or missing environment variables: ${keys.join(', ')}`);

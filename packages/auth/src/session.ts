@@ -1,4 +1,5 @@
 import { and, eq } from 'drizzle-orm';
+import { secondFactorSkipAllowed } from '@cleanpost/config';
 import { memberships, passkeys, sessions, withTenant, withUser, type Database } from '@cleanpost/db';
 import type { policy } from '@cleanpost/domain';
 import { SESSION_ABSOLUTE_SECONDS, type Auth } from './auth';
@@ -13,8 +14,11 @@ export interface SignedInUser {
 
 export type SessionContext =
   | { status: 'signed_out'; reason?: 'expired' | 'inactive_user' }
-  /** Signed in but no second factor yet: only A-03 (set up two-factor) is allowed. */
-  | { status: 'mfa_setup_required'; user: SignedInUser }
+  /**
+   * Signed in but no second factor yet: only A-03 (set up two-factor) is allowed. canSkip is true
+   * only in preview with PREVIEW_ALLOW_SKIP_2FA (skipSecondFactorForSession).
+   */
+  | { status: 'mfa_setup_required'; user: SignedInUser; sessionId: string; canSkip: boolean }
   /** Signed in with MFA but no company chosen: only A-07 is allowed. */
   | { status: 'choose_company'; user: SignedInUser; sessionId: string }
   | { status: 'ok'; user: SignedInUser; sessionId: string; tenantId: string; actor: Actor };
@@ -41,7 +45,14 @@ export async function getSessionContext(auth: Auth, db: Database, headers: Heade
 
   const who: SignedInUser = { id: user.id, name: user.name, email: user.email };
   if (!(await hasSecondFactor(db, user.id, Boolean(user.twoFactorEnabled)))) {
-    return { status: 'mfa_setup_required', user: who };
+    const canSkip = secondFactorSkipAllowed();
+    const [row] = canSkip
+      ? await db
+          .select({ skipped: sessions.secondFactorSkippedAt })
+          .from(sessions)
+          .where(eq(sessions.id, session.id))
+      : [];
+    if (!row?.skipped) return { status: 'mfa_setup_required', user: who, sessionId: session.id, canSkip };
   }
 
   const tenantId = (session as { activeTenantId?: string | null }).activeTenantId;
@@ -106,4 +117,21 @@ export async function chooseCompany(db: Database, sessionId: string, userId: str
   const companies = await listCompanies(db, userId);
   if (!companies.some((c) => c.tenantId === tenantId)) throw new NotAMemberError();
   await db.update(sessions).set({ activeTenantId: tenantId }).where(eq(sessions.id, sessionId));
+}
+
+export class SkipNotAllowedError extends Error {
+  readonly code = 'FORBIDDEN';
+  constructor() {
+    super('Skipping two-factor setup is only allowed in preview');
+    this.name = 'SkipNotAllowedError';
+  }
+}
+
+/**
+ * Preview only: lets this one session continue without a second factor. The next sign-in shows the
+ * setup step again. Refused unless PREVIEW_ALLOW_SKIP_2FA is on in local or preview.
+ */
+export async function skipSecondFactorForSession(db: Database, sessionId: string): Promise<void> {
+  if (!secondFactorSkipAllowed()) throw new SkipNotAllowedError();
+  await db.update(sessions).set({ secondFactorSkippedAt: new Date() }).where(eq(sessions.id, sessionId));
 }

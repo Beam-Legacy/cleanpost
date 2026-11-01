@@ -36,6 +36,13 @@
       "when": 1793521929155,
       "tag": "0004_sign_in_protection",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793526458867,
+      "tag": "0005_preview_second_factor_skip",
+      "breakpoints": true
     }
   ]
 }

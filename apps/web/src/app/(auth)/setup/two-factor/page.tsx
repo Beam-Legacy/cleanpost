@@ -13,7 +13,7 @@ export default async function SetupTwoFactorPage() {
   if (ctx.status !== 'mfa_setup_required') redirect('/work');
   return (
     <AuthCard title="Set up two-factor sign-in" wide>
-      <SetupForm />
+      <SetupForm canSkip={ctx.canSkip} />
     </AuthCard>
   );
 }

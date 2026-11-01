@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EnvError, baseEnvSchema, dbEnvSchema, parseEnv } from '../src';
+import { EnvError, baseEnvSchema, dbEnvSchema, parseEnv, secondFactorSkipAllowed } from '../src';
 
 describe('parseEnv', () => {
   it('applies defaults', () => {
@@ -21,5 +21,20 @@ describe('parseEnv', () => {
   it('accepts postgres URLs', () => {
     const env = parseEnv(dbEnvSchema, { DATABASE_URL: 'postgres://a:b@localhost:5432/cleanpost' });
     expect(env.DATABASE_URL).toContain('localhost');
+  });
+});
+
+describe('secondFactorSkipAllowed', () => {
+  it('is off unless asked for', () => {
+    expect(secondFactorSkipAllowed({})).toBe(false);
+    expect(secondFactorSkipAllowed({ CLEANPOST_ENV: 'preview', PREVIEW_ALLOW_SKIP_2FA: 'true' })).toBe(true);
+  });
+
+  it('refuses to turn on in staging or production', () => {
+    for (const env of ['staging', 'production']) {
+      expect(() => secondFactorSkipAllowed({ CLEANPOST_ENV: env, PREVIEW_ALLOW_SKIP_2FA: 'true' })).toThrow(
+        EnvError,
+      );
+    }
   });
 });

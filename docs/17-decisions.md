@@ -67,6 +67,13 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 | Lockout (A-08) | 5 wrong passwords lock sign-in for 15 minutes; the user is emailed | The design gives no duration; 15 minutes is a common default. |
 | Deferred from M0 | A-06 Accept invite moves to M5 with S-02 Invite user; strict nonce-based CSP lands with the first PHI screens (M2). The Railway preview went live on Nov 1, 2026 (see `docs/01-architecture.md`) | Invites need the invite-creation flow; CSP is easier to tune against real screens. |
 
+## DEC-10 — Preview may skip two-factor setup (Nov 1, 2026)
+
+- **Decision:** In the preview, the two-factor setup screen (A-03) offers "Skip for now", which lets that one session in; the next sign-in shows the step again. People can still set up real two-factor. Turned on by `PREVIEW_ALLOW_SKIP_2FA=true`.
+- **Why:** Demos to people without an authenticator app at hand. The preview holds synthetic data only.
+- **Guardrails:** The flag is a startup error unless `CLEANPOST_ENV` is `local` or `preview`, and the skip function refuses to run without it. Remove the flag before any environment that could hold PHI exists; staging and production cannot enable it.
+- **Affects:** `packages/config`, `packages/auth/src/session.ts`, A-03 (`apps/web`), `sessions.second_factor_skipped_at`.
+
 ## Open questions
 
 | Question | Owner | Needed by |

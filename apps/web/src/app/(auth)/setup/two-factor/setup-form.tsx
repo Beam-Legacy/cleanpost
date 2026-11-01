@@ -5,13 +5,14 @@ import { Copy, Download } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Button, Checkbox, Field, Input } from '@cleanpost/ui';
 import { authClient } from '@/lib/auth-client';
+import { skipSecondFactorAction } from './actions';
 
 type Step =
   | { kind: 'password' }
   | { kind: 'scan'; uri: string; key: string; qr: string; codes: string[] }
   | { kind: 'codes'; codes: string[] };
 
-export function SetupForm() {
+export function SetupForm({ canSkip }: { canSkip: boolean }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: 'password' });
   const [error, setError] = useState<string | null>(null);
@@ -53,75 +54,94 @@ export function SetupForm() {
     </p>
   );
 
+  // Preview only (PREVIEW_ALLOW_SKIP_2FA). The real product has no way past this step.
+  const skip = canSkip ? (
+    <form action={skipSecondFactorAction} className="callout stack-sm" style={{ marginTop: 16 }}>
+      <span className="dense">
+        <b>Preview only.</b> You can skip this step for now. In the real product two-factor sign-in can&apos;t
+        be skipped.
+      </span>
+      <div>
+        <Button type="submit">Skip for now</Button>
+      </div>
+    </form>
+  ) : null;
+
   if (step.kind === 'password') {
     return (
-      <form className="stack" onSubmit={start} noValidate>
-        <span className="overline">Step 1 of 2</span>
-        {intro}
-        <Field label="Your password" help="Confirm it's you before we create your setup key." error={error}>
-          {(p) => (
-            <Input
-              {...p}
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              autoFocus
-            />
-          )}
-        </Field>
-        <Button type="submit" variant="primary" size="lg" block>
-          Continue
-        </Button>
-        <Button variant="ghost" onClick={addPasskey}>
-          Add a passkey instead
-        </Button>
-      </form>
+      <>
+        <form className="stack" onSubmit={start} noValidate>
+          <span className="overline">Step 1 of 2</span>
+          {intro}
+          <Field label="Your password" help="Confirm it's you before we create your setup key." error={error}>
+            {(p) => (
+              <Input
+                {...p}
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                autoFocus
+              />
+            )}
+          </Field>
+          <Button type="submit" variant="primary" size="lg" block>
+            Continue
+          </Button>
+          <Button variant="ghost" onClick={addPasskey}>
+            Add a passkey instead
+          </Button>
+        </form>
+        {skip}
+      </>
     );
   }
 
   if (step.kind === 'scan') {
     return (
-      <form className="stack" onSubmit={confirm} noValidate>
-        <span className="overline">Step 1 of 2</span>
-        {intro}
-        <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
-          <div
-            role="img"
-            aria-label="QR code for your authenticator app"
-            style={{ width: 160, height: 160 }}
-            dangerouslySetInnerHTML={{ __html: step.qr }}
-          />
-          <div className="stack-sm" style={{ flex: 1, minWidth: 200 }}>
-            <span className="dense muted">Can&apos;t scan? Enter this key:</span>
-            <span className="row">
-              <code className="code">{step.key.match(/.{1,4}/g)?.join(' ')}</code>
-              <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(step.key)}>
-                <Copy aria-hidden />
-                Copy key
+      <>
+        <form className="stack" onSubmit={confirm} noValidate>
+          <span className="overline">Step 1 of 2</span>
+          {intro}
+          <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>
+            <div
+              role="img"
+              aria-label="QR code for your authenticator app"
+              style={{ width: 160, height: 160 }}
+              dangerouslySetInnerHTML={{ __html: step.qr }}
+            />
+            <div className="stack-sm" style={{ flex: 1, minWidth: 200 }}>
+              <span className="dense muted">Can&apos;t scan? Enter this key:</span>
+              <span className="row">
+                <code className="code">{step.key.match(/.{1,4}/g)?.join(' ')}</code>
+                <Button size="sm" variant="ghost" onClick={() => navigator.clipboard.writeText(step.key)}>
+                  <Copy aria-hidden />
+                  Copy key
+                </Button>
+              </span>
+              <Field label="Code from the app" error={error}>
+                {(p) => (
+                  <Input
+                    {...p}
+                    name="code"
+                    mono
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="6 digits"
+                    required
+                    autoFocus
+                  />
+                )}
+              </Field>
+              <Button type="submit" variant="primary">
+                Confirm code
               </Button>
-            </span>
-            <Field label="Code from the app" error={error}>
-              {(p) => (
-                <Input
-                  {...p}
-                  name="code"
-                  mono
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  placeholder="6 digits"
-                  required
-                  autoFocus
-                />
-              )}
-            </Field>
-            <Button type="submit" variant="primary">
-              Confirm code
-            </Button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+        {skip}
+      </>
     );
   }
 

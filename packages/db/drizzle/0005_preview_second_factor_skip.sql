@@ -1,0 +1,1 @@
+ALTER TABLE "sessions" ADD COLUMN "second_factor_skipped_at" timestamp with time zone;
