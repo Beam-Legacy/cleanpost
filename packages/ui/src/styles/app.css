@@ -1,0 +1,35 @@
+/* Additions for the running app. Tokens only; no raw colors. */
+html { color-scheme: light dark; }
+body { -webkit-font-smoothing: antialiased; }
+.app { min-height: 100dvh; }
+.app .side { position: sticky; top: 0; height: 100dvh; overflow-y: auto; }
+.skip-link { position: absolute; left: var(--space-4); top: -48px; z-index: 100; }
+.skip-link:focus { top: var(--space-2); }
+.lucide { width: 16px; height: 16px; stroke-width: 1.5; flex: none; }
+
+/* Real overlays: the reference positions them inside a stage; the app uses the viewport. */
+.cp-scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 40; }
+.cp-center { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: var(--space-6); z-index: 41; pointer-events: none; }
+.cp-center > .modal { pointer-events: auto; max-height: calc(100dvh - 48px); overflow: auto; }
+.drawer.cp-fixed { position: fixed; z-index: 41; }
+.popover.cp-floating { z-index: 50; }
+.modal-head .close, .drawer-head .close { flex: none; }
+
+/* Radix state attributes on design classes */
+button.switch { border: 0; padding: 0; cursor: pointer; }
+.switch[data-state='checked'] { background: var(--cobalt); }
+.switch[data-state='checked']::after { left: 18px; }
+.tabs [data-state='active'] { color: var(--cobalt); border-bottom-color: var(--cobalt); font-weight: 600; }
+.menu-item[data-highlighted] { background: var(--surface-sunken); outline: none; }
+.menu-item[data-disabled] { color: var(--ink-subtle); cursor: not-allowed; }
+.check input:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+
+.tooltip { z-index: 60; padding: 4px 8px; border-radius: var(--radius-md); background: var(--ink); color: var(--canvas); font-size: 12px; line-height: 16px; box-shadow: var(--shadow-overlay); max-width: 280px; }
+
+.toast-region { position: fixed; left: 50%; bottom: var(--space-6); transform: translateX(-50%); z-index: 70; display: flex; flex-direction: column; gap: var(--space-2); align-items: center; }
+
+/* Motion: 150ms ease-out on overlays only (docs/10-design-system.md). */
+@media (prefers-reduced-motion: no-preference) {
+  .cp-scrim, .cp-center > .modal, .drawer.cp-fixed, .popover.cp-floating, .toast { animation: cp-fade 150ms ease-out; }
+}
+@keyframes cp-fade { from { opacity: 0; } to { opacity: 1; } }

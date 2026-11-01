@@ -27,5 +27,6 @@
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalPassThroughEnv": ["PLAYWRIGHT_BROWSERS_PATH", "CI", "HOME"]
 }

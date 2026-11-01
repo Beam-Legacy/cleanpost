@@ -1,0 +1,8 @@
+/*
+ * Cleanpost styles. tokens.css and components.css are copied unchanged from ui/assets/ (the design
+ * export); re-copy them when the designs change. app.css holds what the running app needs beyond
+ * the static reference (real overlays, Radix state attributes, full-height shell, tooltips, toasts).
+ */
+@import './tokens.css';
+@import './components.css';
+@import './app.css';

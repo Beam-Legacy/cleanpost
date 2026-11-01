@@ -36,6 +36,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install Chromium for browser tests (axe)
+        run: pnpm --filter @cleanpost/ui exec playwright install --with-deps chromium
       - name: Create database roles and test database
         run: psql -h localhost -U cleanpost -d cleanpost -f docker/postgres/init.sql
         env:
@@ -44,3 +46,4 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm --filter @cleanpost/ui build-storybook --quiet
