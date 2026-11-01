@@ -30,6 +30,11 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** The website (WEB- designs) is a separate static site in `apps/website`, using the same tokens. It never blocks a milestone. The status page (WEB-13) is a hosted status service.
 - **Affects:** `00-overview.md`, `01-architecture.md`, `16-milestones.md`.
 
+## DEC-06 — `ui/` view IDs replace the old S-numbers (Nov 1, 2026)
+
+- **Decision:** The `ui/` IDs are the only screen IDs. The old S-01 to S-21 numbers are retired because `ui/` uses S-01 to S-14 for Settings screens. `09-ui-screens.md` keeps a crosswalk from the old numbers.
+- **Affects:** `04`, `06`, `07`, `08`, `09`, `13`, `16`.
+
 ## Open questions
 
 | Question | Owner | Needed by |

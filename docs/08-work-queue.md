@@ -1,6 +1,6 @@
 # 08 — Work queue
 
-One queue per tenant across all clients. Billers see items for clients they are assigned to. The queue is the main screen of the product (S-02).
+One queue per tenant across all clients. Billers see items for clients they are assigned to. The queue is the main screen of the product (W-01; side panels W-10 to W-24).
 
 ## Item types
 

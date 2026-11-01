@@ -57,7 +57,7 @@ Accept:
 
 ## M5 — Onboarding, settings, hardening (weeks 16–18)
 
-Build: onboarding wizard with capability-driven mode recommendation and go-live checklist (O-01 to O-11, E-06); client overview and settings (CL-02 to CL-09, CL-11); settings (S-01 to S-08, S-10, S-12 to S-14, F-03); operator console (OP-01 to OP-04); I-04, I-05; help, banners and first-week checklist (G-07, G-13, G-14); team view (W-02); session and export controls; runbooks (incident, backup restore); production infrastructure on AWS under BAA.
+Build: onboarding wizard with capability-driven mode recommendation and go-live checklist (O-01 to O-11, E-06); client overview and settings (CL-02 to CL-09, CL-11); settings (S-01 to S-08, S-10 to S-14, F-03; S-11 shows usage only until invoicing in M7); operator console (OP-01 to OP-04); I-04, I-05; help, banners and first-week checklist (G-07, G-13, G-14); team view (W-02); session and export controls; runbooks (incident, backup restore); production infrastructure on AWS under BAA.
 Accept:
 - Flows 1 and 6 pass end to end
 - Restore-from-backup drill completed

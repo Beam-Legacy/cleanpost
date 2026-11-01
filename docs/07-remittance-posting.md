@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Stedi 835 webhook | B | `transaction processed` event → fetch ERA via Stedi API → `remit.ingest` |
 | PM read (`pullRemittances`) | A, C | Sync schedule |
-| File upload (835 or PM export) | Any | Biller uploads in Remittances (S-10) |
+| File upload (835 or PM export) | Any | Biller uploads in Remittances (R-01, R-02) |
 
 Raw payloads are stored encrypted (`raw_ref`) before parsing. Ingestion is idempotent on (payer, trace number, payment amount, payment date); duplicate retransmissions are recorded and ignored.
 

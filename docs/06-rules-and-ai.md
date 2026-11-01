@@ -55,7 +55,7 @@ Seed rules: structural, NCCI, and a starter set Julia writes for the first speci
 
 ## Learning from corrections
 
-When a biller edits a claim in review, each field change is saved to `corrections`. A nightly job groups identical corrections (same client-payer, same condition pattern, same change). When a pattern repeats N times (default 5) with no reversals, it proposes a rule. A tenant admin approves it in Settings › Rules (S-15); approved rules are `source: promoted`. Nothing is promoted without human approval.
+When a biller edits a claim in review, each field change is saved to `corrections`. A nightly job groups identical corrections (same client-payer, same condition pattern, same change). When a pattern repeats N times (default 5) with no reversals, it proposes a rule. A tenant admin approves it in Settings › Rules (S-05, S-07); approved rules are `source: promoted`. Nothing is promoted without human approval.
 
 ## Denial triage
 

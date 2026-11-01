@@ -7,9 +7,9 @@ The customer is the billing company. Their customers are practices. Cleanpost su
 1. Signed agreement and BAA.
 2. Tenant created by Cleanpost; admin invited; MFA enrolled.
 3. Kickoff call (Julia): goals, baseline metrics (claims per biller, first-pass rate, days in A/R, denial rate) recorded in the tenant record so improvement can be shown later.
-4. First client onboarded together (S-07), usually in Mode A, in "Review everything".
+4. First client onboarded together (O-01 to O-11), usually in Mode A, in "Review everything".
 5. Two-week review period, then thresholds raised together based on data.
-6. 30-day review: baseline vs now report, generated from S-14.
+6. 30-day review: baseline vs now report, generated from the client report (RP-02).
 
 ## Client go-live checklist (required before `live`)
 
@@ -44,8 +44,8 @@ In-app plus a daily email digest (no PHI in email). Immediate email only for: co
 
 ## Client-facing value (for the billing company to show its practices)
 
-- Monthly branded report (S-14 export) per client.
-- Phase 2: read-only client portal (S-21).
+- Monthly branded report per client (F-01, exported from RP-02).
+- Phase 2: read-only client portal (CP-01, CP-02).
 
 ## Measuring CX
 
