@@ -33,10 +33,12 @@ const config: NextConfig = {
     '@cleanpost/db',
     '@cleanpost/domain',
     '@cleanpost/email',
+    '@cleanpost/jobs',
     '@cleanpost/log',
+    '@cleanpost/sync',
     '@cleanpost/ui',
   ],
-  serverExternalPackages: ['pg', 'pino', 'nodemailer'],
+  serverExternalPackages: ['pg', 'pg-boss', 'pino', 'nodemailer'],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
   },

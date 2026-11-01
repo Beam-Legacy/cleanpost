@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, KeyRound, Pause, RefreshCw } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import {
   defaultSyncMinutes,
   levelLabel,
@@ -14,6 +14,7 @@ import { policy } from '@cleanpost/domain';
 import { Banner, EmptyState, ModeBadge, StatusChip, cx } from '@cleanpost/ui';
 import { ConnectionChip } from '@/components/connection-status';
 import { NoAccess } from '@/components/page';
+import { SyncControls } from '@/components/sync-controls';
 import { formatDuration, formatWhen } from '@/lib/format';
 import { getConnection, listSyncRuns } from '@/lib/queries/integrations';
 import { requireActiveContext } from '@/lib/session';
@@ -68,6 +69,11 @@ export default async function ConnectionPage({ params }: { params: Promise<{ id:
             <ConnectionChip status={c.status} />
             <ModeBadge mode={c.clientMode} long />
             <span>{summaryLevel(c.levels)}</span>·<span>Last success {formatWhen(c.lastSuccessAt)}</span>
+            {c.nextRunAt && c.status !== 'paused' && c.status !== 'failed' && (
+              <>
+                ·<span>Next sync {formatWhen(c.nextRunAt)}</span>
+              </>
+            )}
             {c.pmAccountRef && (
               <>
                 ·<span>Shares a {c.pmName} account with other clients</span>
@@ -75,20 +81,11 @@ export default async function ConnectionPage({ params }: { params: Promise<{ id:
             )}
           </div>
         </div>
-        <div className="actions" title="Sync controls arrive with the sync worker later in milestone M1">
-          <button type="button" className="btn btn-secondary" disabled>
-            <Pause aria-hidden />
-            Pause syncing
-          </button>
-          <button type="button" className="btn btn-secondary" disabled>
-            <KeyRound aria-hidden />
-            Reconnect
-          </button>
-          <button type="button" className="btn btn-primary" disabled>
-            <RefreshCw aria-hidden />
-            Run now
-          </button>
-        </div>
+        <SyncControls
+          connectionId={c.id}
+          status={c.status}
+          running={runs.some((r) => r.status === 'running')}
+        />
       </div>
       {c.adapterKey === 'mock' && (
         <Banner>
@@ -176,7 +173,7 @@ export default async function ConnectionPage({ params }: { params: Promise<{ id:
         </div>
         {runs.length === 0 ? (
           <EmptyState title="No sync runs yet" tone="neutral">
-            Runs appear here once the sync worker pulls from this connection.
+            Runs appear here after the first sync. Use Run now to start one.
           </EmptyState>
         ) : (
           <div className="table-wrap">

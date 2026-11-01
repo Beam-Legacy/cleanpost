@@ -34,6 +34,24 @@ test('admin: clients list and integrations (CL-01, I-01, I-02)', async ({ page }
   await expect(ops.getByRole('row', { name: /Post payments/ })).toContainText('Manual');
   await expectAccessible(page, 'I-02');
   await page.screenshot({ path: 'test-results/connection.png', fullPage: true });
+
+  // Sync controls: Run now queues one sync (a worker runs it if one is up); pause and resume go
+  // through the connection state machine.
+  await page.goto('/integrations');
+  await page.getByRole('link', { name: 'Willamette Ortho' }).click();
+  await expect(page.getByRole('heading', { name: /Willamette Ortho · Tebra/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Run now' }).click();
+  await expect(page.getByRole('region', { name: 'Notifications' })).toContainText(
+    /Sync queued|already queued or running/,
+  );
+  await page.getByRole('button', { name: 'Pause syncing' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Pause syncing' }).click();
+  await expect(page.getByRole('button', { name: 'Resume syncing' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run now' })).toBeDisabled();
+  await expectAccessible(page, 'I-02 paused');
+  await page.getByRole('button', { name: 'Resume syncing' }).click();
+  await expect(page.getByRole('button', { name: 'Pause syncing' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run now' })).toBeEnabled();
 });
 
 test('biller: sees only assigned clients and no integrations (G-23)', async ({ page }) => {

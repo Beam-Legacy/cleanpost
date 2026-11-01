@@ -57,7 +57,9 @@ async function selectConnections(ctx: ActiveContext, extra?: SQL) {
       : [];
     return rows.map(({ c, clientName, clientMode }): ConnectionRow => {
       const settings = (c.settings ?? {}) as { pmName?: string; profile?: string };
-      const lastFailure = failures.find((f) => f.connectionId === c.id && f.status === 'failed');
+      // Only the most recent run counts: an old failure followed by a success is not a problem.
+      const latest = failures.find((f) => f.connectionId === c.id);
+      const lastFailure = latest?.status === 'failed' ? latest : undefined;
       return {
         id: c.id,
         clientId: c.clientId,

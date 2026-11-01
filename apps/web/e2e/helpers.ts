@@ -35,6 +35,10 @@ export async function firstSignIn(page: Page, email: string): Promise<string> {
   await page.getByRole('button', { name: 'Confirm code' }).click();
   await page.getByLabel('I saved these recovery codes').check();
   await page.getByRole('button', { name: 'Continue' }).click();
-  await expect(page).toHaveURL(/\/(work|choose-company)$/);
+  // The URL can show /work for a moment before the app moves a user without a company to A-07;
+  // wait for a page that is settled: Work, or the chooser for people in several companies.
+  await expect(page.getByRole('heading', { level: 1, name: /^(Work|Choose a company)$/ })).toBeVisible({
+    timeout: 30_000,
+  });
   return key;
 }

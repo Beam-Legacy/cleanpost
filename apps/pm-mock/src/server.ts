@@ -23,12 +23,21 @@ if (env.CLEANPOST_ENV === 'staging' || env.CLEANPOST_ENV === 'production') {
 await migratePmDb(env.PM_MOCK_DATABASE_URL);
 const handle = createPmDb(env.PM_MOCK_DATABASE_URL);
 const app = createPmMockApp({ db: handle.db, log, adminPassword: env.PM_MOCK_ADMIN_PASSWORD });
-const server = serve({ fetch: app.fetch, port: env.PORT, hostname: '::' }, (info) =>
-  log.info({ port: info.port, admin: Boolean(env.PM_MOCK_ADMIN_PASSWORD) }, 'pm-mock listening'),
-);
+// Listen on IPv6 (Railway's private network needs it) where the host has it, else IPv4.
+function listen(hostname: string): ReturnType<typeof serve> {
+  const server = serve({ fetch: app.fetch, port: env.PORT, hostname }, (info) =>
+    log.info({ port: info.port, admin: Boolean(env.PM_MOCK_ADMIN_PASSWORD) }, 'pm-mock listening'),
+  );
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EAFNOSUPPORT' && hostname === '::') current = listen('0.0.0.0');
+    else throw err;
+  });
+  return server;
+}
+let current = listen('::');
 
 const stop = () => {
-  server.close();
+  current.close();
   void handle.close().then(() => process.exit(0));
 };
 process.on('SIGTERM', stop);

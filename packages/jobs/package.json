@@ -1,0 +1,28 @@
+{
+  "name": "@cleanpost/jobs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "install-schema": "tsx src/install-cli.ts"
+  },
+  "dependencies": {
+    "pg": "^8.23.1",
+    "pg-boss": "12.38.0",
+    "zod": "^4.6.7",
+    "@cleanpost/config": "workspace:*",
+    "@cleanpost/log": "workspace:*"
+  },
+  "devDependencies": {
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/testing": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15"
+  }
+}

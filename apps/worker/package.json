@@ -1,0 +1,31 @@
+{
+  "name": "@cleanpost/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "tsx src/main.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cleanpost/adapters": "workspace:*",
+    "@cleanpost/config": "workspace:*",
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/jobs": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "@cleanpost/sync": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cleanpost/pm-mock": "workspace:*",
+    "@cleanpost/seed": "workspace:*",
+    "@cleanpost/testing": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1",
+    "tsx": "^4.23.15"
+  }
+}

@@ -10,7 +10,12 @@
     "NODE_ENV",
     "PREVIEW_ALLOW_SKIP_2FA",
     "TEST_DATABASE_ADMIN_URL",
-    "TEST_DATABASE_URL"
+    "TEST_DATABASE_URL",
+    "PM_MOCK_DATABASE_URL",
+    "PM_MOCK_URL",
+    "PM_MOCK_SECRET",
+    "PM_MOCK_ADMIN_PASSWORD",
+    "PORT"
   ],
   "tasks": {
     "build": {
