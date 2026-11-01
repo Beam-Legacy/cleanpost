@@ -15,12 +15,13 @@ One queue per tenant across all clients. Billers see items for clients they are 
 | `denial` | Denied or partially denied line | by category: auth/eligibility 1, coding 2, other 3 | 48h | Accept suggested correction, edit, write off (reason), appeal (phase 2: draft) |
 | `underpayment` (phase 2) | Paid below fee schedule | 3 | 5d | Dispute, accept |
 | `remit_unmatched` | Claim or line unmatched | 2 | 24h | Link to claim, mark not ours |
-| `out_of_balance` | Balancing check fails | 1 | 24h | Investigate, adjust, accept |
+| `out_of_balance` | 835 balance check fails (`docs/07-remittance-posting.md`) | 1 | 24h | Investigate, request corrected 835, accept difference (admin, with reason) |
 | `mapping_needed` | Unmapped group/CARC for this PM | 1 | 24h | Map code (applies to all future postings) |
-| `posting_exception` | PM posting differs from 835 (A/C) | 2 | 24h | Correct in PM (manual or via adapter), accept |
+| `posting_exception` | Posting match fails: PM posting differs from the 835 (A, C; B from M7) | 2 | 24h | Correct in PM (manual or via adapter), accept |
 | `manual_task` | Adapter operation at level 0 | from operation | 24h | Complete in PM, confirm |
 | `timely_filing_risk` | Within 14 days of filing limit | 1 | 4h | Submit, document, escalate |
 | `sync_failure` | Connection degraded or failed | 1 | 4h (admin) | Re-authenticate, pause, contact support |
+| `system` | A job failed after 5 attempts (`docs/01-architecture.md`); platform operator alerted | 1 | 4h (admin) | Retry, open the affected record, contact support |
 
 ## Ordering
 

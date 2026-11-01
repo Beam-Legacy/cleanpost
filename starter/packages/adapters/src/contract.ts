@@ -14,7 +14,13 @@ export type Operation =
 
 /** 4 official API, 3 file exchange, 2 managed API, 1 browser automation, 0 manual */
 export type IntegrationLevel = 0 | 1 | 2 | 3 | 4;
-export type CapabilityMap = Record<Operation, IntegrationLevel>;
+/**
+ * 'unavailable': the PM has no equivalent and a manual task would not help
+ * (e.g. holding a charge in a PM with no hold). Allowed only for holdCharge,
+ * releaseCharge and markChargeBilled; see docs/05-adapters.md.
+ */
+export type Capability = IntegrationLevel | 'unavailable';
+export type CapabilityMap = Record<Operation, Capability>;
 
 export interface Connection {
   id: string;

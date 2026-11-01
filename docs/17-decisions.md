@@ -35,6 +35,20 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** The `ui/` IDs are the only screen IDs. The old S-01 to S-21 numbers are retired because `ui/` uses S-01 to S-14 for Settings screens. `09-ui-screens.md` keeps a crosswalk from the old numbers.
 - **Affects:** `04`, `06`, `07`, `08`, `09`, `13`, `16`.
 
+## DEC-07 — Spec contradictions resolved (Nov 1, 2026)
+
+| Topic | Resolution | Docs |
+| --- | --- | --- |
+| Client status | `onboarding → live ⇄ paused → offboarded`. The go-live checklist gates `live` (O-10's Go live sets `live` directly). `ready_for_pilot` is dropped. | 02, 03, 13 |
+| Connection status | `setup → testing → healthy ⇄ degraded → failed`, `paused`; `testing` added to the data model. | 02, 03 |
+| Balancing | Two named checks, as in W-18 and R-06: **835 balance** (before anything is posted or verified; failure blocks posting) and **posting match** (after the PM or Cleanpost posts; differences become `posting_exception` items). The remittance state `out_of_balance` means the 835 balance check failed; `posting_mismatch` means the posting match failed. | 03, 07 |
+| Job failures | New work item type `system` for a job that failed after 5 attempts, shown to tenant admins with the affected record; the platform operator is alerted. | 08 |
+| `tenant_id` | Denormalized onto every customer-data table, including child tables (`claim_lines`, `remit_adjustments`, ...), so every RLS policy is a single column check. | 02 |
+| Users and auth | `users` and better-auth's own tables (sessions, accounts, verification, two-factor, passkeys) are global, hold no PHI and are reached only through the auth module. `memberships` has an extra policy so a user can list their own memberships before choosing a company (A-07). | 02, 11 |
+| Patient control number in Mode A | In Mode A the PM's clearinghouse assigns CLM01. `claims.patient_control_number` stores whichever number goes to the payer, with `claims.pcn_source` (`cleanpost` or `pm`). For `pm`, the number is read back from the PM before release when the adapter can, otherwise after the first claim status pull; matching falls back to steps 2 and 3 until then. | 02, 07 |
+| Data the designs use but the model lacked | Added: tenant profile and contacts (S-14), `tenant_agreements`, `exports`, `invoices`, `integration_requests`, `break_glass_grants`, `platform_banners`, `user_preferences`, `saved_views`, `notification_rules`, `clients.pm_batch_time`, `remit_claims.matched_by`. | 02 |
+| Operations with no manual fallback | Some operations cannot be done by hand in a useful way (holding a charge in a PM with no hold). Capability values are 0–4 or `unavailable`, matching I-02's "Not available in this PM". | 05, contract |
+
 ## Open questions
 
 | Question | Owner | Needed by |

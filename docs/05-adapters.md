@@ -13,8 +13,9 @@ Each operation an adapter supports declares a level. The UI shows it, and the pl
 | 2 | Managed third-party API | Vendor-maintained unofficial APIs. Requires BAA and a terms review per PM. |
 | 1 | Browser automation | Playwright worker using a dedicated PM user. Brittle; monitored by the health check. |
 | 0 | Manual | Cleanpost creates a pre-filled task; a biller does it in the PM and confirms. |
+| — | Not available (`unavailable`) | The PM has no equivalent and a manual task would not help. Allowed only for `holdCharge`, `releaseCharge` and `markChargeBilled`. The platform uses the fallback in `docs/04-modes.md` instead: scrub before the PM's batch (`clients.pm_batch_time`) or require the PM's electronic submission to be turned off. Shown as "Not available in this PM" (I-02, O-03). |
 
-**Every operation of every adapter falls back to level 0.** A client can go live on day one with no integration at all; the manual adapter carries it until a real one is built. This is how the MVP ships without live connectors.
+**Every operation of every adapter falls back to level 0**, except operations declared `unavailable`. A client can go live on day one with no integration at all; the manual adapter carries it until a real one is built. This is how the MVP ships without live connectors.
 
 ## Contract (summary)
 

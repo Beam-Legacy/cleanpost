@@ -30,14 +30,19 @@ Rules:
 ## Remittance
 
 ```
-received ──parse──► parsed ──match──► matched | partially_matched
-matched ──post──► posting ──success──► posted ──verify──► reconciled
-                         └─failure──► post_failed ──retry/manual──► posting
+received ──parse──► parsed ──835 balance check──► balanced | out_of_balance
+out_of_balance ──admin accepts difference (reason)──► balanced   (only claims that balance on their own continue)
+balanced ──match──► matched | partially_matched
 partially_matched ──resolve unmatched (work item)──► matched
-posted ──totals mismatch──► out_of_balance ──resolve──► reconciled
+matched ──post (B)──► posting ──success──► posted ──posting match──► reconciled | posting_mismatch
+                             └─failure──► post_failed ──retry/manual──► posting
+matched ──verify (A, C)──► verifying ──posting match──► reconciled | posting_mismatch
+posting_mismatch ──resolve every posting_exception──► reconciled
 ```
 
-Mode A and C: `post` means "confirm the PM posted it" (read back from the PM). If the PM did not post or posted differently, create an exception work item; do not double-post.
+The two checks are named in `docs/07-remittance-posting.md`: the **835 balance** check (before anything is posted or verified) and the **posting match** (after the PM or Cleanpost posts). `out_of_balance` always means the 835 itself does not balance (W-18 and R-06 "835 does not balance"); a posting that differs from the 835 is `posting_mismatch` (R-04 "PM posting does not match").
+
+Mode A and C: Cleanpost does not post; `verify` reads the PM's postings back. If the PM did not post or posted differently, create a `posting_exception` work item; do not double-post. If the PM does not post the remittance at all, a manual posting task is created instead (`docs/04-modes.md`).
 
 ## Posting (per remittance per connection)
 
@@ -62,5 +67,5 @@ Connection: `setup → testing → healthy ⇄ degraded → failed → (fix) tes
 
 ## Client
 
-`onboarding → ready_for_pilot → live ⇄ paused`, `offboarded` (data retained per contract, export provided).
-`ready_for_pilot` requires the go-live checklist in `docs/13-cx-onboarding.md`.
+`onboarding → live ⇄ paused`; `live | paused → offboarded` (CL-11: export generated first, syncing stops, credentials disconnected, data retained read-only per contract).
+`onboarding → live` happens only through Go live (O-10), which requires every item of the go-live checklist in `docs/13-cx-onboarding.md`.

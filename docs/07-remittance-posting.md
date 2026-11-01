@@ -17,18 +17,26 @@ Canonical structure per 835: BPR/TRN (payment), N1 (payer/payee), CLP (claim), C
 ## Matching
 
 Claim level, in order:
-1. CLP01 = our `patient_control_number` for this client → match.
+1. CLP01 = the claim's `patient_control_number` for this client (assigned by Cleanpost, or read from the PM in Mode A; see `claims.pcn_source`) → match.
 2. Payer claim control number already linked to a claim → match.
 3. Patient (name + DOB) + DOS + total charge + payer → candidate; one candidate = match with `matched_by: heuristic` (flag for review if the client setting requires); several = `ambiguous`.
 4. Otherwise `unmatched` → work item.
 
+Each matched claim records how it matched in `remit_claims.matched_by` (`pcn`, `payer_claim_number`, `heuristic`, `manual`).
+
 Line level: line control number (REF*6R) → exact. Otherwise code + modifiers + units + charge, in order. Unmatched lines → work item.
 
-## Balancing checks (must pass before posting)
+## Balancing checks
 
-- Per claim: `charge − paid − Σ adjustments = 0` (CAS amounts, all groups).
-- Per remittance: `Σ claim paid − Σ PLB = BPR payment amount`.
-- Failures → `out_of_balance` work item with the difference shown.
+Two checks with fixed names, used the same way in the UI (W-18, R-06, R-04):
+
+1. **835 balance** — runs right after parsing, before matching, posting or verification.
+   - Per claim: `charge − paid − Σ adjustments = 0` (CAS amounts, all groups).
+   - Per remittance: `Σ claim paid − Σ PLB = BPR payment amount`.
+   - Failure → remittance `out_of_balance` and an `out_of_balance` work item with the difference ("835 does not balance"). Nothing is posted or verified until it passes, or an admin accepts the difference with a reason; then only the claims that balance on their own continue.
+2. **Posting match** — runs after the PM (Modes A, C) or Cleanpost (Mode B) posts.
+   - Per line: paid amount, each adjustment (mapped to the PM's code) and patient responsibility equal the 835.
+   - Differences → `posting_exception` work items ("PM posting does not match"); the remittance is `posting_mismatch` until they are resolved, then `reconciled`.
 
 ## Adjustment mapping
 

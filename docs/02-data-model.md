@@ -1,15 +1,17 @@
 # 02 — Data model
 
-All tables: `id uuid (v7) pk`, `created_at`, `updated_at`. Every customer-data table has `tenant_id` with RLS. Rows scoped to a practice also have `client_id`. Money is `bigint` cents. Soft delete only where noted; claims, remits and audit records are never deleted.
+All tables: `id uuid (v7) pk`, `created_at`, `updated_at`. Every customer-data table has `tenant_id` with RLS, including child tables (`claim_lines`, `remit_lines`, `remit_adjustments`, ...): `tenant_id` is denormalized onto every row so each RLS policy checks one column. Rows scoped to a practice also have `client_id`. Money is `bigint` cents. Soft delete only where noted; claims, remits and audit records are never deleted.
+
+Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own tables, `payers`, `code_sets`, `ncci_edits`, `platform_banners`. They are read through their owning module only.
 
 ## Organization
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `tenants` | name, plan, status, billing_email, settings jsonb | Billing company |
-| `users` | email, name, mfa_enrolled, status | Global identity |
-| `memberships` | tenant_id, user_id, role (`admin`, `biller`, `viewer`), client_scope (all or list) | A user can belong to more than one tenant |
-| `clients` | tenant_id, name, tax_id (encrypted), billing_npi, taxonomy, address, timezone, status (`onboarding`, `live`, `paused`), default_mode (`A`,`B`,`C`), auto_release_threshold (0–100), go_live_at | A practice |
+| `tenants` | name (display), legal_name, address, phone, timezone, plan, status, billing_email, security_contact jsonb, billing_contact jsonb, settings jsonb (branding, notification defaults) | Billing company (S-14, S-10) |
+| `users` | email, name, mfa_enrolled, status | Global identity managed by better-auth, alongside its sessions, accounts, verification, two-factor and passkey tables. No PHI; reached only through the auth module |
+| `memberships` | tenant_id, user_id, role (`admin`, `biller`, `viewer`), client_scope (all or list) | A user can belong to more than one tenant. Extra RLS policy: a user can read their own memberships before a tenant is chosen (A-07) |
+| `clients` | tenant_id, name, tax_id (encrypted), billing_npi, taxonomy, address, timezone, status (`onboarding`, `live`, `paused`, `offboarded`), default_mode (`A`,`B`,`C`), auto_release_threshold (0–100), pm_batch_time (time, nullable: when the PM sends its daily batch; CL-03), go_live_at, offboarded_at | A practice |
 | `client_payer_settings` | client_id, payer_id, mode_override, auto_release_threshold_override, era_enrollment_status, edi_enrollment_status, timely_filing_days | Per client and payer |
 | `providers` | client_id, npi, name, taxonomy, role (`rendering`,`billing`,`referring`) | |
 | `locations` | client_id, name, address, place_of_service, npi | |
@@ -39,7 +41,7 @@ All tables: `id uuid (v7) pk`, `created_at`, `updated_at`. Every customer-data t
 | `encounters` | client_id, patient_id, external_ids, date_of_service, rendering_provider_id, location_id, referring_provider_id?, prior_auth_number?, status (`open`,`ready`,`claimed`,`void`) | |
 | `charge_lines` | encounter_id, external_id, code, modifiers text[4], diagnosis_pointers int[4], units, charge_cents, ndc?, line_note? | |
 | `diagnoses` | encounter_id, sequence, icd10 | |
-| `claims` | client_id, patient_id, encounter_id, payer_id, coverage_id, patient_control_number (unique per client), current_version_id, status, mode (`A`,`B`,`C`), total_charge_cents, balance_cents, filing_deadline | Logical claim |
+| `claims` | client_id, patient_id, encounter_id, payer_id, coverage_id, patient_control_number (unique per client), pcn_source (`cleanpost`,`pm`), current_version_id, status, mode (`A`,`B`,`C`), total_charge_cents, balance_cents, filing_deadline | Logical claim. In Mode A the PM's clearinghouse assigns the number sent to the payer (`pcn_source = pm`); it is read back from the PM and may be null until then |
 | `claim_versions` | claim_id, version, frequency_code (1,7,8), original_ref (payer claim control number for 7/8), payload jsonb (canonical 837 shape), scrub_result_id, created_by | Immutable after release |
 | `claim_lines` | claim_version_id, line_number, line_control_number, charge_line_id, code, modifiers, units, charge_cents, dx_pointers | |
 | `scrub_results` | claim_version_id, confidence (0–100), findings jsonb[], ai_summary, decision (`auto_release`,`review`,`blocked`), rules_version | |
@@ -50,7 +52,7 @@ All tables: `id uuid (v7) pk`, `created_at`, `updated_at`. Every customer-data t
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `remittances` | client_id, payer_id, source (`stedi`,`pm`,`file`), trace_number (check/EFT), payment_method (`ACH`,`CHK`,`NON`), payment_amount_cents, payment_date, raw_ref, status | One per 835 transaction/payment |
-| `remit_claims` | remittance_id, claim_id?, patient_control_number, payer_claim_control_number, claim_status_code, charge_cents, paid_cents, patient_resp_cents, match_status (`matched`,`unmatched`,`ambiguous`) | CLP |
+| `remit_claims` | remittance_id, claim_id?, patient_control_number, payer_claim_control_number, claim_status_code, charge_cents, paid_cents, patient_resp_cents, match_status (`matched`,`unmatched`,`ambiguous`), matched_by (`pcn`,`payer_claim_number`,`heuristic`,`manual`) | CLP |
 | `remit_lines` | remit_claim_id, claim_line_id?, code, modifiers, charge_cents, allowed_cents?, paid_cents, units, line_control_number | SVC |
 | `remit_adjustments` | remit_claim_id or remit_line_id, group_code (`CO`,`PR`,`OA`,`PI`,`CR`), carc, amount_cents, quantity | CAS |
 | `remit_remarks` | remit_claim_id or remit_line_id, rarc | LQ / MOA / MIA |
@@ -67,11 +69,19 @@ All tables: `id uuid (v7) pk`, `created_at`, `updated_at`. Every customer-data t
 | `corrections` | work_item_id, field_path, before jsonb, after jsonb, user_id, promoted_rule_id? | Training data for rules |
 | `rules` | scope (`global`,`tenant`,`client`,`payer`,`client_payer`), scope ids, name, kind (`validate`,`transform`,`route`), condition jsonb, action jsonb, severity, enabled, source (`seed`,`user`,`promoted`), version | |
 
+## Users, views and notification settings
+
+| Table | Key columns | Notes |
+| --- | --- | --- |
+| `user_preferences` | user_id, tenant_id, density (`compact`,`comfortable`), theme, digest_time, quiet_hours jsonb, shortcut_overrides jsonb, checklist jsonb | A-09, G-06, G-14 |
+| `saved_views` | user_id, tenant_id, surface (`work`,`claims`,`remittances`,`denials`), name, filters jsonb, sort jsonb | W-08, C-01 |
+| `notification_rules` | tenant_id, event_type, channels (`in_app`,`email`), recipients jsonb, threshold_cents?, enabled | S-09 |
+
 ## Integrations
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `connections` | client_id, adapter_key (`mock`,`manual`,`file`,`tebra`,...), level per operation jsonb, credentials_secret_ref, status (`setup`,`healthy`,`degraded`,`failed`,`paused`), last_success_at | Credentials live in Secrets Manager |
+| `connections` | client_id, adapter_key (`mock`,`manual`,`file`,`tebra`,...), level per operation jsonb (0–4 or `unavailable`), credentials_secret_ref, status (`setup`,`testing`,`healthy`,`degraded`,`failed`,`paused`), last_success_at | Credentials live in Secrets Manager |
 | `sync_runs` | connection_id, operation, started_at, finished_at, status, counts jsonb, error_code, error_detail (no PHI) | |
 | `external_refs` | connection_id, entity_type, entity_id, external_id | Maps PM IDs to canonical IDs |
 | `manual_tasks` | connection_id, operation, work_item_id, payload_ref, status | Tasks a biller completes in the PM by hand |
@@ -81,6 +91,12 @@ All tables: `id uuid (v7) pk`, `created_at`, `updated_at`. Every customer-data t
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `audit_events` | tenant_id, actor, action, entity_type, entity_id, ip, user_agent, at | Append-only; PHI reads included |
+| `tenant_agreements` | tenant_id, type (`baa`,`customer_agreement`), version, signed_at, storage_key | S-14 |
+| `exports` | tenant_id, client_id?, type (`report_pdf`,`report_csv`,`claims_csv`,`audit_csv`,`offboarding`), requested_by, status, storage_key, expires_at | RP-06, F-03, CL-11. PHI exports admin-only and audited |
+| `invoices` | tenant_id, number, period_start, period_end, amount_cents, status, provider_ref, due_at | S-11, E-07. Built in M7 with the billing provider |
+| `integration_requests` | tenant_id, pm_name, client_ids, operations, monthly_volume_estimate, created_by, status | I-05 |
+| `break_glass_grants` | tenant_id, operator_user_id, reason, granted_at, expires_at, revoked_at | OP-04. Written by the operator service; tenant admins can read their own |
+| `platform_banners` | type, message, starts_at, ends_at, affected jsonb (clients, payers, PMs), link | Global (no tenant). G-13 |
 | `usage_records` | tenant_id, client_id, date, claims_released, claims_by_mode jsonb | Invoicing |
 | `notifications` | user_id, type, entity ref, read_at | |
 | `webhook_events` | source, external_id (unique), received_at, processed_at, status | Idempotency for Stedi webhooks |
