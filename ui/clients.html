@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanpost UI · Clients and setup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/reference.css">
+</head>
+<body>
+<header class="ref-top">
+  <a class="brand" href="index.html"><span data-mark></span>Cleanpost UI</a>
+  <nav aria-label="Areas">
+    <a href="shell.html">Shell and states</a>
+    <a href="auth.html">Sign-in</a>
+    <a href="work.html">Work queue</a>
+    <a href="claims.html">Claims and patients</a>
+    <a href="money.html">Money in</a>
+    <a href="clients.html" class="active" aria-current="page">Clients and setup</a>
+    <a href="admin.html">Reports and admin</a>
+    <a href="outputs.html">Emails and PDFs</a>
+    <a href="website.html">Website</a>
+  </nav>
+  <button type="button" class="btn btn-secondary btn-sm" id="theme-toggle" style="margin-left:auto"><i data-lucide="moon"></i>Theme</button>
+</header>
+<div class="ref-body">
+<div class="ref-intro"><h1>Clients</h1><p>Each client is a practice the billing company serves. These views show how every client is doing, hold its settings, and let an admin change how its claims and payments flow.</p></div>
+
+<!-- ============================ CL-01 ============================ -->
+<section class="ref-view" id="CL-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-01</span><h2>Clients list</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>See every practice the billing company serves, how each is performing this month, and which need attention.</dd><dt>Data</dt><dd>clients (name, status, default_mode), connections (adapter_key, status), month-to-date claims released, first-pass acceptance and automation rate from report rollups, open work_items count per client.</dd><dt>Actions</dt><dd><ul><li>Row click opens the client overview (CL-02).</li><li>Add client opens the onboarding wizard at O-01.</li><li>Status and PM filters; search by client name.</li><li>Sort by any numeric column.</li></ul></dd><dt>States</dt><dd>Loading: table skeleton. No clients yet: empty state "Add your first client" with the wizard button. Onboarding clients show their wizard step instead of figures and link back into the wizard.</dd><dt>Rules</dt><dd>Billers see only clients in their client scope and do not see Add client. Health dot: green healthy, amber degraded or manual operations pending, red failed (failed connections sort first).</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="clients" data-client="All clients" data-role="admin" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <div class="page-head"><h1>Clients</h1><span class="muted">5 clients · 4 live · 1 onboarding</span><div class="actions"><button type="button" class="btn btn-primary"><i data-lucide="plus"></i>Add client</button></div></div>
+        <div class="filters"><label class="search" style="max-width:320px"><i data-lucide="search"></i><span class="sr-only">Find client</span><input type="search" placeholder="Find client"></label><button type="button" class="filter-chip on">All <span class="n">5</span></button><button type="button" class="filter-chip">Live <span class="n">4</span></button><button type="button" class="filter-chip">Onboarding <span class="n">1</span></button><button type="button" class="filter-chip">Paused <span class="n">0</span></button><span class="spacer"></span><button type="button" class="filter-select">PM: <b>Any</b><i data-lucide="chevron-down"></i></button></div>
+        <div class="card flush"><div class="table-wrap"><table class="table nowrap">
+          <thead><tr><th>Client</th><th>PM system</th><th>Mode</th><th>Status</th><th class="num">Claims this month</th><th class="num">First-pass accepted</th><th class="num">Released without review</th><th class="num">Open items</th><th>Connection</th></tr></thead>
+          <tbody><tr><td><a href="#CL-02"><b>Lakeside Family Medicine</b></a></td><td>Tebra</td><td><span class="mode">Mode A</span></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span></td><td class="num">1,284</td><td class="num">97.1%</td><td class="num">68%</td><td class="num">9</td><td><span class="row"><span class="dot good"></span>Healthy</span></td></tr><tr><td><a href="#CL-02"><b>Willamette Ortho</b></a></td><td>Tebra</td><td><span class="mode">Mode C</span></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span></td><td class="num">842</td><td class="num">96.4%</td><td class="num">61%</td><td class="num">6</td><td><span class="row"><span class="dot good"></span>Healthy</span></td></tr><tr><td><a href="#CL-02"><b>Cascade Pediatrics</b></a></td><td>AdvancedMD</td><td><span class="mode">Mode B</span></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span></td><td class="num">2,106</td><td class="num">98.0%</td><td class="num">74%</td><td class="num">11</td><td><span class="row"><span class="dot warn"></span>Degraded</span></td></tr><tr><td><a href="#CL-02"><b>Riverbend Counseling</b></a></td><td>SimplePractice</td><td><span class="mode">Mode A</span></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span></td><td class="num">612</td><td class="num">95.2%</td><td class="num">52%</td><td class="num">4</td><td><span class="row"><span class="dot warn"></span>Manual posting</span></td></tr><tr><td><a href="#CL-02"><b>Harbor Dermatology</b></a></td><td>athenaOne</td><td><span class="mode">Mode A</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Onboarding</span></td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td><span class="subtle">Step 4 of 10</span></td></tr></tbody></table></div>
+          <div class="table-foot"><span>Month to date, Oct 1 to Oct 29</span></div></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-02 ============================ -->
+<section class="ref-view" id="CL-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-02</span><h2>Client overview</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/:id</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>One place to see how a client is doing against its onboarding baseline and what needs attention.</dd><dt>Data</dt><dd>clients, connections (status, last_success_at), report rollups for the client (collections, first-pass acceptance, denial rate, days in A/R, automation rate), baseline recorded at onboarding, open work_items grouped by type, primary and backup biller from memberships.</dd><dt>Actions</dt><dd>Tabs switch to CL-03 to CL-07. Pause client (CL-08). Client report opens RP-02 filtered to this client. Open items rows link into the work queue filtered by client and type.</dd><dt>States</dt><dd>Paused: warning banner across the top with Resume. Connection degraded or failed: banner with Reconnect (admins). First 30 days: baseline comparison replaced by "Baseline comparison starts after 30 days live".</dd><dt>Rules</dt><dd>Billers can view but not edit settings tabs. Figures are month to date unless the range picker is changed.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="clients" data-client="Lakeside Family Medicine" data-role="admin" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <a class="breadcrumb" href="#CL-01"><i data-lucide="arrow-left"></i>Clients</a>
+        <div class="page-head"><div class="stack-sm" style="gap:4px"><h1>Lakeside Family Medicine</h1><div class="row dense muted"><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span><span class="mode">Mode A</span><span>Tebra</span>·<span class="row"><span class="dot good"></span>Connection healthy, last sync 2:15 pm</span>·<span>Live since Aug 4, 2026</span></div></div><div class="actions"><button type="button" class="btn btn-secondary"><i data-lucide="pause"></i>Pause client</button><button type="button" class="btn btn-secondary"><i data-lucide="file-text"></i>Client report</button></div></div>
+        <nav class="tabs" aria-label="Client sections"><a href="#" class="active" aria-current="page">Overview</a><a href="#" class="">Settings</a><a href="#" class="">Providers and locations</a><a href="#" class="">Payers</a><a href="#" class="">Adjustment mappings</a><a href="#" class="">Activity</a></nav>
+        <div class="kpis">
+          <div class="kpi"><div class="kpi-label">Collections, month to date</div><div class="kpi-value">$186,420</div><div class="kpi-delta good">+11% vs baseline month</div></div>
+          <div class="kpi"><div class="kpi-label">First-pass accepted</div><div class="kpi-value">97.1%</div><div class="kpi-delta good">Baseline 89.0%</div></div>
+          <div class="kpi"><div class="kpi-label">Denial rate</div><div class="kpi-value">4.2%</div><div class="kpi-delta good">Baseline 9.8%</div></div>
+          <div class="kpi"><div class="kpi-label">Days in A/R</div><div class="kpi-value">24</div><div class="kpi-delta good">Baseline 38</div></div>
+          <div class="kpi"><div class="kpi-label">Released without review</div><div class="kpi-value">68%</div><div class="kpi-delta">Threshold 90</div></div>
+        </div>
+        <div class="grid-2" style="grid-template-columns:minmax(0,3fr) minmax(0,2fr)">
+          <div class="card"><div class="card-head"><h2>First-pass acceptance by week</h2><span class="spacer"></span><span class="subtle">Since go-live</span></div><div class="card-body"><svg class="chart-svg" viewBox="0 0 520 170" role="img" aria-label="First-pass acceptance by week, rising from 89 percent to 97 percent">
+  <line class="grid" x1="40" y1="20" x2="510" y2="20"/><line class="grid" x1="40" y1="70" x2="510" y2="70"/><line class="grid" x1="40" y1="120" x2="510" y2="120"/>
+  <text class="axis" x="32" y="24" text-anchor="end">100%</text><text class="axis" x="32" y="74" text-anchor="end">95%</text><text class="axis" x="32" y="124" text-anchor="end">90%</text>
+  <polyline fill="none" stroke="var(--chart-1)" stroke-width="2" points="50,130 92,122 134,112 176,100 218,92 260,86 302,74 344,64 386,58 428,54 470,49 505,49"/>
+  <circle cx="505" cy="49" r="4" fill="var(--chart-1)"/>
+  <line x1="40" y1="130" x2="510" y2="130" stroke="var(--ink-subtle)" stroke-dasharray="3 3" stroke-width="1"/>
+  <text class="axis" x="44" y="146">Baseline 89.0%</text>
+  <text class="axis" x="50" y="164">Aug 4</text><text class="axis" x="260" y="164" text-anchor="middle">Sep 14</text><text class="axis" x="505" y="164" text-anchor="end">Oct 26</text>
+</svg></div></div>
+          <div class="stack">
+            <div class="card"><div class="card-head"><h2>Open items</h2><span class="spacer"></span><a href="work.html#W-01" class="dense">Open in queue</a></div>
+              <div class="card-body flush" style="padding:0"><table class="table"><tbody>
+                <tr><td>Claim reviews</td><td class="num">4</td><td><span class="due">Due today</span></td></tr>
+                <tr><td>Rejections</td><td class="num">2</td><td><span class="due soon">2 h</span></td></tr>
+                <tr><td>Denials</td><td class="num">2</td><td><span class="due">Tomorrow</span></td></tr>
+                <tr><td>Posting differences</td><td class="num">1</td><td><span class="due">2 d</span></td></tr>
+              </tbody></table></div></div>
+            <div class="card"><div class="card-head"><h2>Team and setup</h2></div><div class="card-body"><dl class="kv">
+              <dt>Primary biller</dt><dd><span class="row"><span class="avatar sm">DR</span>Dana Reyes</span></dd>
+              <dt>Backup biller</dt><dd><span class="row"><span class="avatar sm">ML</span>Marcus Lee</span></dd>
+              <dt>PM batch time</dt><dd>6:00 pm PT daily</dd>
+              <dt>Release threshold</dt><dd>90</dd>
+              <dt>Payers</dt><dd>9 mapped · 0 unmapped</dd>
+            </dl></div></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-03 ============================ -->
+<section class="ref-view" id="CL-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-03</span><h2>Client settings</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /clients/:id/settings</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Change how Cleanpost runs this client: release threshold, mode, PM batch timing and who works it.</dd><dt>Data</dt><dd>clients (default_mode, auto_release_threshold, timezone), client settings (pm_batch_time, quiet period, review-everything until), memberships with primary and backup biller, last 30 days of scrub_results to simulate the threshold.</dd><dt>Actions</dt><dd><ul><li>Threshold slider updates the simulation line live.</li><li>Change mode opens CL-09.</li><li>Review everything until a date (switch plus date).</li><li>Save changes (sticky footer appears when the form is dirty); Discard.</li></ul></dd><dt>States</dt><dd>Unsaved changes: footer bar with count of changes. Save in progress: button spinner. Save error: inline banner, values kept.</dd><dt>Rules</dt><dd>Admins only. Every change is audited and shown in CL-07. Threshold changes apply to claims scrubbed after saving, never to claims already released.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="clients" data-client="Lakeside Family Medicine" data-role="admin" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <a class="breadcrumb" href="#CL-01"><i data-lucide="arrow-left"></i>Clients</a>
+        <div class="page-head"><div class="stack-sm" style="gap:4px"><h1>Lakeside Family Medicine</h1><div class="row dense muted"><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span><span class="mode">Mode A</span><span>Tebra</span>·<span class="row"><span class="dot good"></span>Connection healthy, last sync 2:15 pm</span>·<span>Live since Aug 4, 2026</span></div></div><div class="actions"><button type="button" class="btn btn-secondary"><i data-lucide="pause"></i>Pause client</button><button type="button" class="btn btn-secondary"><i data-lucide="file-text"></i>Client report</button></div></div>
+        <nav class="tabs" aria-label="Client sections"><a href="#" class="">Overview</a><a href="#" class="active" aria-current="page">Settings</a><a href="#" class="">Providers and locations</a><a href="#" class="">Payers</a><a href="#" class="">Adjustment mappings</a><a href="#" class="">Activity</a></nav>
+        <div class="stack" style="max-width:860px">
+          <div class="card"><div class="card-head"><h2>Automation</h2></div><div class="card-body stack">
+            <div class="field"><span class="label">Release threshold</span>
+              <div class="row" style="flex-wrap:nowrap;gap:16px"><div class="slider" style="flex:1"><div class="fill" style="width:90%"></div><div class="thumb" style="left:90%"></div></div><input class="input" style="width:72px" aria-label="Threshold value" value="85"></div>
+              <span class="help">Claims scoring at or above this go out without review. At 85, 74% of last month's 1,284 claims would have gone out without review (now 68% at 90).</span></div>
+            <div class="row-between"><label class="check"><span class="switch"></span>Review everything until a date</label><span class="subtle">Off</span></div>
+            <div class="row-between"><span class="check"><span class="switch on"></span>Apply safe automatic fixes (formatting, known payer IDs)</span><span class="subtle">On</span></div>
+          </div></div>
+          <div class="card"><div class="card-head"><h2>Claims flow</h2></div><div class="card-body"><dl class="kv">
+            <dt>Mode</dt><dd class="row"><span class="mode">Mode A</span>Tebra sends, Cleanpost checks <button type="button" class="btn btn-ghost btn-sm">Change mode</button></dd>
+            <dt>PM batch time</dt><dd><input class="input" style="width:140px" aria-label="PM batch time" value="6:00 pm"> <span class="help">Cleanpost finishes scrubbing 30 minutes before this.</span></dd>
+            <dt>Charges ready after</dt><dd><select class="select" style="width:200px" aria-label="Quiet period"><option>2 hours with no changes</option></select></dd>
+          </dl></div></div>
+          <div class="card"><div class="card-head"><h2>Team</h2></div><div class="card-body form-grid">
+            <div class="field"><label for="cl3p">Primary biller</label><select id="cl3p" class="select"><option>Dana Reyes</option></select></div>
+            <div class="field"><label for="cl3b">Backup biller</label><select id="cl3b" class="select"><option>Marcus Lee</option></select></div>
+          </div></div>
+          <div class="toast" style="background:var(--surface);color:var(--ink);border:1px solid var(--border);align-self:flex-start"><span><b>1 unsaved change</b> · threshold 90 to 85</span><button type="button" class="btn btn-secondary btn-sm">Discard</button><button type="button" class="btn btn-primary btn-sm">Save changes</button></div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-04 ============================ -->
+<section class="ref-view" id="CL-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-04</span><h2>Providers and locations</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /clients/:id/providers</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Keep the NPIs, taxonomies and locations that go on claims correct.</dd><dt>Data</dt><dd>providers (npi, name, taxonomy, role), locations (name, address, place_of_service, npi), NPPES lookup status, last seen on a claim.</dd><dt>Actions</dt><dd>Add provider (NPI lookup fills name and taxonomy); Edit; Deactivate (kept on historical claims). Add location; Edit.</dd><dt>States</dt><dd>NPI not found in NPPES: error with Retry. NPPES taxonomy differs from ours: warning with Use NPPES value. Provider seen on charges but not set up: listed under "Needs setup".</dd><dt>Rules</dt><dd>NPIs validated with the Luhn check before lookup. Changes affect claims built after saving. Audited.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="clients" data-client="Lakeside Family Medicine" data-role="admin" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <a class="breadcrumb" href="#CL-01"><i data-lucide="arrow-left"></i>Clients</a>
+        <div class="page-head"><div class="stack-sm" style="gap:4px"><h1>Lakeside Family Medicine</h1><div class="row dense muted"><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span><span class="mode">Mode A</span><span>Tebra</span>·<span class="row"><span class="dot good"></span>Connection healthy, last sync 2:15 pm</span>·<span>Live since Aug 4, 2026</span></div></div><div class="actions"><button type="button" class="btn btn-secondary"><i data-lucide="pause"></i>Pause client</button><button type="button" class="btn btn-secondary"><i data-lucide="file-text"></i>Client report</button></div></div>
+        <nav class="tabs" aria-label="Client sections"><a href="#" class="">Overview</a><a href="#" class="">Settings</a><a href="#" class="active" aria-current="page">Providers and locations</a><a href="#" class="">Payers</a><a href="#" class="">Adjustment mappings</a><a href="#" class="">Activity</a></nav>
+        <div class="banner warn"><i data-lucide="triangle-alert"></i><span><b>1 provider needs setup.</b> Charges from NPI <span class="code">1548392011</span> arrived in the last sync and are held until the provider is added.</span><span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm">Set up provider</button></div>
+        <div class="card flush"><div class="card-head"><h2>Providers</h2><span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="plus"></i>Add provider</button></div><div class="table-wrap"><table class="table nowrap">
+          <thead><tr><th>Name</th><th>NPI</th><th>Taxonomy</th><th>Role</th><th>NPPES</th><th>Last claim</th><th></th></tr></thead><tbody>
+          <tr><td><b>Lakeside Family Medicine PC</b></td><td class="code">1659384210</td><td class="code">261QP2300X</td><td>Billing</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Verified</span></td><td>Today</td><td><button type="button" class="icon-btn ghost" aria-label="Edit"><i data-lucide="pencil"></i></button></td></tr>
+          <tr><td><b>Maria Ortega, MD</b></td><td class="code">1932204417</td><td class="code">207Q00000X</td><td>Rendering</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Verified</span></td><td>Today</td><td><button type="button" class="icon-btn ghost" aria-label="Edit"><i data-lucide="pencil"></i></button></td></tr>
+          <tr><td><b>Kevin Brandt, DO</b></td><td class="code">1720094456</td><td class="code">207Q00000X</td><td>Rendering</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Verified</span></td><td>Yesterday</td><td><button type="button" class="icon-btn ghost" aria-label="Edit"><i data-lucide="pencil"></i></button></td></tr>
+          <tr><td><b>Alicia Park, NP</b></td><td class="code">1386621907</td><td class="code">363LF0000X</td><td>Rendering</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Taxonomy differs</span></td><td>Oct 27</td><td><button type="button" class="icon-btn ghost" aria-label="Edit"><i data-lucide="pencil"></i></button></td></tr>
+          </tbody></table></div></div>
+        <div class="card flush"><div class="card-head"><h2>Locations</h2><span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="plus"></i>Add location</button></div><div class="table-wrap"><table class="table nowrap">
+          <thead><tr><th>Name</th><th>Address</th><th>Place of service</th><th>Location NPI</th><th></th></tr></thead><tbody>
+          <tr><td><b>Main clinic</b></td><td>2210 Pacific Blvd SE, Albany, OR 97321</td><td><span class="code">11</span> Office</td><td class="code">1659384210</td><td><button type="button" class="icon-btn ghost" aria-label="Edit"><i data-lucide="pencil"></i></button></td></tr>
+          <tr><td><b>Telehealth</b></td><td>—</td><td><span class="code">10</span> Telehealth in patient's home</td><td class="code">1659384210</td><td><button type="button" class="icon-btn ghost" aria-label="Edit"><i data-lucide="pencil"></i></button></td></tr>
+          </tbody></table></div></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-05 ============================ -->
+<section class="ref-view" id="CL-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-05</span><h2>Payers</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /clients/:id/payers</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Map each payer the client bills to a Stedi payer ID and set mode overrides, timely filing limits and enrollment.</dd><dt>Data</dt><dd>client_payer_settings joined with payers (stedi_payer_id, name, enrollment_required), claim counts last 90 days, era_enrollment_status, edi_enrollment_status, timely_filing_days.</dd><dt>Actions</dt><dd>Map unmapped payer (payer search combobox); Edit row (mode override, timely filing days); ERA enrollment opens CL-10.</dd><dt>States</dt><dd>Unmapped payer seen in PM data: listed first with a warning chip; its claims hold until mapped. Payer with Mode B override but ERA not active: shows "C until ERA active".</dd><dt>Rules</dt><dd>Timely filing default: 90 days commercial, 365 Medicare; editable. Mode overrides only offer modes the adapter supports.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="clients" data-client="Lakeside Family Medicine" data-role="admin" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <a class="breadcrumb" href="#CL-01"><i data-lucide="arrow-left"></i>Clients</a>
+        <div class="page-head"><div class="stack-sm" style="gap:4px"><h1>Lakeside Family Medicine</h1><div class="row dense muted"><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span><span class="mode">Mode A</span><span>Tebra</span>·<span class="row"><span class="dot good"></span>Connection healthy, last sync 2:15 pm</span>·<span>Live since Aug 4, 2026</span></div></div><div class="actions"><button type="button" class="btn btn-secondary"><i data-lucide="pause"></i>Pause client</button><button type="button" class="btn btn-secondary"><i data-lucide="file-text"></i>Client report</button></div></div>
+        <nav class="tabs" aria-label="Client sections"><a href="#" class="">Overview</a><a href="#" class="">Settings</a><a href="#" class="">Providers and locations</a><a href="#" class="active" aria-current="page">Payers</a><a href="#" class="">Adjustment mappings</a><a href="#" class="">Activity</a></nav>
+        <div class="banner warn"><i data-lucide="triangle-alert"></i><span><b>"PROVIDENCE HLTH PLN" is not mapped.</b> 3 claims are held until it is matched to a payer.</span><span class="spacer"></span><button type="button" class="btn btn-primary btn-sm">Map payer</button></div>
+        <div class="card flush"><div class="card-head"><h2>9 payers</h2><span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm">ERA enrollment</button></div><div class="table-wrap"><table class="table nowrap">
+          <thead><tr><th>Payer</th><th>Stedi payer ID</th><th>Mode</th><th>ERA enrollment</th><th>Timely filing</th><th class="num">Claims, 90 days</th><th></th></tr></thead>
+          <tbody><tr class="row-warn"><td><b>PROVIDENCE HLTH PLN</b> <span class="subtle">as named in Tebra</span></td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Unmapped</span></td><td>—</td><td>—</td><td>—</td><td class="num">3</td><td><button type="button" class="btn btn-secondary btn-sm">Map</button></td></tr><tr><td><b>Medicare (Noridian JF)</b></td><td class="code">01112</td><td>Follows client (A)</td><td class="muted">Not needed in Mode A</td><td>365 days</td><td class="num">412</td><td><button type="button" class="icon-btn ghost" aria-label="Edit Medicare (Noridian JF)"><i data-lucide="pencil"></i></button></td></tr><tr><td><b>Regence BlueCross BlueShield</b></td><td class="code">00851</td><td>Follows client (A)</td><td class="muted">Not needed in Mode A</td><td>365 days</td><td class="num">388</td><td><button type="button" class="icon-btn ghost" aria-label="Edit Regence BlueCross BlueShield"><i data-lucide="pencil"></i></button></td></tr><tr><td><b>Oregon Health Plan</b></td><td class="code">ORDHS</td><td>Follows client (A)</td><td class="muted">Not needed in Mode A</td><td>120 days</td><td class="num">301</td><td><button type="button" class="icon-btn ghost" aria-label="Edit Oregon Health Plan"><i data-lucide="pencil"></i></button></td></tr><tr><td><b>UnitedHealthcare</b></td><td class="code">87726</td><td>Follows client (A)</td><td class="muted">Not needed in Mode A</td><td>90 days</td><td class="num">214</td><td><button type="button" class="icon-btn ghost" aria-label="Edit UnitedHealthcare"><i data-lucide="pencil"></i></button></td></tr><tr><td><b>Aetna</b></td><td class="code">60054</td><td>Follows client (A)</td><td class="muted">Not needed in Mode A</td><td>120 days</td><td class="num">133</td><td><button type="button" class="icon-btn ghost" aria-label="Edit Aetna"><i data-lucide="pencil"></i></button></td></tr><tr><td><b>Moda Health</b></td><td class="code">93221</td><td>Follows client (A)</td><td class="muted">Not needed in Mode A</td><td>90 days</td><td class="num">97</td><td><button type="button" class="icon-btn ghost" aria-label="Edit Moda Health"><i data-lucide="pencil"></i></button></td></tr><tr><td><b>PacificSource</b></td><td class="code">93245</td><td>Follows client (A)</td><td class="muted">Not needed in Mode A</td><td>180 days</td><td class="num">64</td><td><button type="button" class="icon-btn ghost" aria-label="Edit PacificSource"><i data-lucide="pencil"></i></button></td></tr></tbody></table></div></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-06 ============================ -->
+<section class="ref-view" id="CL-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-06</span><h2>Adjustment mappings</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /clients/:id/mappings</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show how each 835 adjustment code is posted in this client's PM, and let an admin override the PM-type defaults for this client.</dd><dt>Data</dt><dd>adjustment_mappings for the PM type (tenant default) and client overrides; group code, CARC, plain meaning, PM adjustment code, action; count of lines posted with each in 90 days.</dd><dt>Actions</dt><dd>Edit opens R-07 scoped to this client; Reset to default (on overrides); filter Unmapped only.</dd><dt>States</dt><dd>Unmapped codes seen in the last 90 days are listed first with a warning chip and the number of held lines.</dd><dt>Rules</dt><dd>Denial codes default to "Leave open" so balances stay in A/R for the denial work item. Changes apply to postings after saving.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="clients" data-client="Lakeside Family Medicine" data-role="admin" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <a class="breadcrumb" href="#CL-01"><i data-lucide="arrow-left"></i>Clients</a>
+        <div class="page-head"><div class="stack-sm" style="gap:4px"><h1>Lakeside Family Medicine</h1><div class="row dense muted"><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span><span class="mode">Mode A</span><span>Tebra</span>·<span class="row"><span class="dot good"></span>Connection healthy, last sync 2:15 pm</span>·<span>Live since Aug 4, 2026</span></div></div><div class="actions"><button type="button" class="btn btn-secondary"><i data-lucide="pause"></i>Pause client</button><button type="button" class="btn btn-secondary"><i data-lucide="file-text"></i>Client report</button></div></div>
+        <nav class="tabs" aria-label="Client sections"><a href="#" class="">Overview</a><a href="#" class="">Settings</a><a href="#" class="">Providers and locations</a><a href="#" class="">Payers</a><a href="#" class="active" aria-current="page">Adjustment mappings</a><a href="#" class="">Activity</a></nav>
+        <div class="filters"><button type="button" class="filter-chip on">All <span class="n">34</span></button><button type="button" class="filter-chip">Overrides <span class="n">1</span></button><button type="button" class="filter-chip">Unmapped <span class="n">0</span></button><span class="spacer"></span><span class="subtle">Defaults come from Settings › Adjustment mappings for Tebra.</span></div>
+        <div class="card flush"><div class="table-wrap"><table class="table nowrap">
+          <thead><tr><th>Code</th><th>Meaning</th><th>Tebra adjustment code</th><th>Action</th><th>Source</th><th></th></tr></thead><tbody><tr><td><span class="codechip">CO-45</span></td><td>Charge exceeds fee schedule</td><td>CONTR · Contractual</td><td>Adjust off</td><td><span class="subtle">Tebra default</span></td><td><button type="button" class="icon-btn ghost" aria-label="Edit CO-45"><i data-lucide="pencil"></i></button></td></tr><tr><td><span class="codechip">PR-1</span></td><td>Deductible</td><td>PTRESP · Patient responsibility</td><td>Transfer to patient</td><td><span class="subtle">Tebra default</span></td><td><button type="button" class="icon-btn ghost" aria-label="Edit PR-1"><i data-lucide="pencil"></i></button></td></tr><tr><td><span class="codechip">PR-2</span></td><td>Coinsurance</td><td>PTRESP · Patient responsibility</td><td>Transfer to patient</td><td><span class="subtle">Tebra default</span></td><td><button type="button" class="icon-btn ghost" aria-label="Edit PR-2"><i data-lucide="pencil"></i></button></td></tr><tr><td><span class="codechip">PR-3</span></td><td>Copay</td><td>COPAY · Copay</td><td>Transfer to patient</td><td><span class="tag">Client override</span></td><td><button type="button" class="icon-btn ghost" aria-label="Edit PR-3"><i data-lucide="pencil"></i></button></td></tr><tr><td><span class="codechip">OA-23</span></td><td>Prior payer adjudication</td><td>XFRSEC · Transfer to secondary</td><td>Transfer to secondary</td><td><span class="subtle">Tebra default</span></td><td><button type="button" class="icon-btn ghost" aria-label="Edit OA-23"><i data-lucide="pencil"></i></button></td></tr><tr><td><span class="codechip">CO-197</span></td><td>Precertification or authorization absent</td><td>—</td><td>Leave open (denial)</td><td><span class="subtle">Tebra default</span></td><td><button type="button" class="icon-btn ghost" aria-label="Edit CO-197"><i data-lucide="pencil"></i></button></td></tr><tr><td><span class="codechip">CO-4</span></td><td>Modifier inconsistent with procedure</td><td>—</td><td>Leave open (denial)</td><td><span class="subtle">Tebra default</span></td><td><button type="button" class="icon-btn ghost" aria-label="Edit CO-4"><i data-lucide="pencil"></i></button></td></tr></tbody></table></div>
+          <div class="table-foot"><span>Showing 7 of 34</span></div></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-07 ============================ -->
+<section class="ref-view" id="CL-07">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-07</span><h2>Client activity</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /clients/:id/activity</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>A readable history of settings changes, connection events and go-live milestones for this client.</dd><dt>Data</dt><dd>audit_events filtered to the client's settings entities, connection status transitions, client status transitions.</dd><dt>Actions</dt><dd>Filter by kind (settings, connection, status) and person; Export CSV (admins).</dd><dt>States</dt><dd>Empty for a new client: "Changes to this client will appear here."</dd><dt>Rules</dt><dd>Shows settings and system events only. PHI views are in the audit log (S-13), not here.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="clients" data-client="Lakeside Family Medicine" data-role="admin" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <a class="breadcrumb" href="#CL-01"><i data-lucide="arrow-left"></i>Clients</a>
+        <div class="page-head"><div class="stack-sm" style="gap:4px"><h1>Lakeside Family Medicine</h1><div class="row dense muted"><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span><span class="mode">Mode A</span><span>Tebra</span>·<span class="row"><span class="dot good"></span>Connection healthy, last sync 2:15 pm</span>·<span>Live since Aug 4, 2026</span></div></div><div class="actions"><button type="button" class="btn btn-secondary"><i data-lucide="pause"></i>Pause client</button><button type="button" class="btn btn-secondary"><i data-lucide="file-text"></i>Client report</button></div></div>
+        <nav class="tabs" aria-label="Client sections"><a href="#" class="">Overview</a><a href="#" class="">Settings</a><a href="#" class="">Providers and locations</a><a href="#" class="">Payers</a><a href="#" class="">Adjustment mappings</a><a href="#" class="active" aria-current="page">Activity</a></nav>
+        <div class="filters"><button type="button" class="filter-chip on">All</button><button type="button" class="filter-chip">Settings</button><button type="button" class="filter-chip">Connection</button><button type="button" class="filter-chip">Status</button><span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="download"></i>Export CSV</button></div>
+        <div class="card" style="max-width:860px"><div class="card-body"><ol class="timeline"><li><span class="tl-dot info"></span><div><div class="tl-title">Release threshold changed from 90 to 85</div><div class="tl-meta">Priya Shah · Today 11:42 am</div></div></li><li><span class="tl-dot warn"></span><div><div class="tl-title">Connection degraded: claim status pull failing</div><div class="tl-meta">Automation · Oct 27, 6:00 am · resolved 6:30 am</div></div></li><li><span class="tl-dot info"></span><div><div class="tl-title">Payer "Moda Health" timely filing set to 90 days</div><div class="tl-meta">Priya Shah · Oct 21, 3:10 pm</div></div></li><li><span class="tl-dot info"></span><div><div class="tl-title">Adjustment mapping PR-3 overridden to COPAY</div><div class="tl-meta">Julia Beam · Oct 14, 9:02 am</div></div></li><li><span class="tl-dot good"></span><div><div class="tl-title">Review everything turned off</div><div class="tl-meta">Priya Shah · Aug 18, 8:00 am</div></div></li><li><span class="tl-dot good"></span><div><div class="tl-title">Client went live in Mode A</div><div class="tl-meta">Julia Beam · Aug 4, 10:15 am</div></div></li></ol></div></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-08 ============================ -->
+<section class="ref-view" id="CL-08">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-08</span><h2>Pause client</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Stop Cleanpost from sending anything for a client while keeping its data current.</dd><dt>Data</dt><dd>Client name, claims currently ready or in review, open work items.</dd><dt>Actions</dt><dd>Reason (required select), optional note, Resume on date (optional), Pause client.</dd><dt>States</dt><dd>Paused clients show a banner on every client screen and their work items are marked "Client paused".</dd><dt>Rules</dt><dd>Admins only. Syncing continues; releases, postings and PM write-backs stop. Audited.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:700px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal " role="dialog"><div class="modal-head"><div><h2>Pause Lakeside Family Medicine?</h2><p class="muted dense">Nothing will be sent to payers or written to Tebra until you resume.</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <dl class="kv"><dt>Keeps running</dt><dd>Syncing charges, claim status and payments; eligibility checks</dd><dt>Stops</dt><dd>Releasing 41 ready claims, posting, corrections written to Tebra</dd></dl>
+        <div class="field"><label for="cl8r">Reason</label><select id="cl8r" class="select"><option>Practice asked us to hold billing</option><option>Contract or payment issue</option><option>Data problem under investigation</option><option>Other</option></select></div>
+        <div class="field"><label for="cl8d">Resume automatically on</label><input id="cl8d" class="input" style="width:200px" placeholder="Optional date"></div>
+        <div class="field"><label for="cl8n">Note</label><textarea id="cl8n" class="textarea" placeholder="Shown on the client's activity tab"></textarea></div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Pause client</button></div></div></div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-09 ============================ -->
+<section class="ref-view" id="CL-09">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-09</span><h2>Change mode</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Switch how a client's claims leave and payments come back, with the consequences spelled out first.</dd><dt>Data</dt><dd>Current mode, modes the adapter supports (capabilities), in-flight claims by mode, per-payer ERA enrollment status, whether the adapter supports markChargeBilled.</dd><dt>Actions</dt><dd>Pick target mode; confirm PM claim submission is turned off (B and C, when markChargeBilled is unsupported); Start ERA enrollment (B); Change mode.</dd><dt>States</dt><dd>Unsupported modes disabled with the reason. Mode B with payers not yet enrolled: those payers run as Mode C until enrollment is active (listed).</dd><dt>Rules</dt><dd>Applies to claims released after the change; in-flight claims finish in the mode they were released in. Admins only. Audited.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:780px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal lg" role="dialog"><div class="modal-head"><div><h2>Change mode for Lakeside Family Medicine</h2><p class="muted dense">Currently <span class="mode">Mode A</span> Tebra sends, Cleanpost checks</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <div class="grid-3">
+          <button type="button" class="option-card"><span class="row"><span class="mode">Mode A</span><span class="tag">Current</span></span><b>Tebra sends, Cleanpost checks</b></button>
+          <button type="button" class="option-card"><span class="mode">Mode B</span><b>Cleanpost sends and posts</b><span class="subtle">Needs ERA enrollment for 7 payers</span></button>
+          <button type="button" class="option-card selected" aria-pressed="true"><span class="mode">Mode C</span><b>Cleanpost sends, Tebra posts</b><span class="subtle">No ERA changes</span></button>
+        </div>
+        <div class="callout stack-sm"><b>What changes in Mode C</b><ul style="margin:0;padding-left:18px"><li>Claims released after you save go out through Stedi from Cleanpost.</li><li>Payments keep arriving in Tebra and are auto-posted there; Cleanpost checks every line.</li><li>41 claims already sent by Tebra finish in Mode A.</li></ul></div>
+        <div class="banner warn"><i data-lucide="triangle-alert"></i><span>Cleanpost cannot mark charges as billed in Tebra yet. Turn off electronic claim submission in Tebra for this practice so claims are not sent twice.</span></div>
+        <label class="check"><input type="checkbox">I have turned off electronic claim submission in Tebra for Lakeside Family Medicine</label>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary" disabled>Change to Mode C</button></div></div></div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-10 ============================ -->
+<section class="ref-view" id="CL-10">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-10</span><h2>ERA enrollment tracker</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Track moving each payer's electronic remittances to Stedi so the client can run in Mode B.</dd><dt>Data</dt><dd>client_payer_settings.era_enrollment_status per payer, Stedi transaction enrollment API status, submitted date, requirements (one-click, paper form, signature).</dd><dt>Actions</dt><dd>Start enrollment (one-click payers, via Stedi enrollment API); Download form (paper payers); Mark signed and uploaded; Refresh status.</dd><dt>States</dt><dd>Each payer runs as Mode C until its status is Active, then moves to Mode B automatically and logs it.</dd><dt>Rules</dt><dd>A provider can receive ERAs from only one clearinghouse per payer; the drawer says so before the first enrollment is started.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:720px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="drawer wide" role="dialog"><div class="drawer-head"><div><h2>ERA enrollment · Cascade Pediatrics</h2><p class="muted dense">2 of 6 payers active in Mode B</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="drawer-body">
+        <div class="callout dense">A provider can receive electronic remittances from only one clearinghouse per payer. Enrolling with Stedi stops them arriving through the PM's clearinghouse for that payer.</div>
+        <table class="table"><thead><tr><th>Payer</th><th>Status</th><th>Submitted</th><th>Next</th></tr></thead><tbody><tr><td><b>Medicare (Noridian JF)</b></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>Submitted</span></td><td>Oct 28</td><td class="muted">Noridian reviews in about 10 business days</td></tr><tr><td><b>Regence BlueCross BlueShield</b></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Active</span></td><td>Oct 22</td><td class="muted">Moved to Mode B on Oct 24</td></tr><tr><td><b>Oregon Health Plan</b></td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Needs signature</span></td><td>—</td><td class="muted">Paper form must be signed by the practice owner</td></tr><tr><td><b>UnitedHealthcare</b></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Active</span></td><td>Oct 22</td><td class="muted">Moved to Mode B on Oct 23</td></tr><tr><td><b>Aetna</b></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>Submitted</span></td><td>Oct 28</td><td class="muted">One-click enrollment, usually 3 to 5 days</td></tr><tr><td><b>Moda Health</b></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Not started</span></td><td>—</td><td class="muted">One-click enrollment</td></tr></tbody></table>
+      </div>
+      <div class="drawer-foot"><button type="button" class="btn btn-secondary"><i data-lucide="download"></i>OHP form</button><button type="button" class="btn btn-primary">Start Moda enrollment</button></div></div>
+  </div></div>
+</section>
+
+<!-- ============================ CL-11 ============================ -->
+<section class="ref-view" id="CL-11">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">CL-11</span><h2>Offboard client</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>End service for a client cleanly: export their data, stop all activity and set the retention period.</dd><dt>Data</dt><dd>Client name, open claims and balances, retention period from the tenant contract (default 7 years), export status.</dd><dt>Actions</dt><dd>Generate export (claims, remittances, audit in CSV and raw X12); type the client name to confirm; Offboard client.</dd><dt>States</dt><dd>Offboard disabled until the export has been generated and the name typed. Open claims shown with a warning that they will no longer be tracked.</dd><dt>Rules</dt><dd>Owner or admin only. Stops syncing and disconnects credentials immediately; data kept read-only for the retention period, then deleted. Audited; tenant owner notified by email.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:720px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal " role="dialog"><div class="modal-head"><div><h2>Offboard Riverbend Counseling</h2><p class="muted dense">This stops all syncing and removes the stored SimplePractice login.</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <div class="banner bad"><i data-lucide="circle-x"></i><span>38 claims are still open with $14,220.00 in insurance balances. Cleanpost will stop tracking them.</span></div>
+        <div class="row-between card card-body"><div><b>Data export</b><div class="subtle">Claims, remittances, posting history and audit log. CSV plus original 835 files.</div></div><span class="chip chip-good"><i data-lucide="circle-check"></i>Ready</span><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="download"></i>Download</button></div>
+        <dl class="kv"><dt>Read-only until</dt><dd>Oct 29, 2033 (7 years, per your agreement)</dd><dt>Then</dt><dd>Deleted, with a confirmation email to the account owner</dd></dl>
+        <div class="field"><label for="cl11c">Type <b>Riverbend Counseling</b> to confirm</label><input id="cl11c" class="input" placeholder="Riverbend Counseling"></div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-danger" disabled>Offboard client</button></div></div></div>
+  </div></div>
+</section>
+<div class="ref-intro"><h1>Onboarding wizard</h1><p>A full-page stepper that takes a new client from nothing to live in under an hour of admin time. Progress saves at every step; Save and exit returns to the clients list with the client in Onboarding status.</p></div>
+
+<!-- ============================ O-01 ============================ -->
+<section class="ref-view" id="O-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-01</span><h2>Practice</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/practice</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Capture the practice details that go on every claim.</dd><dt>Data</dt><dd>clients: legal name, tax ID (encrypted), billing NPI, taxonomy, address, timezone, billing contact. NPPES lookup on the billing NPI.</dd><dt>Actions</dt><dd>Look up NPI (fills name, taxonomy and address from NPPES); edit any field; Continue saves and moves to O-02.</dd><dt>States</dt><dd>Lookup in progress: button spinner. NPI not found: inline error. Lookup result differs from typed values: fields highlighted with Use NPPES value.</dd><dt>Rules</dt><dd>Tax ID masked after save, revealed with G-12. NPI Luhn check before lookup. Required: legal name, tax ID, billing NPI, address, timezone.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Harbor Dermatology</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="current" aria-current="step"><span class="n">1</span>Practice</li><li><span class="n">2</span>Providers and locations</li><li><span class="n">3</span>PM system</li><li><span class="n">4</span>Connect</li><li><span class="n">5</span>Dry run</li><li><span class="n">6</span>Payers</li><li><span class="n">7</span>Mode</li><li><span class="n">8</span>Posting rules</li><li><span class="n">9</span>Automation</li><li><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 1 of 10</span><h1 class="display-m">Practice details</h1><p class="muted" style="max-width:720px">These appear on every claim as the billing provider. Start with the group NPI and we fill in what NPPES has.</p></div>
+        <div class="card"><div class="card-body form-grid">
+          <div class="field full"><label for="o1n">Billing NPI</label><div class="input-group" style="max-width:420px"><input id="o1n" class="input mono" value="1487203361"><button type="button" class="btn btn-secondary">Look up</button></div><span class="help"><span class="chip chip-good"><i data-lucide="circle-check"></i>Found in NPPES</span> Organization · active since 2011</span></div>
+          <div class="field"><label for="o1l">Legal name</label><input id="o1l" class="input" value="Harbor Dermatology Associates LLC"></div>
+          <div class="field"><label for="o1d">Name billers use</label><input id="o1d" class="input" value="Harbor Dermatology"></div>
+          <div class="field"><label for="o1t">Tax ID (EIN)</label><input id="o1t" class="input mono" value="93-4418207"><span class="help">Encrypted and masked after saving.</span></div>
+          <div class="field"><label for="o1x">Taxonomy</label><input id="o1x" class="input mono" value="207N00000X"><span class="help">Dermatology</span></div>
+          <div class="field full"><label for="o1a">Billing address</label><input id="o1a" class="input" value="1840 NW 9th St, Corvallis, OR 97330"></div>
+          <div class="field"><label for="o1z">Timezone</label><select id="o1z" class="select"><option>Pacific (Los Angeles)</option></select></div>
+          <div class="field"><label for="o1c">Practice billing contact</label><input id="o1c" class="input" value="Renee Walsh, office manager"></div>
+        </div></div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><button type="button" class="btn btn-primary">Continue</button></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-02 ============================ -->
+<section class="ref-view" id="O-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-02</span><h2>Providers and locations</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/providers</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Add the rendering providers and service locations that will appear on claims.</dd><dt>Data</dt><dd>providers and locations being created; NPPES lookup per NPI; optional import of providers seen in the PM after O-04 connects.</dd><dt>Actions</dt><dd>Add NPI (lookup fills name and taxonomy); remove; Add location (address, place of service). Continue.</dd><dt>States</dt><dd>Lookup failed: row with error and Retry. Individual NPI that is deactivated in NPPES: error, cannot add. Empty: at least one rendering provider required.</dd><dt>Rules</dt><dd>Providers can also be added later from CL-04, and charges from unknown NPIs are held with a work item.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Harbor Dermatology</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="done"><span class="n"><i data-lucide="check"></i></span>Practice</li><li class="current" aria-current="step"><span class="n">2</span>Providers and locations</li><li><span class="n">3</span>PM system</li><li><span class="n">4</span>Connect</li><li><span class="n">5</span>Dry run</li><li><span class="n">6</span>Payers</li><li><span class="n">7</span>Mode</li><li><span class="n">8</span>Posting rules</li><li><span class="n">9</span>Automation</li><li><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 2 of 10</span><h1 class="display-m">Providers and locations</h1><p class="muted" style="max-width:720px">Add each clinician who sees patients. Enter an NPI and we look up the rest.</p></div>
+        <div class="card"><div class="card-head"><h2>Rendering providers</h2></div><div class="card-body stack">
+          <div class="input-group" style="max-width:480px"><input class="input mono" aria-label="Provider NPI" placeholder="Enter NPI" value="1093826640"><button type="button" class="btn btn-secondary"><i data-lucide="search"></i>Look up</button></div>
+          <table class="table nowrap"><thead><tr><th>Name</th><th>NPI</th><th>Taxonomy</th><th>NPPES</th><th></th></tr></thead><tbody>
+            <tr><td><b>Samuel Ito, MD</b></td><td class="code">1245397720</td><td class="code">207N00000X</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Active</span></td><td><button type="button" class="icon-btn ghost" aria-label="Remove"><i data-lucide="trash-2"></i></button></td></tr>
+            <tr><td><b>Grace Holloway, PA-C</b></td><td class="code">1659022184</td><td class="code">363A00000X</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Active</span></td><td><button type="button" class="icon-btn ghost" aria-label="Remove"><i data-lucide="trash-2"></i></button></td></tr>
+            <tr class="row-warn"><td><span class="skeleton" style="width:140px"></span></td><td class="code">1093826640</td><td><span class="skeleton" style="width:80px"></span></td><td class="subtle">Looking up</td><td></td></tr>
+          </tbody></table>
+        </div></div>
+        <div class="card"><div class="card-head"><h2>Locations</h2><span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="plus"></i>Add location</button></div><div class="card-body">
+          <table class="table nowrap"><thead><tr><th>Name</th><th>Address</th><th>Place of service</th></tr></thead><tbody>
+            <tr><td><b>Corvallis clinic</b></td><td>1840 NW 9th St, Corvallis, OR 97330</td><td><span class="code">11</span> Office</td></tr>
+          </tbody></table></div></div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><button type="button" class="btn btn-primary">Continue</button></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-03 ============================ -->
+<section class="ref-view" id="O-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-03</span><h2>PM system</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/pm</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Pick the practice management system and see, before connecting, what Cleanpost can do in it today and what will be manual.</dd><dt>Data</dt><dd>Adapter registry: for each adapter key, capabilities per operation and level (4 Official API, 3 File, 2 Managed API, 1 Browser automation, 0 Manual), access notes and setup requirements.</dd><dt>Actions</dt><dd>Select a PM card; search PMs; "Other PM" selects the manual adapter and opens I-05 to request an integration. Continue.</dd><dt>States</dt><dd>Operations at Manual are explained in one line: Cleanpost prepares the task and a biller completes it in the PM. Access pending (e.g. athenaOne partner approval) shown as a tag on the card.</dd><dt>Rules</dt><dd>Levels shown are the truth for this tenant today; they update when an adapter is upgraded. Selecting a PM never connects anything; that happens in O-04.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;min-height:1180px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Harbor Dermatology</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="done"><span class="n"><i data-lucide="check"></i></span>Practice</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Providers and locations</li><li class="current" aria-current="step"><span class="n">3</span>PM system</li><li><span class="n">4</span>Connect</li><li><span class="n">5</span>Dry run</li><li><span class="n">6</span>Payers</li><li><span class="n">7</span>Mode</li><li><span class="n">8</span>Posting rules</li><li><span class="n">9</span>Automation</li><li><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 3 of 10</span><h1 class="display-m">Which PM system does Harbor Dermatology use?</h1><p class="muted" style="max-width:720px">Cleanpost works with any PM. Where we have no integration for an operation, we prepare the work and a biller completes it in the PM.</p></div>
+        <label class="search" style="max-width:420px"><i data-lucide="search"></i><span class="sr-only">Find PM</span><input type="search" placeholder="Find PM system"></label>
+        <div class="grid-2">
+          <button type="button" class="option-card selected" aria-pressed="true">
+          <span class="row-between" style="width:100%"><b style="font-size:15px">athenaOne</b><span class="tag">Partner API pending</span></span><span class="subtle">athenahealth</span>
+          <span class="stack-sm" style="gap:0;width:100%"><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read patients and charges</span><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Hold charges before submission</span><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Write charge corrections</span><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read claim status and payments</span><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read what was posted</span><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Post payments</span><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></div></span>
+          <span class="subtle">Official athenahealth API access is pending partner approval. Until then a managed API covers reads and holds.</span></button>
+          <button type="button" class="option-card" aria-pressed="false">
+          <span class="row-between" style="width:100%"><b style="font-size:15px">Tebra</b></span><span class="subtle">Formerly Kareo</span>
+          <span class="stack-sm" style="gap:0;width:100%"><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read patients and charges</span><span class="chip chip-good"><i data-lucide="circle-check"></i>Official API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Hold charges before submission</span><span class="chip chip-outline"><i data-lucide="ban"></i>Not available</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Write charge corrections</span><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read claim status and payments</span><span class="chip chip-good"><i data-lucide="circle-check"></i>Official API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read what was posted</span><span class="chip chip-good"><i data-lucide="circle-check"></i>Official API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Post payments</span><span class="chip chip-good"><i data-lucide="circle-check"></i>Official API</span></div></span>
+          <span class="subtle">Tebra has no way to hold charges, so Cleanpost scrubs before the practice's daily batch.</span></button>
+          <button type="button" class="option-card" aria-pressed="false">
+          <span class="row-between" style="width:100%"><b style="font-size:15px">AdvancedMD</b></span><span class="subtle"></span>
+          <span class="stack-sm" style="gap:0;width:100%"><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read patients and charges</span><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Hold charges before submission</span><span class="chip chip-outline"><i data-lucide="ban"></i>Not available</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Write charge corrections</span><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read claim status and payments</span><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read what was posted</span><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Post payments</span><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></div></span>
+          <span class="subtle">Reads through a managed API. Corrections and posting are manual for now.</span></button>
+          <button type="button" class="option-card" aria-pressed="false">
+          <span class="row-between" style="width:100%"><b style="font-size:15px">SimplePractice</b></span><span class="subtle"></span>
+          <span class="stack-sm" style="gap:0;width:100%"><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read patients and charges</span><span class="chip chip-ready"><i data-lucide="file-text"></i>File</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Hold charges before submission</span><span class="chip chip-outline"><i data-lucide="ban"></i>Not available</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Write charge corrections</span><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read claim status and payments</span><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Read what was posted</span><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></div><div class="row-between dense" style="padding:4px 0;border-bottom:1px solid var(--border)"><span>Post payments</span><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></div></span>
+          <span class="subtle">No public API. Charges by daily file export; everything else is manual.</span></button>
+        </div>
+        <div class="row"><button type="button" class="btn btn-ghost"><i data-lucide="plus"></i>My PM is not listed</button></div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><button type="button" class="btn btn-primary">Continue with athenaOne</button></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-04 ============================ -->
+<section class="ref-view" id="O-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-04</span><h2>Connect</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/connect</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Store the PM credentials and prove the connection works before going further.</dd><dt>Data</dt><dd>Adapter-specific credential form (Tebra: customer key generated by the practice admin, API user email and password); healthCheck result per operation; connections row in status setup or testing.</dd><dt>Actions</dt><dd>Show me how (expands PM-specific steps to create a least-privilege API user and customer key); Test connection (runs healthCheck); Continue enabled after a passing test. "Use manual instead" switches to the manual adapter.</dd><dt>States</dt><dd>Testing: per-operation rows with skeletons. Pass: green list. Partial: operations that failed shown with the error in plain language and what falls back to manual. Auth failure: inline error on the credential fields.</dd><dt>Rules</dt><dd>Credentials go to the secrets manager, never the database or logs. Fields are write-only once saved (replace, never reveal). Audited.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Lakeside Family Medicine</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="done"><span class="n"><i data-lucide="check"></i></span>Practice</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Providers and locations</li><li class="done"><span class="n"><i data-lucide="check"></i></span>PM system</li><li class="current" aria-current="step"><span class="n">4</span>Connect</li><li><span class="n">5</span>Dry run</li><li><span class="n">6</span>Payers</li><li><span class="n">7</span>Mode</li><li><span class="n">8</span>Posting rules</li><li><span class="n">9</span>Automation</li><li><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 4 of 10</span><h1 class="display-m">Connect Tebra</h1><p class="muted" style="max-width:720px">Create a dedicated API user in Tebra for Cleanpost, then paste the customer key the Tebra admin generates. We only use the permissions listed below.</p></div>
+        <div class="grid-2" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start">
+          <div class="card"><div class="card-body stack">
+            <div class="field"><label for="o4k">Customer key</label><input id="o4k" class="input mono" value="••••••••••••••••7Q2X"><span class="help">In Tebra: Settings › API › Customer key. Only a Tebra system administrator can generate it.</span></div>
+            <div class="field"><label for="o4u">API user email</label><input id="o4u" class="input" value="cleanpost-api@lakesidefm.com"></div>
+            <div class="field"><label for="o4p">API user password</label><input id="o4p" class="input" type="password" value="xxxxxxxxxxxx"></div>
+            <div class="row"><button type="button" class="btn btn-primary"><i data-lucide="plug-zap"></i>Test connection</button><button type="button" class="btn btn-ghost">Show me how</button></div>
+          </div></div>
+          <div class="card"><div class="card-head"><h2>Connection test</h2><span class="spacer"></span><span class="subtle">Today 2:41 pm</span></div><div class="card-body stack-sm">
+            <div class="row-between dense"><span class="row"><i data-lucide="circle-check" style="color:var(--success)"></i>Signed in to Tebra</span><span class="subtle">0.8 s</span></div>
+            <div class="row-between dense"><span class="row"><i data-lucide="circle-check" style="color:var(--success)"></i>Read patients and charges</span><span class="subtle">214 in last 7 days</span></div>
+            <div class="row-between dense"><span class="row"><i data-lucide="circle-check" style="color:var(--success)"></i>Read payments and postings</span><span class="subtle">38 in last 7 days</span></div>
+            <div class="row-between dense"><span class="row"><i data-lucide="circle-check" style="color:var(--success)"></i>Create payments</span><span class="subtle">Permission granted</span></div>
+            <div class="row-between dense"><span class="row"><i data-lucide="circle-dashed" style="color:var(--ink-subtle)"></i>Hold charges</span><span class="subtle">Not available in Tebra</span></div>
+            <div class="row-between dense"><span class="row"><i data-lucide="list-checks" style="color:var(--warning)"></i>Write charge corrections</span><span class="subtle">Manual task for now</span></div>
+            <div class="balance" style="margin-top:8px"><b>Connected</b><span>Everything Tebra allows is working.</span></div>
+          </div></div>
+        </div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><button type="button" class="btn btn-primary">Continue</button></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-05 ============================ -->
+<section class="ref-view" id="O-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-05</span><h2>Dry run</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/dry-run</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Pull the last 7 days from the PM without sending anything, so the admin can check the data looks right before going live.</dd><dt>Data</dt><dd>Counts from a read-only sync (patients, encounters, charges, payments), scrub results on the pulled encounters, 10 sample encounters for spot-checking, unknown providers and payers found.</dd><dt>Actions</dt><dd>Run again; tick each sample as checked (all 10 required to continue); open a sample to compare with the PM side by side; Continue.</dd><dt>States</dt><dd>Running: progress per record type. Finished with problems: unknown payers and providers listed with links to fix them in O-02 or O-06.</dd><dt>Rules</dt><dd>Nothing is written to the PM or sent to payers during a dry run. Dry-run records are discarded when the client goes live and re-pulled.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Harbor Dermatology</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="done"><span class="n"><i data-lucide="check"></i></span>Practice</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Providers and locations</li><li class="done"><span class="n"><i data-lucide="check"></i></span>PM system</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Connect</li><li class="current" aria-current="step"><span class="n">5</span>Dry run</li><li><span class="n">6</span>Payers</li><li><span class="n">7</span>Mode</li><li><span class="n">8</span>Posting rules</li><li><span class="n">9</span>Automation</li><li><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 5 of 10</span><h1 class="display-m">Check the first 7 days</h1><p class="muted" style="max-width:720px">We pulled the last 7 days from athenaOne without sending anything. Check 10 sample encounters against the PM before going on.</p></div>
+        <div class="kpis">
+          <div class="kpi"><div class="kpi-label">Patients</div><div class="kpi-value">186</div></div>
+          <div class="kpi"><div class="kpi-label">Encounters</div><div class="kpi-value">214</div></div>
+          <div class="kpi"><div class="kpi-label">Charge lines</div><div class="kpi-value">402</div></div>
+          <div class="kpi"><div class="kpi-label">Would release without review</div><div class="kpi-value">71%</div></div>
+          <div class="kpi"><div class="kpi-label">Problems found</div><div class="kpi-value warn">2</div></div>
+        </div>
+        <div class="banner warn"><i data-lucide="triangle-alert"></i><span>1 payer name is not mapped and 1 provider NPI is not set up. Fix them in the next step or in Providers.</span></div>
+        <div class="card flush"><div class="card-head"><h2>Spot-check sample</h2><span class="spacer"></span><span class="subtle">2 of 10 checked</span><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="refresh-cw"></i>Run again</button></div>
+          <div class="table-wrap"><table class="table nowrap"><thead><tr><th class="w-check"><span class="sr-only">Checked</span></th><th>Encounter</th><th>Date</th><th>Patient</th><th>Payer</th><th>Codes</th><th class="num">Charge</th><th>Result</th></tr></thead><tbody><tr><td><input type="checkbox" aria-label="Spot-checked" checked></td><td class="code">E-10443</td><td>Oct 27</td><td>Nguyen, M.</td><td>UnitedHealthcare</td><td class="code">99213, 11102</td><td class="num">$312.00</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Needs review</span></td></tr><tr><td><input type="checkbox" aria-label="Spot-checked" checked></td><td class="code">E-10439</td><td>Oct 27</td><td>Rivera, A.</td><td>Aetna</td><td class="code">99214</td><td class="num">$238.00</td><td><span class="chip chip-ready"><i data-lucide="send"></i>Would release</span></td></tr><tr><td><input type="checkbox" aria-label="Spot-checked" ></td><td class="code">E-10431</td><td>Oct 26</td><td>Burke, H.</td><td>Regence BCBS</td><td class="code">99213</td><td class="num">$145.00</td><td><span class="chip chip-ready"><i data-lucide="send"></i>Would release</span></td></tr><tr><td><input type="checkbox" aria-label="Spot-checked" ></td><td class="code">E-10422</td><td>Oct 26</td><td>Patel, R.</td><td>Medicare</td><td class="code">99396, 90686</td><td class="num">$268.00</td><td><span class="chip chip-ready"><i data-lucide="send"></i>Would release</span></td></tr><tr><td><input type="checkbox" aria-label="Spot-checked" ></td><td class="code">E-10418</td><td>Oct 25</td><td>Cole, B.</td><td>Unmapped payer</td><td class="code">99212</td><td class="num">$96.00</td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Held: payer</span></td></tr></tbody></table></div>
+          <div class="table-foot"><span>Showing 5 of 10 samples</span></div></div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><button type="button" class="btn btn-primary" disabled>Continue</button></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-06 ============================ -->
+<section class="ref-view" id="O-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-06</span><h2>Payers</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/payers</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Match each payer name found in the PM to a Stedi payer, and set timely filing limits.</dd><dt>Data</dt><dd>Distinct payer names from dry-run coverages and claims, suggested matches from payers (name and alias matching), Stedi payer list, enrollment requirements.</dd><dt>Actions</dt><dd>Accept or change each match (searchable combobox); set timely filing days; Continue.</dd><dt>States</dt><dd>Unmatched payers block Continue. Payers requiring EDI enrollment for claims show a note (relevant to Modes B and C).</dd><dt>Rules</dt><dd>Mappings saved to client_payer_settings. A payer name seen later that does not match creates a mapping work item and holds its claims.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Harbor Dermatology</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="done"><span class="n"><i data-lucide="check"></i></span>Practice</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Providers and locations</li><li class="done"><span class="n"><i data-lucide="check"></i></span>PM system</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Connect</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Dry run</li><li class="current" aria-current="step"><span class="n">6</span>Payers</li><li><span class="n">7</span>Mode</li><li><span class="n">8</span>Posting rules</li><li><span class="n">9</span>Automation</li><li><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 6 of 10</span><h1 class="display-m">Match payers</h1><p class="muted" style="max-width:720px">We found 5 payer names in athenaOne. Confirm the matches and set how long each payer allows to file.</p></div>
+        <div class="card flush"><div class="table-wrap"><table class="table nowrap"><thead><tr><th>Name in athenaOne</th><th>Payer</th><th>Status</th><th>Timely filing (days)</th></tr></thead><tbody><tr><td class="code">AETNA</td><td style="min-width:300px"><select class="select" aria-label="Payer for AETNA"><option>Aetna · 60054</option></select></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matched</span></td><td><input class="input" style="width:110px" aria-label="Timely filing" value="120 days" placeholder="Days"></td></tr><tr><td class="code">MEDICARE PART B</td><td style="min-width:300px"><select class="select" aria-label="Payer for MEDICARE PART B"><option>Medicare (Noridian JF) · 01112</option></select></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matched</span></td><td><input class="input" style="width:110px" aria-label="Timely filing" value="365 days" placeholder="Days"></td></tr><tr><td class="code">REGENCE BS OREGON</td><td style="min-width:300px"><select class="select" aria-label="Payer for REGENCE BS OREGON"><option>Regence BlueCross BlueShield · 00851</option></select></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matched</span></td><td><input class="input" style="width:110px" aria-label="Timely filing" value="365 days" placeholder="Days"></td></tr><tr><td class="code">PACIFICSOURCE COMM</td><td style="min-width:300px"><select class="select" aria-label="Payer for PACIFICSOURCE COMM"><option>PacificSource · 93245</option></select></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matched</span></td><td><input class="input" style="width:110px" aria-label="Timely filing" value="180 days" placeholder="Days"></td></tr><tr class="row-warn"><td class="code">PROV HLTH PLN</td><td style="min-width:300px"><select class="select invalid" aria-label="Payer for PROV HLTH PLN" style="border-color:var(--warning)"><option>Search payers…</option></select></td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Choose payer</span></td><td><input class="input" style="width:110px" aria-label="Timely filing" value="" placeholder="Days"></td></tr></tbody></table></div>
+          <div class="table-foot"><span>Defaults: 90 days commercial, 365 days Medicare. Check each payer contract.</span></div></div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><button type="button" class="btn btn-primary" disabled>Continue</button></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-07 ============================ -->
+<section class="ref-view" id="O-07">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-07</span><h2>Mode</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/mode</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Choose how claims leave and payments come back for this client, with a recommendation based on what the PM supports.</dd><dt>Data</dt><dd>Adapter capabilities (holdCharge, markChargeBilled, pullRemittances, pullPostings, postPayment), payers with 90-day claim counts and ERA enrollment requirements.</dd><dt>Actions</dt><dd>Select a mode card; override mode per payer; Continue. Choosing B or C shows the PM-submission confirmation.</dd><dt>States</dt><dd>Recommendation reason shown under the heading. Modes the adapter cannot support are disabled with the reason. Mode B lists payers that will run as Mode C until ERA enrollment is active.</dd><dt>Rules</dt><dd>Recommendation logic from docs/04-modes.md capability matrix. Mode is fixed on each claim at release; changing later (CL-09) affects new claims only.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;min-height:1180px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Lakeside Family Medicine</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="done"><span class="n"><i data-lucide="check"></i></span>Practice</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Providers and locations</li><li class="done"><span class="n"><i data-lucide="check"></i></span>PM system</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Connect</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Dry run</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Payers</li><li class="current" aria-current="step"><span class="n">7</span>Mode</li><li><span class="n">8</span>Posting rules</li><li><span class="n">9</span>Automation</li><li><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 7 of 10</span><h1 class="display-m">Choose how claims and payments flow</h1><p class="muted" style="max-width:720px">We recommend Mode A: Tebra already sends claims and auto-posts payments reliably, and nothing needs re-enrolling. Tebra cannot hold charges, so Cleanpost scrubs before its 6:00 pm batch.</p></div>
+        <div class="grid-3">
+          <button type="button" class="option-card selected" aria-pressed="true">
+          <span class="row" style="width:100%"><span class="mode">Mode A</span><span class="chip chip-ready"><i data-lucide="sparkles"></i>Recommended</span></span>
+          <b style="font-size:16px;line-height:22px">Tebra sends, Cleanpost checks</b>
+          <span class="dense muted">Claims keep going out through Tebra's clearinghouse. Cleanpost scrubs each charge first and checks every posted payment line.</span>
+          <span class="stack-sm" style="gap:4px"><span class="row dense" style="color:var(--success);flex-wrap:nowrap;align-items:flex-start"><i data-lucide="plus"></i><span>Live this week</span></span><span class="row dense" style="color:var(--success);flex-wrap:nowrap;align-items:flex-start"><i data-lucide="plus"></i><span>No payer re-enrollment</span></span><span class="row dense" style="color:var(--warning);flex-wrap:nowrap;align-items:flex-start"><i data-lucide="minus"></i><span>Late fixes wait for the next Tebra batch</span></span></span>
+        </button>
+          <button type="button" class="option-card" aria-pressed="false">
+          <span class="row" style="width:100%"><span class="mode">Mode B</span></span>
+          <b style="font-size:16px;line-height:22px">Cleanpost sends and posts</b>
+          <span class="dense muted">Claims go out through Stedi from Cleanpost. Payments come to Cleanpost and post into Tebra automatically.</span>
+          <span class="stack-sm" style="gap:4px"><span class="row dense" style="color:var(--success);flex-wrap:nowrap;align-items:flex-start"><i data-lucide="plus"></i><span>Acknowledgments in about 30 minutes</span></span><span class="row dense" style="color:var(--success);flex-wrap:nowrap;align-items:flex-start"><i data-lucide="plus"></i><span>Full control of every claim and payment</span></span><span class="row dense" style="color:var(--warning);flex-wrap:nowrap;align-items:flex-start"><i data-lucide="minus"></i><span>ERA re-enrollment for 9 payers; each runs as Mode C until active</span></span></span>
+        </button>
+          <button type="button" class="option-card" aria-pressed="false">
+          <span class="row" style="width:100%"><span class="mode">Mode C</span></span>
+          <b style="font-size:16px;line-height:22px">Cleanpost sends, Tebra posts</b>
+          <span class="dense muted">Claims go out through Stedi from Cleanpost. Payments stay with Tebra's clearinghouse; Cleanpost checks every line.</span>
+          <span class="stack-sm" style="gap:4px"><span class="row dense" style="color:var(--success);flex-wrap:nowrap;align-items:flex-start"><i data-lucide="plus"></i><span>Control of submission without moving ERAs</span></span><span class="row dense" style="color:var(--success);flex-wrap:nowrap;align-items:flex-start"><i data-lucide="plus"></i><span>Common step toward Mode B</span></span><span class="row dense" style="color:var(--warning);flex-wrap:nowrap;align-items:flex-start"><i data-lucide="minus"></i><span>You must turn off Tebra's claim submission</span></span></span>
+        </button>
+        </div>
+        <div class="card flush"><div class="card-head"><h2>Per-payer settings</h2><span class="subtle">All payers follow Mode A. Override a payer only if its claims must go out differently.</span></div>
+          <div class="table-wrap"><table class="table nowrap"><thead><tr><th>Payer</th><th class="num">Claims, 90 days</th><th>Mode</th><th>ERA enrollment with Stedi</th><th>Timely filing</th></tr></thead><tbody><tr><td><b>Medicare (Noridian JF)</b></td><td class="num">412</td><td><select class="select" style="width:200px" aria-label="Mode for Medicare (Noridian JF)"><option>Follows client (A)</option></select></td><td class="muted">Not needed in Mode A</td><td>365 days</td></tr><tr><td><b>Regence BlueCross BlueShield</b></td><td class="num">388</td><td><select class="select" style="width:200px" aria-label="Mode for Regence BlueCross BlueShield"><option>Follows client (A)</option></select></td><td class="muted">Not needed in Mode A</td><td>365 days</td></tr><tr><td><b>Oregon Health Plan</b></td><td class="num">301</td><td><select class="select" style="width:200px" aria-label="Mode for Oregon Health Plan"><option>Follows client (A)</option></select></td><td class="muted">Not needed in Mode A</td><td>120 days</td></tr><tr><td><b>UnitedHealthcare</b></td><td class="num">214</td><td><select class="select" style="width:200px" aria-label="Mode for UnitedHealthcare"><option>Follows client (A)</option></select></td><td class="muted">Not needed in Mode A</td><td>90 days</td></tr><tr><td><b>Aetna</b></td><td class="num">133</td><td><select class="select" style="width:200px" aria-label="Mode for Aetna"><option>Follows client (A)</option></select></td><td class="muted">Not needed in Mode A</td><td>120 days</td></tr></tbody></table></div>
+          <div class="table-foot"><span>Showing 5 of 9 payers</span></div></div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><button type="button" class="btn btn-primary">Continue with Mode A</button></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-08 ============================ -->
+<section class="ref-view" id="O-08">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-08</span><h2>Posting rules</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/posting</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Confirm how each payment adjustment code maps to the PM's own adjustment codes, so postings (or checks of the PM's postings) are right from day one.</dd><dt>Data</dt><dd>Tenant default adjustment_mappings for the PM type, adjustment codes seen in the dry-run remittances, PM adjustment code list from the adapter (or typed for manual adapters).</dd><dt>Actions</dt><dd>Map each unmapped code (PM code and action); review defaults; Continue.</dd><dt>States</dt><dd>Unmapped codes listed first and block Continue. All mapped: success banner.</dd><dt>Rules</dt><dd>Denial codes default to Leave open. Mappings saved as client overrides only where they differ from the tenant default.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Lakeside Family Medicine</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="done"><span class="n"><i data-lucide="check"></i></span>Practice</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Providers and locations</li><li class="done"><span class="n"><i data-lucide="check"></i></span>PM system</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Connect</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Dry run</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Payers</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Mode</li><li class="current" aria-current="step"><span class="n">8</span>Posting rules</li><li><span class="n">9</span>Automation</li><li><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 8 of 10</span><h1 class="display-m">Posting rules</h1><p class="muted" style="max-width:720px">This is how each adjustment on a payer's remittance is recorded in Tebra. We filled in your defaults for Tebra; one code from the last 7 days needs a decision.</p></div>
+        <div class="card flush"><div class="table-wrap"><table class="table nowrap"><thead><tr><th>Code</th><th>Meaning</th><th>Tebra adjustment code</th><th>Action</th><th>Status</th></tr></thead><tbody><tr><td><span class="codechip">CO-45</span></td><td>Charge exceeds fee schedule</td><td>CONTR · Contractual</td><td>Adjust off</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Default</span></td></tr><tr><td><span class="codechip">PR-1</span></td><td>Deductible</td><td>PTRESP · Patient responsibility</td><td>Transfer to patient</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Default</span></td></tr><tr><td><span class="codechip">PR-2</span></td><td>Coinsurance</td><td>PTRESP · Patient responsibility</td><td>Transfer to patient</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Default</span></td></tr><tr><td><span class="codechip">PR-3</span></td><td>Copay</td><td>PTRESP · Patient responsibility</td><td>Transfer to patient</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Default</span></td></tr><tr><td><span class="codechip">OA-23</span></td><td>Prior payer adjudication</td><td>XFRSEC · Transfer to secondary</td><td>Transfer to secondary</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Default</span></td></tr><tr class="row-warn"><td><span class="codechip warn">CO-253</span></td><td>Sequestration reduction <span class="subtle">· seen 41 times in the dry run</span></td><td><select class="select" style="width:240px" aria-label="Tebra code for CO-253"><option>Choose Tebra code…</option></select></td><td><select class="select" style="width:180px" aria-label="Action for CO-253"><option>Adjust off</option></select></td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Needs mapping</span></td></tr></tbody></table></div>
+          <div class="table-foot"><span>Showing 6 of 28 codes · denial codes stay open for follow-up</span></div></div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><button type="button" class="btn btn-primary" disabled>Continue</button></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-09 ============================ -->
+<section class="ref-view" id="O-09">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-09</span><h2>Automation</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/automation</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Set how confident Cleanpost must be before a claim goes out without review, and start in review-everything mode.</dd><dt>Data</dt><dd>Scrub results on the dry-run encounters re-scored at each threshold; last month's volume from the PM for the projection; tenant default threshold.</dd><dt>Actions</dt><dd>Choose Review everything for 2 weeks (recommended) or Release automatically; drag the threshold slider (projection updates live); Continue.</dd><dt>States</dt><dd>Review everything selected: slider still set, used after the date. Threshold below 80: warning that more claims may be rejected or denied.</dd><dt>Rules</dt><dd>Review-everything end date sends the admin a reminder 2 days before with the measured accuracy, so thresholds are raised on evidence.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Lakeside Family Medicine</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="done"><span class="n"><i data-lucide="check"></i></span>Practice</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Providers and locations</li><li class="done"><span class="n"><i data-lucide="check"></i></span>PM system</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Connect</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Dry run</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Payers</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Mode</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Posting rules</li><li class="current" aria-current="step"><span class="n">9</span>Automation</li><li><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 9 of 10</span><h1 class="display-m">How much should go out without review?</h1><p class="muted" style="max-width:720px">Every claim gets a confidence score. Claims at or above the threshold go out automatically; the rest wait in the work queue.</p></div>
+        <div class="grid-2">
+          <button type="button" class="option-card selected" aria-pressed="true"><span class="row"><b style="font-size:15px">Review everything for 2 weeks</b><span class="chip chip-ready"><i data-lucide="sparkles"></i>Recommended</span></span><span class="dense muted">Billers approve every claim until Nov 12. You will get a report of how often they changed what Cleanpost proposed, then set the threshold with real numbers.</span></button>
+          <button type="button" class="option-card" aria-pressed="false"><b style="font-size:15px">Release automatically from day one</b><span class="dense muted">Claims at or above the threshold go out without review starting at go-live.</span></button>
+        </div>
+        <div class="card"><div class="card-head"><h2>Threshold after the review period</h2></div><div class="card-body stack">
+          <div class="row" style="flex-wrap:nowrap;gap:16px"><span class="subtle">More review</span><div class="slider" style="flex:1"><div class="fill" style="width:90%"></div><div class="thumb" style="left:90%"></div></div><span class="subtle">More automatic</span><input class="input" style="width:72px" aria-label="Threshold" value="90"></div>
+          <div class="callout"><b>Last month, 874 of Lakeside's 1,284 claims (68%) would have gone out without review at 90.</b> At 80 it would be 1,002 (78%); at 95, 642 (50%).</div>
+        </div></div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><button type="button" class="btn btn-primary">Continue</button></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-10 ============================ -->
+<section class="ref-view" id="O-10">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-10</span><h2>Go-live checklist</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/new/go-live</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Confirm every requirement for going live in one place, then switch the client to live.</dd><dt>Data</dt><dd>Checklist items from docs/13-cx-onboarding.md, each computed from saved setup (connection health, mapped payers, mappings, thresholds, billers) or confirmed by the admin (practice informed).</dd><dt>Actions</dt><dd>Fix (jumps to the step or setting); Copy template email for the practice; Go live (enabled when all items pass); Go-live date picker (today by default).</dd><dt>States</dt><dd>Any item failing: Go live disabled with the count remaining. Items that become false after being true (e.g. connection fails) re-open.</dd><dt>Rules</dt><dd>Admins only. Go live sets clients.status live, starts scheduled syncs, records go_live_at and the onboarding baseline. Audited.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;min-height:1000px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Add client</b><span class="muted">Lakeside Family Medicine</span><span class="subtle">Saved 2 min ago</span><a href="#CL-01" class="btn btn-ghost btn-sm" style="margin-left:auto">Save and exit</a></header>
+    <div class="wizard">
+      <ol class="stepper" aria-label="Onboarding steps"><li class="done"><span class="n"><i data-lucide="check"></i></span>Practice</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Providers and locations</li><li class="done"><span class="n"><i data-lucide="check"></i></span>PM system</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Connect</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Dry run</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Payers</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Mode</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Posting rules</li><li class="done"><span class="n"><i data-lucide="check"></i></span>Automation</li><li class="current" aria-current="step"><span class="n">10</span>Go-live checklist</li></ol>
+      <main class="stack-lg" style="max-width:1040px">
+<div class="stack-sm"><span class="overline">Step 10 of 10</span><h1 class="display-m">Ready to go live?</h1><p class="muted" style="max-width:720px">Everything below must be done before Cleanpost starts working Lakeside's claims.</p></div>
+        <div class="grid-2" style="grid-template-columns:minmax(0,3fr) minmax(0,2fr);align-items:start">
+          <div class="card"><div class="card-body" style="padding-top:4px;padding-bottom:4px"><div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap"><label class="check"><input type="checkbox" checked><span><b>Practice, providers and locations complete</b><br><span class="subtle">NPIs verified against NPPES</span></span></label><span class="chip chip-good"><i data-lucide="circle-check"></i>Done</span></div><div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap"><label class="check"><input type="checkbox" checked><span><b>Tebra connection healthy</b><br><span class="subtle">Tested today 2:41 pm</span></span></label><span class="chip chip-good"><i data-lucide="circle-check"></i>Done</span></div><div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap"><label class="check"><input type="checkbox" checked><span><b>Dry run reviewed</b><br><span class="subtle">10 of 10 sample encounters checked by Priya Shah</span></span></label><span class="chip chip-good"><i data-lucide="circle-check"></i>Done</span></div><div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap"><label class="check"><input type="checkbox" checked><span><b>Payers mapped and timely filing set</b><br><span class="subtle">9 payers</span></span></label><span class="chip chip-good"><i data-lucide="circle-check"></i>Done</span></div><div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap"><label class="check"><input type="checkbox" checked><span><b>Mode chosen</b><br><span class="subtle">Mode A · Tebra sends, Cleanpost checks</span></span></label><span class="chip chip-good"><i data-lucide="circle-check"></i>Done</span></div><div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap"><label class="check"><input type="checkbox" checked><span><b>Posting rules complete</b><br><span class="subtle">No unmapped codes</span></span></label><span class="chip chip-good"><i data-lucide="circle-check"></i>Done</span></div><div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap"><label class="check"><input type="checkbox" checked><span><b>Automation set</b><br><span class="subtle">Review everything until Nov 12, then threshold 90</span></span></label><span class="chip chip-good"><i data-lucide="circle-check"></i>Done</span></div><div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap"><label class="check"><input type="checkbox" ><span><b>Primary and backup biller assigned</b><br><span class="subtle">Choose a backup biller</span></span></label><button type="button" class="btn btn-secondary btn-sm">Fix</button></div><div class="row-between" style="padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:nowrap"><label class="check"><input type="checkbox" ><span><b>Practice told about the go-live date</b><br><span class="subtle">Send the template email or mark as done</span></span></label><button type="button" class="btn btn-secondary btn-sm">Fix</button></div></div></div>
+          <div class="card"><div class="card-head"><h2>Go-live date</h2></div><div class="card-body stack">
+            <div class="field"><label for="o10d">Start working claims on</label><input id="o10d" class="input" style="width:200px" value="Mon, Nov 2, 2026"></div>
+            <div class="callout dense">The first sync pulls charges from the last 14 days that Tebra has not sent yet. Charges already sent stay in Tebra's hands.</div>
+            <button type="button" class="btn btn-secondary"><i data-lucide="copy"></i>Copy email for the practice</button>
+          </div></div>
+        </div>
+        <div class="wizard-foot"><button type="button" class="btn btn-secondary">Back</button><span class="row"><span class="subtle">2 items left</span><button type="button" class="btn btn-primary" disabled>Go live</button></span></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ O-11 ============================ -->
+<section class="ref-view" id="O-11">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">O-11</span><h2>Live</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /clients/:id/live</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Confirm go-live and set expectations for the first days.</dd><dt>Data</dt><dd>Client, go-live time, first sync run status, counts pulled, review-everything end date, assigned billers.</dd><dt>Actions</dt><dd>Open the work queue filtered to this client; Go to client overview; Add another client.</dd><dt>States</dt><dd>First sync running: progress line; finished: counts and items created; failed: error with Reconnect (and the client stays live with a connection work item).</dd><dt>Rules</dt><dd>Shown once after Go live; afterwards the route redirects to CL-02. Sends E-06 to the tenant admins.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;background:var(--canvas)">
+    <header class="wizard-head"><span data-mark></span><b>Lakeside Family Medicine</b><span class="chip chip-good"><i data-lucide="circle-check"></i>Live</span></header>
+    <div class="card" style="max-width:720px;margin:48px auto">
+      <div class="empty" style="max-width:none;padding:48px 40px 24px">
+        <div class="glyph good"><i data-lucide="circle-check"></i></div>
+        <h1 class="display-m">Lakeside Family Medicine is live</h1>
+        <p>Cleanpost started working claims at 3:02 pm. Billers review every claim until Nov 12.</p>
+      </div>
+      <div class="card-body stack" style="padding:0 40px 40px">
+        <div class="stack-sm">
+          <div class="row-between dense"><span class="row"><i data-lucide="circle-check" style="color:var(--success)"></i>First sync finished</span><span class="subtle">3:04 pm</span></div>
+          <div class="row-between dense"><span class="row"><i data-lucide="circle-check" style="color:var(--success)"></i>142 encounters pulled from the last 14 days</span><span class="subtle">3:04 pm</span></div>
+          <div class="row-between dense"><span class="row"><i data-lucide="inbox" style="color:var(--cobalt)"></i>142 claims waiting for review in Dana Reyes's queue</span><span class="subtle">Due by Nov 3</span></div>
+        </div>
+        <div class="callout dense"><b>What to expect this week:</b> claims reach the queue as Tebra charges become ready; payments are checked as Tebra posts them; you will get a daily summary email at 5:00 pm.</div>
+        <div class="row"><a class="btn btn-primary" href="work.html#W-01">Open work queue</a><a class="btn btn-secondary" href="#CL-02">Client overview</a><a class="btn btn-ghost" href="#O-01">Add another client</a></div>
+      </div>
+    </div>
+  </div></div>
+</section>
+<div class="ref-intro"><h1>Integrations</h1><p>Connections to each client's PM. Admins see what works at which level, what failed, and what is being done by hand until an integration exists.</p></div>
+
+<!-- ============================ I-01 ============================ -->
+<section class="ref-view" id="I-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">I-01</span><h2>Integrations</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /integrations</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>See every client's PM connection at a glance, with problems first.</dd><dt>Data</dt><dd>connections (adapter_key, status, last_success_at), level per operation summarized, latest sync_runs error codes (no PHI), open manual_tasks count per connection.</dd><dt>Actions</dt><dd>Row opens I-02; Reconnect opens I-04; Request an integration opens I-05; filter by status and PM.</dd><dt>States</dt><dd>Failed and degraded pinned to the top, then setup, then healthy. No connections: empty state pointing to Add client.</dd><dt>Rules</dt><dd>Admins only (billers get G-23). Error text is plain language from the adapter error code, never raw payloads.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="integrations" data-client="All clients" data-role="admin" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <div class="page-head"><h1>Integrations</h1><span class="muted">5 connections · 1 failed · 1 degraded</span><div class="actions"><button type="button" class="btn btn-secondary"><i data-lucide="plus"></i>Request an integration</button></div></div>
+        <div class="banner bad"><i data-lucide="circle-x"></i><span><b>Lakeside Family Medicine cannot sync.</b> Tebra rejected the saved login at 6:15 am. New charges and payments are not arriving.</span><span class="spacer"></span><button type="button" class="btn btn-primary btn-sm">Reconnect</button></div>
+        <div class="filters"><button type="button" class="filter-chip on">All <span class="n">5</span></button><button type="button" class="filter-chip">Needs attention <span class="n">2</span></button><button type="button" class="filter-chip">Healthy <span class="n">2</span></button><button type="button" class="filter-chip">Setup <span class="n">1</span></button></div>
+        <div class="card flush"><div class="table-wrap"><table class="table nowrap"><thead><tr><th>Status</th><th>Client</th><th>PM system</th><th>Integration</th><th>Last success</th><th>Issue</th><th></th></tr></thead><tbody><tr class="row-bad"><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Failed</span></td><td><a href="#I-02"><b>Lakeside Family Medicine</b></a></td><td>Tebra</td><td>Official API</td><td>Today 6:15 am</td><td class="muted">3 failed runs · login rejected</td><td><button type="button" class="btn btn-primary btn-sm">Reconnect</button></td></tr><tr><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Degraded</span></td><td><a href="#I-02"><b>Cascade Pediatrics</b></a></td><td>AdvancedMD</td><td>Managed API</td><td>Today 2:15 pm</td><td class="muted">Claim status pull failing since 11:00 am</td><td><button type="button" class="btn btn-secondary btn-sm">View</button></td></tr><tr><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Healthy</span></td><td><a href="#I-02"><b>Willamette Ortho</b></a></td><td>Tebra</td><td>Official API</td><td>Today 2:30 pm</td><td class="muted">—</td><td><button type="button" class="btn btn-secondary btn-sm">View</button></td></tr><tr><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Healthy</span></td><td><a href="#I-02"><b>Riverbend Counseling</b></a></td><td>SimplePractice</td><td>File + Manual</td><td>Today 6:00 am</td><td class="muted">Posting is manual · 1 task open</td><td><button type="button" class="btn btn-secondary btn-sm">View</button></td></tr><tr><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Setup</span></td><td><a href="#I-02"><b>Harbor Dermatology</b></a></td><td>athenaOne</td><td>Managed API</td><td>—</td><td class="muted">Partner API approval pending</td><td><button type="button" class="btn btn-secondary btn-sm">Continue setup</button></td></tr></tbody></table></div></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ I-02 ============================ -->
+<section class="ref-view" id="I-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">I-02</span><h2>Connection detail</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /integrations/:id</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show exactly what one connection can do, at which level, whether each operation is working, and when it runs next.</dd><dt>Data</dt><dd>connections (adapter_key, capability levels per operation, status, last_success_at, schedule), sync_runs (last 50), open manual_tasks by operation, credential age.</dd><dt>Actions</dt><dd>Run now (all or one operation); Pause syncing; Reconnect (I-04); Run detail (I-03); Request a better integration for a manual operation (I-05).</dd><dt>States</dt><dd>Degraded: failing operations highlighted with the plain-language error and since when. Paused: banner with Resume. Credentials older than 90 days: rotation reminder.</dd><dt>Rules</dt><dd>Admins only. Levels: 4 Official API, 3 File, 2 Managed API, 1 Browser automation, 0 Manual, or Not available in this PM. No PHI in run details.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="integrations" data-client="All clients" data-role="admin" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <a class="breadcrumb" href="#I-01"><i data-lucide="arrow-left"></i>Integrations</a>
+        <div class="page-head"><div class="stack-sm" style="gap:4px"><h1>Cascade Pediatrics · AdvancedMD</h1><div class="row dense muted"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Degraded</span><span class="mode">Mode B</span><span>Managed API</span>·<span>Last full success today 10:45 am</span>·<span>Next run 2:30 pm</span></div></div><div class="actions"><button type="button" class="btn btn-secondary"><i data-lucide="pause"></i>Pause syncing</button><button type="button" class="btn btn-secondary"><i data-lucide="key-round"></i>Reconnect</button><button type="button" class="btn btn-primary"><i data-lucide="refresh-cw"></i>Run now</button></div></div>
+        <div class="banner warn"><i data-lucide="triangle-alert"></i><span><b>Claim status has failed since 11:00 am.</b> AdvancedMD returned errors for 4 runs in a row. Claims and payments are still syncing; status checks fall back to Stedi 276 requests.</span></div>
+        <div class="card flush"><div class="card-head"><h2>What this connection does</h2></div><div class="table-wrap"><table class="table nowrap"><thead><tr><th>Operation</th><th>How</th><th>Health</th><th>Schedule</th><th>Last success</th></tr></thead><tbody><tr><td><b>Read patients and coverage</b></td><td><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></td><td><span class="row"><span class="dot good"></span>Working</span></td><td>Every 15 min</td><td>Today 2:15 pm</td></tr><tr><td><b>Read charges</b></td><td><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></td><td><span class="row"><span class="dot good"></span>Working</span></td><td>Every 15 min</td><td>Today 2:15 pm</td></tr><tr class="row-bad"><td><b>Read claim status</b></td><td><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></td><td><span class="row"><span class="dot bad"></span>Failing</span></td><td>Every 15 min</td><td>Today 10:45 am</td></tr><tr><td><b>Read payments</b></td><td><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></td><td><span class="row"><span class="dot good"></span>Working</span></td><td>Every hour</td><td>Today 2:00 pm</td></tr><tr><td><b>Read what was posted</b></td><td><span class="chip chip-flight"><i data-lucide="plug-zap"></i>Managed API</span></td><td><span class="row"><span class="dot good"></span>Working</span></td><td>Every hour</td><td>Today 2:00 pm</td></tr><tr><td><b>Hold charges</b></td><td><span class="chip chip-outline"><i data-lucide="ban"></i>Not available</span></td><td><span class="subtle">—</span></td><td>—</td><td>—</td></tr><tr><td><b>Write charge corrections</b></td><td><span class="chip chip-warn"><i data-lucide="list-checks"></i>Manual</span></td><td><span class="subtle">—</span></td><td>On demand</td><td>3 tasks this week</td></tr><tr><td><b>Post payments</b></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Official API</span></td><td><span class="row"><span class="dot good"></span>Working</span></td><td>On remittance</td><td>Today 1:12 pm</td></tr></tbody></table></div>
+          <div class="table-foot"><span>Official API · File · Managed API · Browser automation · Manual (Cleanpost prepares a task, a biller does it in the PM)</span></div></div>
+        <div class="card flush"><div class="card-head"><h2>Recent runs</h2><span class="spacer"></span><span class="subtle">Last 24 hours · 96 runs · 4 failed</span></div><div class="table-wrap"><table class="table nowrap"><thead><tr><th><span class="sr-only">Result</span></th><th>Operation</th><th>Started</th><th class="num">Duration</th><th>Records</th><th>Error code</th><th></th></tr></thead><tbody><tr><td><span class="dot bad"></span></td><td>Claim status</td><td>2:15 pm</td><td class="num">4.1 s</td><td>0</td><td class="code">UPSTREAM_ERROR</td><td><button type="button" class="btn btn-ghost btn-sm">Details</button></td></tr><tr><td><span class="dot good"></span></td><td>Charges</td><td>2:15 pm</td><td class="num">6.8 s</td><td>18 new · 3 changed</td><td class="code"></td><td><button type="button" class="btn btn-ghost btn-sm">Details</button></td></tr><tr><td><span class="dot good"></span></td><td>Patients and coverage</td><td>2:15 pm</td><td class="num">3.2 s</td><td>11 changed</td><td class="code"></td><td><button type="button" class="btn btn-ghost btn-sm">Details</button></td></tr><tr><td><span class="dot good"></span></td><td>Payments</td><td>2:00 pm</td><td class="num">5.5 s</td><td>2 remittances</td><td class="code"></td><td><button type="button" class="btn btn-ghost btn-sm">Details</button></td></tr></tbody></table></div></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ I-03 ============================ -->
+<section class="ref-view" id="I-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">I-03</span><h2>Sync run detail</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Explain one sync run: what it fetched, how long it took and, if it failed, why.</dd><dt>Data</dt><dd>sync_runs (operation, started_at, finished_at, status, counts, error_code, error_detail without PHI), cursor range, retry attempts.</dd><dt>Actions</dt><dd>Retry this run; Copy run ID (for support); Contact support (G-07 prefilled with the run ID).</dd><dt>States</dt><dd>Running: live counts. Succeeded: counts by record type. Failed: plain explanation, error code, attempts with backoff times, and whether data is safe.</dd><dt>Rules</dt><dd>Never shows record contents or identifiers, only counts and codes.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:660px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="drawer" role="dialog"><div class="drawer-head"><div><h2>Claim status · 2:15 pm</h2><p class="muted dense">Cascade Pediatrics · AdvancedMD · run <span class="code">sr_01JC9X4M</span></p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="drawer-body">
+        <div class="balance bad"><b>Failed</b><span>After 3 attempts over 4 minutes</span></div>
+        <p>AdvancedMD returned a server error each time we asked for claim status changes since 10:45 am. No data was lost; the next run will ask for the same range.</p>
+        <dl class="kv"><dt>Error code</dt><dd class="code">UPSTREAM_ERROR · 502</dd><dt>Range asked for</dt><dd>Changes since Today 10:45 am</dd><dt>Attempts</dt><dd>2:15:02 pm, 2:16:04 pm, 2:18:08 pm</dd><dt>Duration</dt><dd>4.1 s total</dd><dt>Records</dt><dd>0 received</dd><dt>Fallback</dt><dd>Stedi 276 status checks for claims waiting more than 7 days</dd></dl>
+      </div>
+      <div class="drawer-foot"><button type="button" class="btn btn-secondary"><i data-lucide="copy"></i>Copy run ID</button><button type="button" class="btn btn-secondary">Contact support</button><button type="button" class="btn btn-primary"><i data-lucide="refresh-cw"></i>Retry</button></div></div>
+  </div></div>
+</section>
+
+<!-- ============================ I-04 ============================ -->
+<section class="ref-view" id="I-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">I-04</span><h2>Reconnect</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Replace credentials that stopped working and test them before saving.</dd><dt>Data</dt><dd>Adapter credential schema (same fields as O-04), last error, when credentials were last updated and by whom.</dd><dt>Actions</dt><dd>Enter new values; Test and save (healthCheck, then stores to secrets manager); Cancel.</dd><dt>States</dt><dd>Test fails: error on the relevant field, nothing saved. Success: modal closes, toast "Lakeside Family Medicine reconnected", missed syncs catch up automatically.</dd><dt>Rules</dt><dd>Old credentials are never shown. Admins only. Audited (without values).</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:700px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal " role="dialog"><div class="modal-head"><div><h2>Reconnect Tebra</h2><p class="muted dense">Lakeside Family Medicine · last worked today 6:15 am</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <div class="banner bad"><i data-lucide="circle-x"></i><span>Tebra rejected the saved login. The customer key may have been regenerated or the API user's password changed.</span></div>
+        <div class="field"><label for="i4k">Customer key</label><input id="i4k" class="input mono" placeholder="Paste the new customer key"><span class="help">In Tebra: Settings › API › Customer key.</span></div>
+        <div class="field"><label for="i4u">API user email</label><input id="i4u" class="input" value="cleanpost-api@lakesidefm.com"></div>
+        <div class="field"><label for="i4p">API user password</label><input id="i4p" class="input" type="password" placeholder="Enter password"></div>
+        <p class="subtle">Charges and payments missed since 6:15 am will sync as soon as the connection works.</p>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary"><i data-lucide="plug-zap"></i>Test and save</button></div></div></div>
+  </div></div>
+</section>
+
+<!-- ============================ I-05 ============================ -->
+<section class="ref-view" id="I-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">I-05</span><h2>Request an integration</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Tell Cleanpost which PM or operation the billing company needs automated, and show what manual mode covers meanwhile.</dd><dt>Data</dt><dd>PM name (from the list or typed), clients that use it, operations wanted, monthly volume estimate; current manual task volume for that PM if any.</dd><dt>Actions</dt><dd>Choose PM or type a name; tick operations; Send request (creates a support ticket and records demand per PM).</dd><dt>States</dt><dd>Already requested: shows the existing request and its status instead of the form.</dd><dt>Rules</dt><dd>Never promises a date. Confirmation toast says the team will reply within 1 business day.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:720px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal " role="dialog"><div class="modal-head"><div><h2>Request an integration</h2><p class="muted dense">We prioritize integrations by how many clients and claims they would help.</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <div class="field"><label for="i5p">PM system</label><select id="i5p" class="select"><option>SimplePractice</option></select></div>
+        <fieldset class="fieldset"><legend>What should be automatic?</legend>
+          <label class="check"><input type="checkbox" checked>Post payments</label>
+          <label class="check"><input type="checkbox" checked>Read what was posted</label>
+          <label class="check"><input type="checkbox">Write charge corrections</label>
+          <label class="check"><input type="checkbox">Read claim status</label>
+        </fieldset>
+        <div class="field"><label for="i5v">Claims per month on this PM</label><input id="i5v" class="input" style="width:160px" value="600"></div>
+        <div class="callout dense"><b>Meanwhile:</b> Riverbend Counseling's postings run as manual tasks with ready-made worksheets. Last month that was 14 tasks, about 2.5 hours of biller time.</div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Send request</button></div></div></div>
+  </div></div>
+</section>
+
+</div>
+<script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/shell.js"></script>
+</body>
+</html>

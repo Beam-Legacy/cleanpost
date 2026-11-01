@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanpost UI · Sign-in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/reference.css">
+</head>
+<body>
+<header class="ref-top">
+  <a class="brand" href="index.html"><span data-mark></span>Cleanpost UI</a>
+  <nav aria-label="Areas">
+    <a href="shell.html">Shell and states</a>
+    <a href="auth.html" class="active" aria-current="page">Sign-in</a>
+    <a href="work.html">Work queue</a>
+    <a href="claims.html">Claims and patients</a>
+    <a href="money.html">Money in</a>
+    <a href="clients.html">Clients and setup</a>
+    <a href="admin.html">Reports and admin</a>
+    <a href="outputs.html">Emails and PDFs</a>
+    <a href="website.html">Website</a>
+  </nav>
+  <button type="button" class="btn btn-secondary btn-sm" id="theme-toggle" style="margin-left:auto"><i data-lucide="moon"></i>Theme</button>
+</header>
+
+<div class="ref-body">
+<div class="ref-intro">
+  <h1>Sign-in and account access</h1>
+  <p>Centered single-column screens on the canvas, with the mark and wordmark at the top. Two-factor is required for every user. No patient information appears on any of these screens.</p>
+</div>
+
+<!-- ============================ A-01 ============================ -->
+<section class="ref-view" id="A-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">A-01</span><h2>Sign in</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /sign-in</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Start a session with email and password, or with a passkey.</dd>
+      <dt>Data</dt><dd>better-auth credentials; return path from the URL (?next=).</dd>
+      <dt>Actions</dt><dd>Sign in (then A-02); Sign in with a passkey (skips A-02, passkeys count as two factors); Forgot password (A-04).</dd>
+      <dt>States</dt><dd>Wrong email or password: one generic error under the form ("Email or password is incorrect"), never which one. After 5 failures: A-08. Submitting: button shows progress.</dd>
+      <dt>Rules</dt><dd>Rate-limited per IP and per account. Failed attempts logged. No "remember me"; device trust is handled in A-02 if the tenant allows it.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;--h:720px;display:flex;align-items:center;justify-content:center;padding:48px 0">
+    <div style="width:400px" class="stack-lg">
+      <div class="row" style="gap:8px;justify-content:center"><span data-mark></span><span style="font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-0.02em">cleanpost</span></div>
+      <div class="card"><form class="card-body stack" style="padding:32px" onsubmit="return false">
+        <h1 class="display-m">Sign in</h1>
+        <div class="field"><label for="a01e">Work email</label><input id="a01e" class="input" type="email" autocomplete="username" value="dana@northwindbilling.com"></div>
+        <div class="field"><div class="row-between"><label for="a01p">Password</label><a href="#A-04" class="dense">Forgot password?</a></div><input id="a01p" class="input" type="password" autocomplete="current-password" value="••••••••••••"></div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Sign in</button>
+        <div class="row" style="gap:12px;flex-wrap:nowrap"><hr class="divider" style="flex:1"><span class="subtle">or</span><hr class="divider" style="flex:1"></div>
+        <button type="button" class="btn btn-secondary btn-block btn-lg"><i data-lucide="fingerprint"></i>Sign in with a passkey</button>
+      </form></div>
+      <p class="subtle" style="text-align:center">Protected health information. Access is logged. <a href="#">Status</a> · <a href="#">Privacy</a></p>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ A-02 ============================ -->
+<section class="ref-view" id="A-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">A-02</span><h2>Second factor</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /sign-in/verify</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Confirm the second factor after the password.</dd>
+      <dt>Data</dt><dd>User's enrolled factors (authenticator app, passkey); tenant setting for device trust.</dd>
+      <dt>Actions</dt><dd>Enter 6-digit code (auto-submits on the 6th digit); Use a passkey instead; Use a recovery code; Trust this device for 12 hours (only if the tenant allows and the device is approved).</dd>
+      <dt>States</dt><dd>Wrong code: field error, code cleared, focus returns. 5 wrong codes: A-08.</dd>
+      <dt>Rules</dt><dd>One-time-code input uses autocomplete="one-time-code". Recovery code use emails the user and marks the code spent.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;--h:680px;display:flex;align-items:center;justify-content:center;padding:48px 0">
+    <div style="width:400px" class="stack-lg">
+      <div class="row" style="gap:8px;justify-content:center"><span data-mark></span><span style="font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-0.02em">cleanpost</span></div>
+      <div class="card"><form class="card-body stack" style="padding:32px" onsubmit="return false">
+        <h1 class="display-m">Enter your code</h1>
+        <p class="muted">Open your authenticator app and enter the 6-digit code for Cleanpost.</p>
+        <div class="field"><label for="a02c">Code</label><input id="a02c" class="input mono" inputmode="numeric" autocomplete="one-time-code" value="482 9" style="height:48px;font-size:22px;letter-spacing:0.3em;text-align:center"></div>
+        <label class="check"><input type="checkbox">Trust this device for 12 hours</label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Verify</button>
+        <div class="row-between dense"><a href="#">Use a passkey instead</a><a href="#">Use a recovery code</a></div>
+      </form></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ A-03 ============================ -->
+<section class="ref-view" id="A-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">A-03</span><h2>Set up two-factor</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /setup/two-factor</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Enroll the required second factor on first sign-in.</dd>
+      <dt>Data</dt><dd>TOTP secret and QR (generated server-side); 10 recovery codes.</dd>
+      <dt>Actions</dt><dd>Step 1: scan QR or copy the setup key; enter a code to confirm. Step 2: download or copy recovery codes; confirm saved; Continue. Alternative: Add a passkey instead.</dd>
+      <dt>States</dt><dd>Wrong confirmation code: field error. Continue disabled until "I saved these codes" is checked.</dd>
+      <dt>Rules</dt><dd>Cannot be skipped. Recovery codes shown once; regenerating invalidates the old set (A-09).</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;--h:860px;display:flex;align-items:center;justify-content:center;padding:48px 0">
+    <div style="width:560px" class="stack-lg">
+      <div class="row" style="gap:8px;justify-content:center"><span data-mark></span><span style="font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-0.02em">cleanpost</span></div>
+      <div class="card"><div class="card-body stack-lg" style="padding:32px">
+        <div class="stack-sm"><span class="overline">Step 1 of 2</span><h1 class="display-m">Set up two-factor sign-in</h1><p class="muted">Cleanpost requires a second step at sign-in because it holds patient information. Scan this code with an authenticator app such as 1Password, Google Authenticator or Microsoft Authenticator.</p></div>
+        <div class="row" style="gap:24px;flex-wrap:nowrap;align-items:flex-start">
+          <div style="width:160px;height:160px;flex:none;border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--surface-sunken);display:flex;align-items:center;justify-content:center;padding:48px 0" class="subtle" aria-label="QR code">QR code</div>
+          <div class="stack-sm" style="flex:1">
+            <span class="dense muted">Can't scan? Enter this key:</span>
+            <div class="row"><span class="code">JBSW Y3DP EHPK 3PXP</span><button type="button" class="icon-btn ghost" aria-label="Copy setup key"><i data-lucide="copy"></i></button></div>
+            <div class="field"><label for="a03c">Code from the app</label><input id="a03c" class="input mono" inputmode="numeric" autocomplete="one-time-code" placeholder="6 digits"></div>
+          </div>
+        </div>
+        <hr class="divider">
+        <div class="stack-sm"><span class="overline">Step 2 of 2 · Recovery codes</span><p class="dense muted">Use one of these if you lose your phone. Each works once. Store them somewhere safe; we won't show them again.</p>
+          <div class="callout code" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 24px">
+            <span>7KQ2-M9XD</span><span>H4TP-2WRA</span><span>P8LN-6CYE</span><span>3VBJ-Q7KS</span><span>W2FD-9GHM</span><span>N6RT-4ZPQ</span><span>C9XE-8LKV</span><span>Y5MA-1TDB</span><span>G3HW-7NRF</span><span>Q1ZC-5PJT</span>
+          </div>
+          <div class="row"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="download"></i>Download</button><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="copy"></i>Copy</button></div>
+          <label class="check"><input type="checkbox">I saved these recovery codes</label>
+        </div>
+        <button type="button" class="btn btn-primary btn-block btn-lg" disabled>Continue</button>
+        <a href="#" class="dense" style="text-align:center">Add a passkey instead</a>
+      </div></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ A-04 ============================ -->
+<section class="ref-view" id="A-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">A-04</span><h2>Forgot password</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /forgot-password</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Request a password reset link.</dd>
+      <dt>Data</dt><dd>Email address.</dd>
+      <dt>Actions</dt><dd>Send reset link (E-02); Back to sign in.</dd>
+      <dt>States</dt><dd>After submit: the same confirmation whether or not the email exists ("If an account exists, we sent a link").</dd>
+      <dt>Rules</dt><dd>Link expires in 30 minutes and works once. Rate-limited. Resetting a password does not remove two-factor.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;--h:600px;display:flex;align-items:center;justify-content:center;padding:48px 0;gap:48px">
+    <div style="width:400px" class="stack-lg">
+      <div class="row" style="gap:8px;justify-content:center"><span data-mark></span><span style="font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-0.02em">cleanpost</span></div>
+      <div class="card"><form class="card-body stack" style="padding:32px" onsubmit="return false">
+        <h1 class="display-m">Reset your password</h1>
+        <p class="muted">Enter your work email and we'll send a link to set a new password.</p>
+        <div class="field"><label for="a04e">Work email</label><input id="a04e" class="input" type="email" autocomplete="username"></div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Send reset link</button>
+        <a href="#A-01" class="dense" style="text-align:center">Back to sign in</a>
+      </form></div>
+    </div>
+    <div style="width:400px" class="stack-lg">
+      <span class="ref-label" style="text-align:center">After sending</span>
+      <div class="card"><div class="card-body stack" style="padding:32px">
+        <div class="empty" style="padding:0"><div class="glyph"><i data-lucide="mail"></i></div><h2>Check your email</h2><p>If an account exists for that address, we sent a link. It expires in 30 minutes.</p></div>
+        <a href="#A-01" class="btn btn-secondary btn-block">Back to sign in</a>
+      </div></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ A-05 ============================ -->
+<section class="ref-view" id="A-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">A-05</span><h2>Reset password</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /reset-password?token=</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Set a new password from a reset link.</dd>
+      <dt>Data</dt><dd>Reset token; password rules (NIST 800-63B: at least 12 characters, checked against breached-password lists, no composition rules).</dd>
+      <dt>Actions</dt><dd>Set password; then sign in (two-factor still required).</dd>
+      <dt>States</dt><dd>Expired or used token: message with "Send a new link". Weak or breached password: inline error explaining why.</dd>
+      <dt>Rules</dt><dd>Signs out all other sessions and emails the user.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;--h:620px;display:flex;align-items:center;justify-content:center;padding:48px 0">
+    <div style="width:400px" class="stack-lg">
+      <div class="row" style="gap:8px;justify-content:center"><span data-mark></span><span style="font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-0.02em">cleanpost</span></div>
+      <div class="card"><form class="card-body stack" style="padding:32px" onsubmit="return false">
+        <h1 class="display-m">Choose a new password</h1>
+        <div class="field"><label for="a05p">New password</label><input id="a05p" class="input invalid" type="password" autocomplete="new-password" value="••••••••••"><span class="error"><i data-lucide="circle-x"></i>This password appears in known data breaches. Choose a different one.</span><span class="help">At least 12 characters. A short phrase is easier to remember.</span></div>
+        <div class="field"><label for="a05c">Confirm new password</label><input id="a05c" class="input" type="password" autocomplete="new-password"></div>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Set password</button>
+        <p class="subtle">This signs you out on every other device.</p>
+      </form></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ A-06 ============================ -->
+<section class="ref-view" id="A-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">A-06</span><h2>Accept invite</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /invite?token=</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Let an invited user join their billing company's workspace.</dd>
+      <dt>Data</dt><dd>Invite: tenant name, inviter, role, client scope summary, email (locked).</dd>
+      <dt>Actions</dt><dd>Enter name and password, accept the terms of use; Create account (then A-03). Existing users: "Sign in to accept" adds the membership.</dd>
+      <dt>States</dt><dd>Expired invite (7 days): ask the inviter to resend. Already accepted: link to sign in.</dd>
+      <dt>Rules</dt><dd>Email cannot be changed. Account is created only after two-factor is set up.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;--h:760px;display:flex;align-items:center;justify-content:center;padding:48px 0">
+    <div style="width:440px" class="stack-lg">
+      <div class="row" style="gap:8px;justify-content:center"><span data-mark></span><span style="font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-0.02em">cleanpost</span></div>
+      <div class="card"><form class="card-body stack" style="padding:32px" onsubmit="return false">
+        <h1 class="display-m">Join Northwind Billing</h1>
+        <p class="muted">Priya Shah invited you as a <b>Biller</b> with access to 3 clients.</p>
+        <div class="field"><label for="a06e">Work email</label><input id="a06e" class="input" value="marcus@northwindbilling.com" readonly style="background:var(--surface-sunken)"></div>
+        <div class="field"><label for="a06n">Full name</label><input id="a06n" class="input" autocomplete="name" value="Marcus Lee"></div>
+        <div class="field"><label for="a06p">Password</label><input id="a06p" class="input" type="password" autocomplete="new-password"><span class="help">At least 12 characters.</span></div>
+        <label class="check"><input type="checkbox">I agree to the <a href="#">Terms of use</a> and will follow my company's HIPAA policies.</label>
+        <button type="submit" class="btn btn-primary btn-block btn-lg">Create account</button>
+        <p class="subtle" style="text-align:center">Already have a Cleanpost account? <a href="#A-01">Sign in to accept</a></p>
+      </form></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ A-07 ============================ -->
+<section class="ref-view" id="A-07">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">A-07</span><h2>Choose company</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /choose-company</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Pick which billing company to work in, for users with more than one membership.</dd>
+      <dt>Data</dt><dd>memberships for the user: tenant name, role, open items assigned.</dd>
+      <dt>Actions</dt><dd>Select a company (sets the session tenant); Remember my choice. Also reachable from the user menu (G-05).</dd>
+      <dt>States</dt><dd>Skipped for single-membership users. Suspended tenant shown disabled with a reason.</dd>
+      <dt>Rules</dt><dd>Switching tenant reloads the app with no data carried over; audit logs the switch.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;--h:620px;display:flex;align-items:center;justify-content:center;padding:48px 0">
+    <div style="width:440px" class="stack-lg">
+      <div class="row" style="gap:8px;justify-content:center"><span data-mark></span><span style="font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-0.02em">cleanpost</span></div>
+      <div class="card"><div class="card-body stack" style="padding:32px">
+        <h1 class="display-m">Choose a company</h1>
+        <button type="button" class="option-card selected"><span class="row-between" style="width:100%"><b>Northwind Billing</b><span class="tag">Biller</span></span><span class="dense muted">23 items assigned to you</span></button>
+        <button type="button" class="option-card"><span class="row-between" style="width:100%"><b>Harbor RCM</b><span class="tag">Viewer</span></span><span class="dense muted">Reports only</span></button>
+        <label class="check"><input type="checkbox">Remember my choice on this device</label>
+        <button type="button" class="btn btn-primary btn-block btn-lg">Continue</button>
+      </div></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ A-08 ============================ -->
+<section class="ref-view" id="A-08">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">A-08</span><h2>Account locked</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Explain the temporary lock after repeated failed attempts and when it lifts.</dd>
+      <dt>Data</dt><dd>Unlock time (15 minutes after the 5th failure); tenant admins.</dd>
+      <dt>Actions</dt><dd>Reset password (A-04); Back to sign in.</dd>
+      <dt>States</dt><dd>Locked by an admin (deactivated): different copy, no timer, contact admin.</dd>
+      <dt>Rules</dt><dd>The user gets an email (E-03 style) about the lock. The page does not confirm whether the email exists to anonymous visitors; it appears only after a valid email was entered.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;--h:560px;display:flex;align-items:center;justify-content:center;padding:48px 0">
+    <div style="width:400px" class="stack-lg">
+      <div class="row" style="gap:8px;justify-content:center"><span data-mark></span><span style="font-family:var(--font-display);font-weight:700;font-size:22px;letter-spacing:-0.02em">cleanpost</span></div>
+      <div class="card"><div class="card-body stack" style="padding:32px">
+        <div class="empty" style="padding:0"><div class="glyph bad"><i data-lucide="lock"></i></div><h2>Sign-in paused for 15 minutes</h2><p>There were too many unsuccessful attempts. You can try again at 2:47 pm PT, or reset your password now. We emailed you about this.</p></div>
+        <a href="#A-04" class="btn btn-primary btn-block">Reset password</a>
+        <a href="#A-01" class="btn btn-ghost btn-block">Back to sign in</a>
+      </div></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ A-09 ============================ -->
+<section class="ref-view" id="A-09">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">A-09</span><h2>Profile and security</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /account</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Let users manage their own name, password, sign-in methods and sessions.</dd>
+      <dt>Data</dt><dd>users (name, email), two-factor devices and passkeys, recovery codes remaining, active sessions (device, browser, approximate location, last active).</dd>
+      <dt>Actions</dt><dd>Edit name; Change password (requires current password); Add authenticator or passkey; Remove a factor (cannot remove the last); Regenerate recovery codes; Sign out a session; Sign out all other sessions.</dd>
+      <dt>States</dt><dd>Sensitive changes ask for re-authentication if the last sign-in was over 15 minutes ago.</dd>
+      <dt>Rules</dt><dd>Email changes go through an admin. Every change emails the user and is audit-logged.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="settings" data-role="biller">
+      <main class="main" style="max-width:960px">
+        <div class="page-head"><h1>Profile and security</h1></div>
+        <div class="card"><div class="card-head"><h2>Profile</h2></div><div class="card-body form-grid">
+          <div class="field"><label for="a09n">Full name</label><input id="a09n" class="input" value="Dana Reyes"></div>
+          <div class="field"><label for="a09e">Work email</label><input id="a09e" class="input" value="dana@northwindbilling.com" readonly style="background:var(--surface-sunken)"><span class="help">Ask an admin to change your email.</span></div>
+        </div><div class="card-foot"><button type="button" class="btn btn-primary btn-sm">Save</button></div></div>
+        <div class="card"><div class="card-head"><h2>Sign-in methods</h2></div><div class="card-body stack">
+          <div class="row-between"><div class="row"><i data-lucide="key-round"></i><div><b>Password</b><div class="subtle">Changed Aug 12, 2026</div></div></div><button type="button" class="btn btn-secondary btn-sm">Change password</button></div>
+          <hr class="divider">
+          <div class="row-between"><div class="row"><i data-lucide="smartphone"></i><div><b>Authenticator app</b><div class="subtle">Added Jul 3, 2026</div></div></div><button type="button" class="btn btn-ghost btn-sm">Remove</button></div>
+          <div class="row-between"><div class="row"><i data-lucide="fingerprint"></i><div><b>Passkey · MacBook Pro</b><div class="subtle">Added Sep 9, 2026 · last used today</div></div></div><button type="button" class="btn btn-ghost btn-sm">Remove</button></div>
+          <div class="row"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="plus"></i>Add passkey</button><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="plus"></i>Add authenticator</button></div>
+          <hr class="divider">
+          <div class="row-between"><div><b>Recovery codes</b><div class="subtle">7 of 10 unused</div></div><button type="button" class="btn btn-secondary btn-sm">Generate new codes</button></div>
+        </div></div>
+        <div class="card flush"><div class="card-head"><h2>Active sessions</h2><button type="button" class="btn btn-secondary btn-sm" style="margin-left:auto">Sign out all other sessions</button></div>
+          <table class="table"><thead><tr><th>Device</th><th>Location</th><th>Last active</th><th><span class="sr-only">Action</span></th></tr></thead><tbody>
+            <tr><td><b>Chrome on macOS</b> <span class="tag">This device</span></td><td>Albany, OR</td><td>Now</td><td></td></tr>
+            <tr><td>Safari on iPhone</td><td>Corvallis, OR</td><td>Yesterday 6:12 pm</td><td class="num"><button type="button" class="btn btn-ghost btn-sm">Sign out</button></td></tr>
+          </tbody></table>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+</div>
+<script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/shell.js"></script>
+</body>
+</html>

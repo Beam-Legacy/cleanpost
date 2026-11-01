@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanpost UI · Website</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/web.css">
+<link rel="stylesheet" href="assets/reference.css">
+</head>
+<body>
+<header class="ref-top">
+  <a class="brand" href="index.html"><span data-mark></span>Cleanpost UI</a>
+  <nav aria-label="Areas">
+    <a href="shell.html">Shell and states</a>
+    <a href="auth.html">Sign-in</a>
+    <a href="work.html">Work queue</a>
+    <a href="claims.html">Claims and patients</a>
+    <a href="money.html">Money in</a>
+    <a href="clients.html">Clients and setup</a>
+    <a href="admin.html">Reports and admin</a>
+    <a href="outputs.html">Emails and PDFs</a>
+    <a href="website.html" class="active" aria-current="page">Website</a>
+  </nav>
+  <button type="button" class="btn btn-secondary btn-sm" id="theme-toggle" style="margin-left:auto"><i data-lucide="moon"></i>Theme</button>
+</header>
+<div class="ref-body">
+<div class="ref-intro">
+  <h1>Website</h1>
+  <p>The marketing site for billing company owners and operations leads. Every page answers what they ask on a first call: does it work with our clients' PM systems, what happens to our billers, is it safe, and what does it cost. Pages share the product's tokens; layout responds to width (see WEB-01 at 390px). Built with the same component classes plus <span class="code">assets/web.css</span>.</p>
+</div>
+
+<section class="ref-view" id="WEB-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-01</span><h2>Home</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Explain in one screen what Cleanpost does for a billing company and get a demo booked.</dd><dt>Data</dt><dd>Static content. Product shots are live components with example data, labeled as examples.</dd><dt>Actions</dt><dd>Book a demo (WEB-08); See how it works (WEB-03); See integrations (WEB-05); Sign in (app A-01).</dd><dt>States</dt><dd>Responsive: hero stacks, columns collapse to one, nav becomes a menu button below 560px (second frame).</dd><dt>Rules</dt><dd>No customer logos, testimonials or statistics until real ones exist with permission. Every figure is labeled as an example. Lighthouse performance and accessibility 95+.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section"><div class="web-wrap web-hero">
+  <div class="web-hero-copy">
+    <span class="web-eyebrow">For medical billing companies</span>
+    <h1 class="web-h1">Send clean claims and post every payment without adding billers.</h1>
+    <p class="web-lead">Cleanpost connects to your clients' practice management systems, checks every claim before it goes out, and posts payments back. Your billers work one queue of exceptions across every client.</p>
+    <div class="row"><a class="btn btn-primary" href="#WEB-08">Book a demo</a><a class="btn btn-secondary" href="#WEB-03">See how it works</a></div>
+    <p class="web-note">Works alongside the PM systems your clients already use. Nothing changes in the practice.</p>
+  </div>
+  <div><div class="shot" role="img" aria-label="Cleanpost work queue showing five items across three clients">
+  <div class="shot-bar"><i class="d"></i><i class="d"></i><i class="d"></i><span>Work · All clients</span></div>
+  <div class="shot-body">
+    <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="kpi-label">Due today</div><div class="kpi-value">18</div></div><div class="kpi"><div class="kpi-label">Released without review</div><div class="kpi-value">71%</div></div><div class="kpi"><div class="kpi-label">Posted today</div><div class="kpi-value good">$38,214</div></div></div>
+    <div class="card flush"><div class="table-wrap"><table class="table nowrap"><thead><tr><th><span class="sr-only">Priority</span></th><th>Item</th><th class="hide-sm">Client</th><th class="num">Amount</th><th>Due</th></tr></thead><tbody><tr><td><span class="prio p2"></span></td><td><div class="two-line"><b>Claim review</b><span class="sub">Modifier 25 likely missing</span></div></td><td class="hide-sm">Lakeside Family Med</td><td class="num">$312.00</td><td><span class="due">21 h</span></td></tr><tr><td><span class="prio p1"></span></td><td><div class="two-line"><b>Rejection</b><span class="sub">Subscriber ID not found</span></div></td><td class="hide-sm">Lakeside Family Med</td><td class="num">$145.00</td><td><span class="due soon">2 h</span></td></tr><tr><td><span class="prio p2"></span></td><td><div class="two-line"><b>Denial</b><span class="sub">Modifier inconsistent (CO-4)</span></div></td><td class="hide-sm">Willamette Ortho</td><td class="num">$446.00</td><td><span class="due">Tomorrow</span></td></tr><tr><td><span class="prio p2"></span></td><td><div class="two-line"><b>Posting difference</b><span class="sub">Denial written off in the PM</span></div></td><td class="hide-sm">Willamette Ortho</td><td class="num">$544.00</td><td><span class="due soon">5 h</span></td></tr><tr><td><span class="prio p3"></span></td><td><div class="two-line"><b>Card review</b><span class="sub">Group number unreadable</span></div></td><td class="hide-sm">Cascade Pediatrics</td><td class="num">—</td><td><span class="due">2 d</span></td></tr></tbody></table></div></div>
+  </div>
+</div>
+<p class="shot-caption">Example data. The work queue: one list of exceptions across every client.</p></div>
+</div></section>
+
+<section class="web-section alt"><div class="web-wrap">
+  <div class="web-head"><span class="web-eyebrow">What changes for your team</span><h2 class="web-h2">Billers handle exceptions, not data entry.</h2></div>
+  <div class="web-cols-3">
+    <div class="web-feature"><span class="ic"><i data-lucide="send"></i></span><h3 class="web-h3">Claims out clean</h3><p>Every charge is checked against payer rules, NCCI edits and eligibility before it goes out. Claims above your confidence threshold are released automatically; the rest come to a biller with the fix already suggested.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="landmark"></i></span><h3 class="web-h3">Payments posted the day they arrive</h3><p>Each 835 is matched to its claims, balanced to the cent, and posted to the PM or checked against what the PM posted. Differences and denials go to the queue.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="inbox"></i></span><h3 class="web-h3">One queue across every client</h3><p>Rejections, denials, eligibility problems and posting differences from all your clients in one list, worked from the keyboard.</p></div>
+  </div>
+</div></section>
+
+<section class="web-section web-band"><div class="web-wrap web-cols-2">
+  <div class="stack"><span class="web-eyebrow">Example</span><h2 class="web-h2">More clients per biller.</h2><p class="web-lead">If Cleanpost removes half of the routine work on each claim, a biller who handles 1,200 claims a month can handle about 2,400. You decide whether that becomes margin or lower prices for your clients.</p><p class="web-note" style="color:var(--border)">Example only. Your numbers depend on specialty, payer mix and how much of each PM we can automate. We measure your baseline during onboarding.</p></div>
+  <div class="grid-2"><div class="kpi"><div class="kpi-label">Claims per biller per month, before</div><div class="kpi-value lg">1,200</div><div class="kpi-delta">Example</div></div><div class="kpi"><div class="kpi-label">Claims per biller per month, after</div><div class="kpi-value lg">2,400</div><div class="kpi-delta">Example, 50% of routine work removed</div></div></div>
+</div></section>
+
+<section class="web-section"><div class="web-wrap web-cols-2">
+  <div class="stack"><span class="web-eyebrow">Integrations</span><h2 class="web-h2">Works with the PM your client already has.</h2><p class="web-lead">Where a PM has an API, Cleanpost uses it. Where it doesn't, Cleanpost prepares each step for a biller to finish in the PM, so any client can start on day one.</p><a href="#WEB-05" class="btn btn-secondary" style="align-self:flex-start">See integrations</a></div>
+  <div class="card flush"><table class="table"><thead><tr><th>PM system</th><th>Today</th></tr></thead><tbody>
+    <tr><td>Tebra (Kareo)</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>API</span></td></tr>
+    <tr><td>athenaOne</td><td><span class="chip chip-ready"><i data-lucide="send"></i>API, partner approval pending</span></td></tr>
+    <tr><td>AdvancedMD</td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td></tr>
+    <tr><td>SimplePractice</td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual steps</span></td></tr>
+    <tr><td>Any other PM</td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual steps</span></td></tr>
+  </tbody></table></div>
+</div></section>
+
+<section class="web-section alt"><div class="web-wrap">
+  <div class="web-head"><span class="web-eyebrow">Security</span><h2 class="web-h2">Built for protected health information.</h2></div>
+  <div class="web-cols-4">
+    <div class="web-feature"><span class="ic"><i data-lucide="file-text"></i></span><h3 class="web-h3">BAA with every customer</h3><p>And with every subprocessor that touches PHI.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="lock"></i></span><h3 class="web-h3">Encrypted everywhere</h3><p>In transit and at rest, with field-level encryption for IDs.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="key-round"></i></span><h3 class="web-h3">Two-factor required</h3><p>For every user, with role and client-level access.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="scroll-text"></i></span><h3 class="web-h3">Every view logged</h3><p>Who saw or changed what, kept for six years.</p></div>
+  </div>
+</div></section>
+
+<section class="web-section web-band"><div class="web-wrap web-cta">
+  <div class="stack-sm"><h2 class="web-h2">See it on your own claims.</h2><p class="web-lead">Bring a recent month of claims and remittances. We'll show what Cleanpost would have caught.</p></div>
+  <a class="btn btn-primary" href="#WEB-08">Book a demo</a>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+  <div class="ref-label">Phone, 390px</div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:390px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section"><div class="web-wrap web-hero">
+  <div class="web-hero-copy">
+    <span class="web-eyebrow">For medical billing companies</span>
+    <h1 class="web-h1">Send clean claims and post every payment without adding billers.</h1>
+    <p class="web-lead">Cleanpost connects to your clients' practice management systems, checks every claim before it goes out, and posts payments back. Your billers work one queue of exceptions across every client.</p>
+    <div class="row"><a class="btn btn-primary" href="#WEB-08">Book a demo</a><a class="btn btn-secondary" href="#WEB-03">See how it works</a></div>
+    <p class="web-note">Works alongside the PM systems your clients already use. Nothing changes in the practice.</p>
+  </div>
+  <div><div class="shot" role="img" aria-label="Cleanpost work queue showing five items across three clients">
+  <div class="shot-bar"><i class="d"></i><i class="d"></i><i class="d"></i><span>Work · All clients</span></div>
+  <div class="shot-body">
+    <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="kpi-label">Due today</div><div class="kpi-value">18</div></div><div class="kpi"><div class="kpi-label">Released without review</div><div class="kpi-value">71%</div></div><div class="kpi"><div class="kpi-label">Posted today</div><div class="kpi-value good">$38,214</div></div></div>
+    <div class="card flush"><div class="table-wrap"><table class="table nowrap"><thead><tr><th><span class="sr-only">Priority</span></th><th>Item</th><th class="hide-sm">Client</th><th class="num">Amount</th><th>Due</th></tr></thead><tbody><tr><td><span class="prio p2"></span></td><td><div class="two-line"><b>Claim review</b><span class="sub">Modifier 25 likely missing</span></div></td><td class="hide-sm">Lakeside Family Med</td><td class="num">$312.00</td><td><span class="due">21 h</span></td></tr><tr><td><span class="prio p1"></span></td><td><div class="two-line"><b>Rejection</b><span class="sub">Subscriber ID not found</span></div></td><td class="hide-sm">Lakeside Family Med</td><td class="num">$145.00</td><td><span class="due soon">2 h</span></td></tr><tr><td><span class="prio p2"></span></td><td><div class="two-line"><b>Denial</b><span class="sub">Modifier inconsistent (CO-4)</span></div></td><td class="hide-sm">Willamette Ortho</td><td class="num">$446.00</td><td><span class="due">Tomorrow</span></td></tr><tr><td><span class="prio p2"></span></td><td><div class="two-line"><b>Posting difference</b><span class="sub">Denial written off in the PM</span></div></td><td class="hide-sm">Willamette Ortho</td><td class="num">$544.00</td><td><span class="due soon">5 h</span></td></tr><tr><td><span class="prio p3"></span></td><td><div class="two-line"><b>Card review</b><span class="sub">Group number unreadable</span></div></td><td class="hide-sm">Cascade Pediatrics</td><td class="num">—</td><td><span class="due">2 d</span></td></tr></tbody></table></div></div>
+  </div>
+</div>
+<p class="shot-caption">Example data. The work queue: one list of exceptions across every client.</p></div>
+</div></section>
+
+<section class="web-section alt"><div class="web-wrap">
+  <div class="web-head"><span class="web-eyebrow">What changes for your team</span><h2 class="web-h2">Billers handle exceptions, not data entry.</h2></div>
+  <div class="web-cols-3">
+    <div class="web-feature"><span class="ic"><i data-lucide="send"></i></span><h3 class="web-h3">Claims out clean</h3><p>Every charge is checked against payer rules, NCCI edits and eligibility before it goes out. Claims above your confidence threshold are released automatically; the rest come to a biller with the fix already suggested.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="landmark"></i></span><h3 class="web-h3">Payments posted the day they arrive</h3><p>Each 835 is matched to its claims, balanced to the cent, and posted to the PM or checked against what the PM posted. Differences and denials go to the queue.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="inbox"></i></span><h3 class="web-h3">One queue across every client</h3><p>Rejections, denials, eligibility problems and posting differences from all your clients in one list, worked from the keyboard.</p></div>
+  </div>
+</div></section>
+
+<section class="web-section web-band"><div class="web-wrap web-cols-2">
+  <div class="stack"><span class="web-eyebrow">Example</span><h2 class="web-h2">More clients per biller.</h2><p class="web-lead">If Cleanpost removes half of the routine work on each claim, a biller who handles 1,200 claims a month can handle about 2,400. You decide whether that becomes margin or lower prices for your clients.</p><p class="web-note" style="color:var(--border)">Example only. Your numbers depend on specialty, payer mix and how much of each PM we can automate. We measure your baseline during onboarding.</p></div>
+  <div class="grid-2"><div class="kpi"><div class="kpi-label">Claims per biller per month, before</div><div class="kpi-value lg">1,200</div><div class="kpi-delta">Example</div></div><div class="kpi"><div class="kpi-label">Claims per biller per month, after</div><div class="kpi-value lg">2,400</div><div class="kpi-delta">Example, 50% of routine work removed</div></div></div>
+</div></section>
+
+<section class="web-section"><div class="web-wrap web-cols-2">
+  <div class="stack"><span class="web-eyebrow">Integrations</span><h2 class="web-h2">Works with the PM your client already has.</h2><p class="web-lead">Where a PM has an API, Cleanpost uses it. Where it doesn't, Cleanpost prepares each step for a biller to finish in the PM, so any client can start on day one.</p><a href="#WEB-05" class="btn btn-secondary" style="align-self:flex-start">See integrations</a></div>
+  <div class="card flush"><table class="table"><thead><tr><th>PM system</th><th>Today</th></tr></thead><tbody>
+    <tr><td>Tebra (Kareo)</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>API</span></td></tr>
+    <tr><td>athenaOne</td><td><span class="chip chip-ready"><i data-lucide="send"></i>API, partner approval pending</span></td></tr>
+    <tr><td>AdvancedMD</td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td></tr>
+    <tr><td>SimplePractice</td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual steps</span></td></tr>
+    <tr><td>Any other PM</td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual steps</span></td></tr>
+  </tbody></table></div>
+</div></section>
+
+<section class="web-section alt"><div class="web-wrap">
+  <div class="web-head"><span class="web-eyebrow">Security</span><h2 class="web-h2">Built for protected health information.</h2></div>
+  <div class="web-cols-4">
+    <div class="web-feature"><span class="ic"><i data-lucide="file-text"></i></span><h3 class="web-h3">BAA with every customer</h3><p>And with every subprocessor that touches PHI.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="lock"></i></span><h3 class="web-h3">Encrypted everywhere</h3><p>In transit and at rest, with field-level encryption for IDs.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="key-round"></i></span><h3 class="web-h3">Two-factor required</h3><p>For every user, with role and client-level access.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="scroll-text"></i></span><h3 class="web-h3">Every view logged</h3><p>Who saw or changed what, kept for six years.</p></div>
+  </div>
+</div></section>
+
+<section class="web-section web-band"><div class="web-wrap web-cta">
+  <div class="stack-sm"><h2 class="web-h2">See it on your own claims.</h2><p class="web-lead">Bring a recent month of claims and remittances. We'll show what Cleanpost would have caught.</p></div>
+  <a class="btn btn-primary" href="#WEB-08">Book a demo</a>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-02</span><h2>Product</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /product</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show each part of the product with a real screen: claims out, payments in, work queue, reports.</dd><dt>Data</dt><dd>Static. Screens built from product components with example data.</dd><dt>Actions</dt><dd>Book a demo.</dd><dt>States</dt><dd>Rows alternate image side on desktop and stack on phone.</dd><dt>Rules</dt><dd>Codes shown without CPT descriptions. No real patient data in screenshots, ever.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02" class="active" aria-current="page">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section tight"><div class="web-wrap web-head" style="margin-bottom:0"><span class="web-eyebrow">Product</span><h1 class="web-h1">Everything between the charge and the posted payment.</h1><p class="web-lead">Cleanpost reads coded charges from each client's PM, checks and sends claims, tracks them, and posts or verifies every payment. Billers see only what needs a person.</p></div></section>
+<section class="web-section" style="padding-top:0"><div class="web-wrap">
+  <div class="web-row">
+    <div class="stack"><span class="web-eyebrow">Claims out</span><h2 class="web-h2">Every claim checked before it goes out.</h2>
+      <ul class="web-list"><li><i data-lucide="circle-check"></i>Eligibility checked on new or changed coverage.</li><li><i data-lucide="circle-check"></i>Payer rules, NCCI edits, modifiers and diagnosis pointers checked on every claim.</li><li><i data-lucide="circle-check"></i>A confidence score decides what goes out automatically. You set the threshold per client and payer.</li><li><i data-lucide="circle-check"></i>Fixes are suggested with the evidence behind them. Billers accept, edit or dismiss.</li></ul></div>
+    <div class="shot"><div class="shot-bar"><i class="d"></i><i class="d"></i><i class="d"></i><span>Claim review</span></div><div class="shot-body">
+      <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Needs review</span><span class="mode">Mode A</span></div>
+      <b>Nguyen, M. · Oct 27, 2026 · UnitedHealthcare · $312.00</b>
+      <div class="meter"><div class="row-between subtle"><span>Confidence</span><span>72 · threshold 90</span></div><div class="meter-bar"><div class="meter-fill" style="width:72%"></div><div class="meter-mark" style="left:90%"></div></div></div>
+      <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Add modifier <span class="code">25</span> to line 1. UnitedHealthcare requires it when a visit and a minor procedure are billed the same day.</p></div>
+      <div class="row"><button type="button" class="btn btn-primary btn-sm">Apply fix and release</button><button type="button" class="btn btn-secondary btn-sm">Edit</button></div>
+    </div></div>
+  </div>
+  <div class="web-row flip">
+    <div class="stack"><span class="web-eyebrow">Payments in</span><h2 class="web-h2">Every remittance balanced to the cent.</h2>
+      <ul class="web-list"><li><i data-lucide="circle-check"></i>835s matched to claims and lines.</li><li><i data-lucide="circle-check"></i>Adjustments mapped to each PM's own codes.</li><li><i data-lucide="circle-check"></i>Posted into the PM, or checked line by line against what the PM posted.</li><li><i data-lucide="circle-check"></i>Denials written off by mistake are caught and reopened.</li></ul></div>
+    <div class="shot"><div class="shot-bar"><i class="d"></i><i class="d"></i><i class="d"></i><span>Remittance · Cigna EFT 7730551</span></div><div class="shot-body">
+      <div class="balance"><b>Balanced</b><span>Payment $6,482.37 = claims $6,470.17 + interest $12.20</span></div>
+      <div class="card flush"><table class="table"><thead><tr><th>Line</th><th>835 says</th><th>PM posted</th><th>Result</th></tr></thead><tbody>
+        <tr class="row-bad"><td class="code">20610</td><td>Denied CO-4</td><td><span class="diff-old">Written off</span></td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Difference</span></td></tr>
+        <tr><td class="code">99214</td><td>Paid $121.12</td><td>Paid $121.12</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matches</span></td></tr>
+        <tr><td class="code">J3301</td><td>Paid $291.06</td><td>Paid $291.06</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matches</span></td></tr>
+      </tbody></table></div>
+    </div></div>
+  </div>
+  <div class="web-row">
+    <div class="stack"><span class="web-eyebrow">Work queue</span><h2 class="web-h2">One list for the whole team.</h2>
+      <ul class="web-list"><li><i data-lucide="circle-check"></i>Rejections, denials, eligibility issues and posting differences from every client.</li><li><i data-lucide="circle-check"></i>Each item says why it's there and what resolving it does.</li><li><i data-lucide="circle-check"></i>Keyboard shortcuts for every action. A routine review takes seconds.</li><li><i data-lucide="circle-check"></i>Every correction teaches Cleanpost a rule you can approve.</li></ul></div>
+    <div><div class="shot" role="img" aria-label="Cleanpost work queue showing five items across three clients">
+  <div class="shot-bar"><i class="d"></i><i class="d"></i><i class="d"></i><span>Work · All clients</span></div>
+  <div class="shot-body">
+    <div class="kpis" style="grid-template-columns:repeat(3,minmax(0,1fr))"><div class="kpi"><div class="kpi-label">Due today</div><div class="kpi-value">18</div></div><div class="kpi"><div class="kpi-label">Released without review</div><div class="kpi-value">71%</div></div><div class="kpi"><div class="kpi-label">Posted today</div><div class="kpi-value good">$38,214</div></div></div>
+    <div class="card flush"><div class="table-wrap"><table class="table nowrap"><thead><tr><th><span class="sr-only">Priority</span></th><th>Item</th><th class="hide-sm">Client</th><th class="num">Amount</th><th>Due</th></tr></thead><tbody><tr><td><span class="prio p2"></span></td><td><div class="two-line"><b>Claim review</b><span class="sub">Modifier 25 likely missing</span></div></td><td class="hide-sm">Lakeside Family Med</td><td class="num">$312.00</td><td><span class="due">21 h</span></td></tr><tr><td><span class="prio p1"></span></td><td><div class="two-line"><b>Rejection</b><span class="sub">Subscriber ID not found</span></div></td><td class="hide-sm">Lakeside Family Med</td><td class="num">$145.00</td><td><span class="due soon">2 h</span></td></tr><tr><td><span class="prio p2"></span></td><td><div class="two-line"><b>Denial</b><span class="sub">Modifier inconsistent (CO-4)</span></div></td><td class="hide-sm">Willamette Ortho</td><td class="num">$446.00</td><td><span class="due">Tomorrow</span></td></tr><tr><td><span class="prio p2"></span></td><td><div class="two-line"><b>Posting difference</b><span class="sub">Denial written off in the PM</span></div></td><td class="hide-sm">Willamette Ortho</td><td class="num">$544.00</td><td><span class="due soon">5 h</span></td></tr><tr><td><span class="prio p3"></span></td><td><div class="two-line"><b>Card review</b><span class="sub">Group number unreadable</span></div></td><td class="hide-sm">Cascade Pediatrics</td><td class="num">—</td><td><span class="due">2 d</span></td></tr></tbody></table></div></div>
+  </div>
+</div>
+<p class="shot-caption">Example data. The work queue: one list of exceptions across every client.</p></div>
+  </div>
+  <div class="web-row flip">
+    <div class="stack"><span class="web-eyebrow">Reports</span><h2 class="web-h2">Monthly reports under your name.</h2>
+      <ul class="web-list"><li><i data-lucide="circle-check"></i>Collections, first-pass rate, denial rate and days in A/R per client.</li><li><i data-lucide="circle-check"></i>Compared with the baseline recorded at onboarding.</li><li><i data-lucide="circle-check"></i>Exported as a PDF with your logo, not ours.</li></ul></div>
+    <div class="shot"><div class="shot-bar"><i class="d"></i><i class="d"></i><i class="d"></i><span>Reports · Lakeside Family Medicine</span></div><div class="shot-body">
+      <div class="kpis" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="kpi"><div class="kpi-label">First-pass acceptance</div><div class="kpi-value">97.1%</div><div class="kpi-delta good">Baseline 89.0%</div></div><div class="kpi"><div class="kpi-label">Days in A/R</div><div class="kpi-value">24</div><div class="kpi-delta good">Baseline 38</div></div></div>
+      <p class="web-note">Example data.</p>
+    </div></div>
+  </div>
+</div></section>
+<section class="web-section web-band"><div class="web-wrap web-cta"><h2 class="web-h2">See it on your own claims.</h2><a class="btn btn-primary" href="#WEB-08">Book a demo</a></div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-03</span><h2>How it works</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /how-it-works</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Explain onboarding and the three modes so a buyer understands nothing changes inside the practice.</dd><dt>Data</dt><dd>Static.</dd><dt>Actions</dt><dd>Book a demo.</dd><dt>States</dt><dd>Flow diagrams run left to right on desktop and top to bottom on phone.</dd><dt>Rules</dt><dd>Diagrams are HTML, not images, so they stay accessible and themeable.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03" class="active" aria-current="page">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section tight"><div class="web-wrap web-head" style="margin-bottom:0"><span class="web-eyebrow">How it works</span><h1 class="web-h1">Nothing changes in the practice.</h1><p class="web-lead">Cleanpost connects to each client's PM with a dedicated login. Each client runs in one of three modes, chosen during onboarding and changeable later.</p></div></section>
+<section class="web-section" style="padding-top:0"><div class="web-wrap">
+  <div class="web-cols-4">
+    <div class="card card-body stack-sm"><span class="overline">Day 1</span><b>Connect the PM</b><p class="muted dense">API, file exchange or guided manual steps, depending on the PM.</p></div>
+    <div class="card card-body stack-sm"><span class="overline">Day 1</span><b>Dry run</b><p class="muted dense">Pull the last 7 days and check the counts and a sample of encounters together.</p></div>
+    <div class="card card-body stack-sm"><span class="overline">Weeks 1 to 2</span><b>Review everything</b><p class="muted dense">Every claim goes to a biller first, so you see how Cleanpost scores your claims.</p></div>
+    <div class="card card-body stack-sm"><span class="overline">After week 2</span><b>Raise the threshold</b><p class="muted dense">Claims above your confidence threshold go out on their own.</p></div>
+  </div>
+</div></section>
+<section class="web-section alt"><div class="web-wrap">
+  <div class="web-head"><h2 class="web-h2">Three ways claims and payments can flow</h2><p class="web-lead">Most clients start in Mode A because nothing has to be re-enrolled with payers.</p></div>
+  <div class="mode-card"><div class="row"><span class="mode-key">Mode A</span><h3 class="web-h3">The PM sends; Cleanpost checks</h3></div><p class="muted" style="font-size:15px">Use when the PM already submits claims reliably.</p>
+<div class="stack-sm"><span class="overline">Claims out</span><div class="flow"><div class="flow-box"><b>Practice PM</b><span class="sub">Coded charges</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box us"><b>Cleanpost</b><span class="sub">Checks and fixes before the PM sends</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>PM's clearinghouse</b><span class="sub">Sends the claim</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>Payer</b><span class="sub">Adjudicates</span></div></div></div><div class="stack-sm"><span class="overline">Payments in</span><div class="flow"><div class="flow-box"><b>Payer</b><span class="sub">Sends the 835</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>PM's clearinghouse</b><span class="sub">Receives it</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>Practice PM</b><span class="sub">Posts automatically</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box us"><b>Cleanpost</b><span class="sub">Checks every line; queues differences</span></div></div></div><p class="web-note">No payer re-enrollment. Live within days.</p></div><div class="mode-card"><div class="row"><span class="mode-key">Mode B</span><h3 class="web-h3">Cleanpost sends and posts</h3></div><p class="muted" style="font-size:15px">Use when you want full control of every claim and payment.</p>
+<div class="stack-sm"><span class="overline">Claims out</span><div class="flow"><div class="flow-box"><b>Practice PM</b><span class="sub">Coded charges</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box us"><b>Cleanpost</b><span class="sub">Checks and sends</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>Stedi</b><span class="sub">Clearinghouse</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>Payer</b><span class="sub">Adjudicates</span></div></div></div><div class="stack-sm"><span class="overline">Payments in</span><div class="flow"><div class="flow-box"><b>Payer</b><span class="sub">Sends the 835</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>Stedi</b><span class="sub">Delivers it</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box us"><b>Cleanpost</b><span class="sub">Matches, balances, posts</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>Practice PM</b><span class="sub">Payment recorded</span></div></div></div><p class="web-note">Requires moving ERA enrollment to Stedi, payer by payer. Payers run as Mode C until enrollment is active.</p></div><div class="mode-card"><div class="row"><span class="mode-key">Mode C</span><h3 class="web-h3">Cleanpost sends; the PM posts</h3></div><p class="muted" style="font-size:15px">Use when the PM's submission is weak but its payment posting works.</p>
+<div class="stack-sm"><span class="overline">Claims out</span><div class="flow"><div class="flow-box"><b>Practice PM</b><span class="sub">Coded charges</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box us"><b>Cleanpost</b><span class="sub">Checks and sends</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>Stedi</b><span class="sub">Clearinghouse</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>Payer</b><span class="sub">Adjudicates</span></div></div></div><div class="stack-sm"><span class="overline">Payments in</span><div class="flow"><div class="flow-box"><b>Payer</b><span class="sub">Sends the 835</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>PM's clearinghouse</b><span class="sub">Receives it</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box"><b>Practice PM</b><span class="sub">Posts automatically</span></div><div class="flow-arrow" aria-hidden="true"><i data-lucide="arrow-right"></i></div><div class="flow-box us"><b>Cleanpost</b><span class="sub">Checks every line</span></div></div></div><p class="web-note">Requires turning off the PM's own claim submission for that practice.</p></div>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-04</span><h2>For billing companies</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /billing-companies</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Make the business case in terms an owner uses: claims per biller, margin, client reporting.</dd><dt>Data</dt><dd>Example assumptions table (static). Values match the financial model and must be marked as examples.</dd><dt>Actions</dt><dd>Book a demo.</dd><dt>States</dt><dd>Two columns on desktop, one on phone.</dd><dt>Rules</dt><dd>State that offshore teams save less per claim. Never promise a specific savings figure.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04" class="active" aria-current="page">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section tight"><div class="web-wrap web-head" style="margin-bottom:0"><span class="web-eyebrow">For billing companies</span><h1 class="web-h1">Grow your client list without growing your team at the same rate.</h1><p class="web-lead">You keep your clients, your billers and your pricing. Cleanpost takes the routine work out of each claim.</p></div></section>
+<section class="web-section" style="padding-top:0"><div class="web-wrap web-cols-2">
+  <div class="card"><div class="card-head"><h3>Example: claims per biller</h3><span class="tag">Example</span></div><div class="card-body stack">
+    <table class="table"><thead><tr><th>Assumption</th><th class="num">Value</th></tr></thead><tbody>
+      <tr><td>Claims a biller handles per month today</td><td class="num">1,200</td></tr>
+      <tr><td>Loaded cost per biller per month</td><td class="num">$4,500</td></tr>
+      <tr><td>Labor cost per claim</td><td class="num">$3.75</td></tr>
+      <tr><td>Share of routine work Cleanpost removes</td><td class="num">50%</td></tr>
+      <tr><td>Claims per biller per month with Cleanpost</td><td class="num"><b>2,400</b></td></tr>
+      <tr><td>Labor saved per claim, before Cleanpost's fee</td><td class="num"><b>$1.88</b></td></tr>
+    </tbody></table>
+    <p class="web-note">Every number here is an example. Offshore teams have lower labor cost per claim, so savings per claim are lower. We record your real baseline at onboarding and report against it.</p>
+  </div></div>
+  <div class="stack-lg">
+    <div class="web-feature"><span class="ic"><i data-lucide="users"></i></span><h3 class="web-h3">Your billers stay in charge</h3><p>They approve what goes out until you raise the threshold, and every automated action shows who or what did it.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="file-text"></i></span><h3 class="web-h3">Reports under your brand</h3><p>Monthly client reports carry your logo and compare each practice with its baseline.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="hand-coins"></i></span><h3 class="web-h3">Priced per claim</h3><p>A monthly base fee plus a fee per claim. Your cost grows with your volume, not ahead of it.</p></div>
+    <div class="web-feature"><span class="ic"><i data-lucide="building-2"></i></span><h3 class="web-h3">Every client in one place</h3><p>Different PMs, specialties and payers in one queue, with settings per client.</p></div>
+  </div>
+</div></section>
+<section class="web-section web-band"><div class="web-wrap web-cta"><h2 class="web-h2">Bring a month of your claims.</h2><a class="btn btn-primary" href="#WEB-08">Book a demo</a></div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-05</span><h2>Integrations</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /integrations</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show, honestly, what Cleanpost can do in each PM today.</dd><dt>Data</dt><dd>Integration levels per PM per operation; maintained in the CMS, updated when an adapter level changes. "As of" date shown.</dd><dt>Actions</dt><dd>Request an integration (WEB-08 with the PM prefilled).</dd><dt>States</dt><dd>Table scrolls horizontally on phone.</dd><dt>Rules</dt><dd>Never show a level higher than production supports. Do not use PM vendor logos without permission; names only.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05" class="active" aria-current="page">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section tight"><div class="web-wrap web-head" style="margin-bottom:0"><span class="web-eyebrow">Integrations</span><h1 class="web-h1">What Cleanpost can do in each PM today.</h1><p class="web-lead">We list each PM honestly. Where an operation is "guided manual", Cleanpost prepares every value and a biller completes the step in the PM. Any client can start that way on day one.</p></div></section>
+<section class="web-section" style="padding-top:0"><div class="web-wrap stack">
+  <div class="card flush"><div class="table-wrap"><table class="table"><thead><tr><th>PM system</th><th>Read charges</th><th>Claim status</th><th>Write corrections</th><th>Payments</th><th>Notes</th></tr></thead><tbody><tr><td><b>Tebra (Kareo)</b></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>API</span></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>API</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>API</span></td><td class="muted">Official API. Holding charges before submission is not available.</td></tr><tr><td><b>athenaOne</b></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td><td class="muted">Marketplace partner approval in progress.</td></tr><tr><td><b>AdvancedMD</b></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td><td><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span></td><td class="muted">Access terms being confirmed.</td></tr><tr><td><b>ModMed</b></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td class="muted">Partner access required for writing data.</td></tr><tr><td><b>SimplePractice</b></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td class="muted">No public API.</td></tr><tr><td><b>eClinicalWorks, DrChrono, CollaborateMD, Office Ally</b></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td class="muted">Built when a customer needs it.</td></tr><tr><td><b>Any PM with file export</b></td><td><span class="chip chip-ready"><i data-lucide="send"></i>File</span></td><td><span class="chip chip-ready"><i data-lucide="send"></i>File</span></td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span></td><td><span class="chip chip-ready"><i data-lucide="send"></i>File</span></td><td class="muted">Charge CSV and 835 files.</td></tr></tbody></table></div></div>
+  <div class="web-cols-4">
+    <div class="stack-sm"><span class="chip chip-good"><i data-lucide="circle-check"></i>API</span><p class="muted dense">Automatic through the PM's official API.</p></div>
+    <div class="stack-sm"><span class="chip chip-ready"><i data-lucide="send"></i>File</span><p class="muted dense">Automatic through scheduled file exchange.</p></div>
+    <div class="stack-sm"><span class="chip chip-flight"><i data-lucide="clock"></i>In development</span><p class="muted dense">Being built or waiting on the PM vendor.</p></div>
+    <div class="stack-sm"><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Guided manual</span><p class="muted dense">Cleanpost prepares it; a biller finishes it in the PM.</p></div>
+  </div>
+  <p class="web-note">Levels as of [DATE]. Clearinghouse: Stedi, connected to 3,500+ payers.</p>
+  <div class="card card-body web-cta"><div class="stack-sm"><h3 class="web-h3">Don't see your clients' PM?</h3><p class="muted">Tell us which one. We prioritize integrations by what customers use.</p></div><a class="btn btn-primary" href="#WEB-08">Request an integration</a></div>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-06</span><h2>Pricing</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /pricing</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Explain the base-plus-per-claim model and let a buyer estimate their cost.</dd><dt>Data</dt><dd>Prices are placeholders until pricing is final: [BASE FEE], [PER-CLAIM PRICE], [VOLUME THRESHOLD].</dd><dt>Actions</dt><dd>Claims input and slider update the estimate live; Book a demo.</dd><dt>States</dt><dd>Calculator outputs stack on phone.</dd><dt>Rules</dt><dd>Estimate labeled as an estimate. No per-provider fees.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06" class="active" aria-current="page">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section tight"><div class="web-wrap web-head" style="margin-bottom:0"><span class="web-eyebrow">Pricing</span><h1 class="web-h1">A base fee plus a fee per claim.</h1><p class="web-lead">You pay for what goes through Cleanpost. No per-provider fees, no setup fee.</p></div></section>
+<section class="web-section" style="padding-top:0"><div class="web-wrap web-cols-2">
+  <div class="price-card main">
+    <span class="overline">Platform</span>
+    <div class="price">[BASE FEE] <small>per month</small></div>
+    <div class="price">[PER-CLAIM PRICE] <small>per claim released</small></div>
+    <ul class="web-list"><li><i data-lucide="circle-check"></i>Unlimited users and clients</li><li><i data-lucide="circle-check"></i>Eligibility checks, claim status checks and remittance handling included</li><li><i data-lucide="circle-check"></i>Every available PM integration</li><li><i data-lucide="circle-check"></i>Branded client reports</li><li><i data-lucide="circle-check"></i>BAA and support with replies in under one business hour</li></ul>
+    <p class="web-note">Volume pricing above [VOLUME THRESHOLD] claims per month. Clearinghouse fees for claims we submit for you are included.</p>
+    <a class="btn btn-primary" href="#WEB-08">Book a demo</a>
+  </div>
+  <form class="calc" aria-labelledby="calc-t" onsubmit="return false">
+    <h2 id="calc-t" class="web-h3">Estimate your monthly cost</h2>
+    <div class="field"><label for="calc-claims">Claims per month across all clients</label><input id="calc-claims" class="input" type="number" value="6000" min="0"></div>
+    <div class="field"><span class="label">Claims per month</span><div class="slider" aria-hidden="true"><div class="fill" style="width:30%"></div><div class="thumb" style="left:30%"></div></div><div class="row-between subtle"><span>0</span><span>20,000+</span></div></div>
+    <div class="calc-out"><div><span class="subtle">Base fee</span><b>[BASE FEE]</b></div><div><span class="subtle">Claims</span><b>6,000 × [PRICE]</b></div><div><span class="subtle">Estimated total</span><b>[TOTAL]</b></div></div>
+    <p class="web-note">Estimate only. Claims count once when released, including corrected claims.</p>
+  </form>
+</div></section>
+<section class="web-section alt"><div class="web-wrap web-cols-3">
+  <div class="stack-sm"><h3 class="web-h3">What counts as a claim?</h3><p class="muted">Each claim released to a payer, original or corrected. Eligibility checks, status checks and remittances are included.</p></div>
+  <div class="stack-sm"><h3 class="web-h3">Is there a contract term?</h3><p class="muted">Month to month. Your data is exported to you if you leave.</p></div>
+  <div class="stack-sm"><h3 class="web-h3">Do my clients pay anything?</h3><p class="muted">No. They keep their PM and clearinghouse subscriptions as they are.</p></div>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-07">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-07</span><h2>Security and HIPAA</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /security</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Answer the security questions a buyer and their clients will ask.</dd><dt>Data</dt><dd>Controls (static), compliance status, subprocessor list.</dd><dt>Actions</dt><dd>Request documents (security questionnaire, BAA template).</dd><dt>States</dt><dd>SOC 2 status shown as in progress until the report exists.</dd><dt>Rules</dt><dd>Claims must match docs/11-security-hipaa.md exactly. Update the subprocessor list before adding any new vendor that touches PHI.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07" class="active" aria-current="page">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section tight"><div class="web-wrap web-head" style="margin-bottom:0"><span class="web-eyebrow">Security and HIPAA</span><h1 class="web-h1">How Cleanpost protects your clients' patient data.</h1><p class="web-lead">Cleanpost is a business associate of each billing company. These are the controls in place, stated plainly.</p></div></section>
+<section class="web-section" style="padding-top:0"><div class="web-wrap stack-lg">
+  <div class="web-cols-3"><div class="web-feature"><span class="ic"><i data-lucide="file-text"></i></span><h3 class="web-h3">Business associate agreement</h3><p>Signed with every customer. Every subprocessor that handles PHI signs one with us.</p></div><div class="web-feature"><span class="ic"><i data-lucide="lock"></i></span><h3 class="web-h3">Encryption</h3><p>TLS 1.2 or higher in transit. Encrypted databases and storage, with field-level encryption for tax IDs and member IDs.</p></div><div class="web-feature"><span class="ic"><i data-lucide="key-round"></i></span><h3 class="web-h3">Access</h3><p>Two-factor sign-in for every user. Roles and per-client access. Sessions time out after 15 minutes idle.</p></div><div class="web-feature"><span class="ic"><i data-lucide="scroll-text"></i></span><h3 class="web-h3">Audit log</h3><p>Every view and change of PHI is logged with who, what and when, and kept for six years.</p></div><div class="web-feature"><span class="ic"><i data-lucide="building-2"></i></span><h3 class="web-h3">Tenant isolation</h3><p>Each billing company's data is isolated at the database level and tested in every release.</p></div><div class="web-feature"><span class="ic"><i data-lucide="eye-off"></i></span><h3 class="web-h3">Minimum necessary</h3><p>Lists show reduced identifiers. Full member IDs and dates of birth appear only when someone opens them, and that is logged.</p></div></div>
+  <div class="card"><div class="card-head"><h3>Compliance status</h3></div><div class="card-body"><dl class="kv"><dt>HIPAA</dt><dd>Security Rule safeguards in place; written risk analysis and policies</dd><dt>SOC 2 Type II</dt><dd><span class="chip chip-flight"><i data-lucide="clock"></i>In progress</span> Target report date [DATE]</dd><dt>Penetration test</dt><dd>Most recent [DATE]; summary available under NDA</dd></dl></div></div>
+  <div class="card flush"><div class="card-head"><h3>Subprocessors that handle PHI</h3></div><table class="table"><thead><tr><th>Company</th><th>Purpose</th><th>BAA</th></tr></thead><tbody>
+    <tr><td>Amazon Web Services</td><td>Hosting, storage, AI models through AWS Bedrock</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Signed</span></td></tr>
+    <tr><td>Stedi</td><td>Clearinghouse: eligibility, claims, status, remittances</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Signed</span></td></tr>
+  </tbody></table></div>
+  <div class="web-cta card card-body"><div class="stack-sm"><h3 class="web-h3">Need our security questionnaire or BAA?</h3><p class="muted">We send both before a demo if you ask.</p></div><a class="btn btn-primary" href="#WEB-08">Request documents</a></div>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-08">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-08</span><h2>Book a demo</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /demo</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Capture a qualified demo request.</dd><dt>Data</dt><dd>Name, work email, company, billers, claims per month, PMs used. Sent to the CRM; no PHI.</dd><dt>Actions</dt><dd>Submit shows a confirmation with a calendar link.</dd><dt>States</dt><dd>Inline validation on email; submission error keeps entered values.</dd><dt>Rules</dt><dd>Warn not to send patient information. Spam protection without a visible CAPTCHA where possible.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section"><div class="web-wrap web-cols-2">
+  <div class="stack"><span class="web-eyebrow">Book a demo</span><h1 class="web-h1">See Cleanpost on claims like yours.</h1><p class="web-lead">A 30-minute call with a founder. If you share a recent month of de-identified claims and remittances, we show what Cleanpost would have flagged.</p>
+    <ul class="web-list"><li><i data-lucide="circle-check"></i>How your clients' PMs would connect</li><li><i data-lucide="circle-check"></i>Which mode fits each client</li><li><i data-lucide="circle-check"></i>Pricing for your volume</li></ul>
+  </div>
+  <form class="card card-body stack" onsubmit="return false" aria-labelledby="demo-t">
+    <h2 id="demo-t" class="web-h3">Tell us about your company</h2>
+    <div class="form-grid"><div class="field"><label for="d-name">Name</label><input id="d-name" class="input" autocomplete="name"></div><div class="field"><label for="d-email">Work email</label><input id="d-email" class="input" type="email" autocomplete="email"></div>
+    <div class="field full"><label for="d-co">Billing company</label><input id="d-co" class="input" autocomplete="organization"></div>
+    <div class="field"><label for="d-billers">Billers on your team</label><select id="d-billers" class="select"><option>1 to 5</option><option>6 to 15</option><option>16 to 40</option><option>More than 40</option></select></div>
+    <div class="field"><label for="d-claims">Claims per month</label><select id="d-claims" class="select"><option>Under 5,000</option><option>5,000 to 20,000</option><option>20,000 to 100,000</option><option>More than 100,000</option></select></div>
+    <fieldset class="field full" style="border:0;padding:0;margin:0"><legend class="label" style="font-size:13px;font-weight:500;margin-bottom:6px">PM systems your clients use</legend><div class="row" style="gap:16px"><label class="check"><input type="checkbox">Tebra</label><label class="check"><input type="checkbox">athenaOne</label><label class="check"><input type="checkbox">AdvancedMD</label><label class="check"><input type="checkbox">ModMed</label><label class="check"><input type="checkbox">SimplePractice</label><label class="check"><input type="checkbox">Other</label></div></fieldset></div>
+    <button type="submit" class="btn btn-primary">Request a demo</button>
+    <p class="web-note">We reply within one business day. Don't send patient information in this form.</p>
+  </form>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-09">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-09</span><h2>About</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /about</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show who is behind Cleanpost and why.</dd><dt>Data</dt><dd>Founder names, roles, bios ([BIO] placeholders), company details.</dd><dt>Actions</dt><dd>None beyond navigation.</dd><dt>States</dt><dd>Founder cards stack on phone.</dd><dt>Rules</dt><dd>Photos only if the founders provide them; initials otherwise.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section"><div class="web-wrap web-cols-2">
+  <div class="stack"><span class="web-eyebrow">About</span><h1 class="web-h1">Built by people who run revenue cycles.</h1><p class="web-lead">[WHY WE BUILT IT: two or three sentences in the founders' own words about the billing work they saw done by hand and why software should take it over.]</p><p class="web-note">Cleanpost is a [COMPANY ENTITY], based in Oregon.</p></div>
+  <div class="grid-2"><div class="card card-body stack-sm"><span class="avatar" style="width:56px;height:56px;font-size:18px">JB</span><h3 class="web-h3">Julia Beam</h3><span class="muted">Co-founder · Revenue cycle</span><p class="muted">[BIO]</p></div><div class="card card-body stack-sm"><span class="avatar" style="width:56px;height:56px;font-size:18px">JB</span><h3 class="web-h3">James Beam</h3><span class="muted">Co-founder · Product and engineering</span><p class="muted">[BIO]</p></div></div>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-10">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-10</span><h2>Legal</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route /legal/*</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Host terms, privacy policy, BAA template and subprocessor list.</dd><dt>Data</dt><dd>Documents drafted by counsel; last-updated date per document.</dd><dt>Actions</dt><dd>Switch documents from the side list.</dd><dt>States</dt><dd>Side list becomes a select on phone.</dd><dt>Rules</dt><dd>Text supplied by counsel only.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section"><div class="web-wrap" style="display:grid;grid-template-columns:minmax(0,240px) minmax(0,1fr);gap:48px">
+  <nav aria-label="Legal documents" class="stack-sm"><span class="overline">Legal</span><a href="#WEB-10" class="nav-item active">Terms of service</a><a href="#WEB-10" class="nav-item">Privacy policy</a><a href="#WEB-10" class="nav-item">Business associate agreement</a><a href="#WEB-10" class="nav-item">Subprocessors</a></nav>
+  <article class="stack" style="max-width:720px"><h1 class="web-h2">Terms of service</h1><p class="web-note">Last updated [DATE]</p><h2 class="web-h3">1. [SECTION TITLE]</h2><p>[LEGAL TEXT, drafted by counsel. Long-form text set at 16px with 26px line height and a 720px measure.]</p><h2 class="web-h3">2. [SECTION TITLE]</h2><p>[LEGAL TEXT]</p></article>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-11">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-11</span><h2>ROI calculator</h2><div class="row"><span class="tag">Website</span><span class="tag">Later</span><span class="tag">Route /roi</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Let a buyer estimate labor savings with their own numbers.</dd><dt>Data</dt><dd>User inputs only; nothing stored unless they book a demo.</dd><dt>Actions</dt><dd>Inputs recalculate outputs live.</dd><dt>States</dt><dd>Invalid inputs show inline errors; outputs show a dash.</dd><dt>Rules</dt><dd>Show the formula. Do not subtract or hide Cleanpost fees in a way that overstates savings.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section"><div class="web-wrap web-cols-2">
+  <div class="stack"><span class="web-eyebrow">ROI calculator</span><h1 class="web-h2">Estimate what Cleanpost is worth to your team.</h1><p class="web-lead">Enter your own numbers. The estimate shows every assumption so you can check the math.</p></div>
+  <form class="calc" onsubmit="return false" aria-label="ROI calculator">
+    <div class="form-grid"><div class="field"><label for="r1">Billers</label><input id="r1" class="input" type="number" value="6"></div><div class="field"><label for="r2">Loaded cost per biller per month</label><input id="r2" class="input" value="$4,500"></div><div class="field"><label for="r3">Claims per month</label><input id="r3" class="input" type="number" value="7200"></div><div class="field"><label for="r4">Share of routine work removed</label><select id="r4" class="select"><option>30%</option><option selected>50%</option><option>70%</option></select></div></div>
+    <div class="calc-out"><div><span class="subtle">Labor cost per claim</span><b>$3.75</b></div><div><span class="subtle">Saved per claim</span><b>$1.88</b></div><div><span class="subtle">Saved per month, before fees</span><b>$13,500</b></div></div>
+    <p class="web-note">Example inputs. Saved per month = claims × labor cost per claim × share removed. Cleanpost's fees are not subtracted; see Pricing.</p>
+  </form>
+</div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-12">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-12</span><h2>Resources</h2><div class="row"><span class="tag">Website</span><span class="tag">Later</span><span class="tag">Route /resources</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Guides that bring billing companies to the site through search.</dd><dt>Data</dt><dd>Articles from the CMS: type, title, summary.</dd><dt>Actions</dt><dd>Open article.</dd><dt>States</dt><dd>Empty until the first articles are published; hide the nav link until then.</dd><dt>Rules</dt><dd>Titles listed are proposals, not published content.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap">
+  <a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a>
+  <nav class="web-links" aria-label="Main"><a href="#WEB-02">Product</a><a href="#WEB-03">How it works</a><a href="#WEB-04">For billing companies</a><a href="#WEB-05">Integrations</a><a href="#WEB-06">Pricing</a><a href="#WEB-07">Security</a></nav>
+  <div class="web-actions"><a class="btn btn-secondary btn-sm" href="auth.html#A-01">Sign in</a><a class="btn btn-primary btn-sm" href="#WEB-08">Book a demo</a><button type="button" class="icon-btn web-menu-btn" aria-label="Open menu"><i data-lucide="menu"></i></button></div>
+</div></header>
+<section class="web-section"><div class="web-wrap stack-lg"><div class="web-head" style="margin-bottom:0"><span class="web-eyebrow">Resources</span><h1 class="web-h2">Guides for billing companies</h1></div><div class="web-cols-3"><a class="card card-body stack-sm" href="#WEB-12" style="color:var(--ink)"><span class="tag" style="align-self:flex-start">Guide</span><h3 class="web-h3">How ERA enrollment works when you change clearinghouses</h3><span class="muted dense">[SUMMARY]</span></a><a class="card card-body stack-sm" href="#WEB-12" style="color:var(--ink)"><span class="tag" style="align-self:flex-start">Guide</span><h3 class="web-h3">The ten denial codes worth automating first</h3><span class="muted dense">[SUMMARY]</span></a><a class="card card-body stack-sm" href="#WEB-12" style="color:var(--ink)"><span class="tag" style="align-self:flex-start">Guide</span><h3 class="web-h3">What a clean claim rate measures, and what it hides</h3><span class="muted dense">[SUMMARY]</span></a><a class="card card-body stack-sm" href="#WEB-12" style="color:var(--ink)"><span class="tag" style="align-self:flex-start">Checklist</span><h3 class="web-h3">Onboarding a new practice in a week</h3><span class="muted dense">[SUMMARY]</span></a><a class="card card-body stack-sm" href="#WEB-12" style="color:var(--ink)"><span class="tag" style="align-self:flex-start">Guide</span><h3 class="web-h3">Reading an 835: claims, adjustments and provider-level adjustments</h3><span class="muted dense">[SUMMARY]</span></a><a class="card card-body stack-sm" href="#WEB-12" style="color:var(--ink)"><span class="tag" style="align-self:flex-start">Checklist</span><h3 class="web-h3">Questions to ask before you change billing software</h3><span class="muted dense">[SUMMARY]</span></a></div></div></section>
+<footer class="web-footer"><div class="web-wrap">
+  <div class="stack-sm"><a class="web-logo" href="#WEB-01"><span data-mark></span>cleanpost</a><p class="muted" style="font-size:14px;line-height:21px">Revenue cycle software for medical billing companies.</p><p class="web-note">[COMPANY ADDRESS]</p></div>
+  <div><h4>Product</h4><ul><li><a href="#WEB-02">Product</a></li><li><a href="#WEB-03">How it works</a></li><li><a href="#WEB-05">Integrations</a></li><li><a href="#WEB-06">Pricing</a></li></ul></div>
+  <div><h4>Company</h4><ul><li><a href="#WEB-09">About</a></li><li><a href="#WEB-08">Book a demo</a></li><li><a href="#WEB-13">Status</a></li></ul></div>
+  <div><h4>Trust</h4><ul><li><a href="#WEB-07">Security and HIPAA</a></li><li><a href="#WEB-10">Terms</a></li><li><a href="#WEB-10">Privacy</a></li><li><a href="#WEB-10">BAA</a></li></ul></div>
+</div></footer></div></div></div>
+</section>
+
+<section class="ref-view" id="WEB-13">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">WEB-13</span><h2>Status</h2><div class="row"><span class="tag">Website</span><span class="tag">MVP</span><span class="tag">Route status.cleanpost.[DOMAIN]</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show current and past availability of each part of the service.</dd><dt>Data</dt><dd>Hosted status service (component status, 90-day history, incidents).</dd><dt>Actions</dt><dd>Subscribe to updates.</dd><dt>States</dt><dd>Operational, degraded, outage per component; banner reflects the worst.</dd><dt>Rules</dt><dd>Incident text never includes customer or patient details.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="web"><header class="web-nav"><div class="web-wrap"><a class="web-logo" href="#WEB-13"><span data-mark></span>cleanpost status</a><div class="web-actions"><a class="btn btn-secondary btn-sm" href="#WEB-13">Subscribe to updates</a></div></div></header>
+<section class="web-section"><div class="web-wrap stack-lg" style="max-width:880px">
+  <div class="banner good"><i data-lucide="circle-check"></i><b>All systems operational</b><span class="spacer"></span><span class="subtle">Sample data</span></div>
+  <div><div class="row-between"><h2 class="web-h3">Last 90 days</h2><span class="subtle">Amber: degraded performance</span></div><div class="stack-sm" style="padding:16px 0;border-top:1px solid var(--border)"><div class="row-between"><b>Web app</b><span class="chip chip-good"><i data-lucide="circle-check"></i>Operational</span></div><div class="uptime" aria-hidden="true"><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="stack-sm" style="padding:16px 0;border-top:1px solid var(--border)"><div class="row-between"><b>Claim submission (Stedi)</b><span class="chip chip-good"><i data-lucide="circle-check"></i>Operational</span></div><div class="uptime" aria-hidden="true"><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class="warn"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="stack-sm" style="padding:16px 0;border-top:1px solid var(--border)"><div class="row-between"><b>Eligibility checks</b><span class="chip chip-good"><i data-lucide="circle-check"></i>Operational</span></div><div class="uptime" aria-hidden="true"><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="stack-sm" style="padding:16px 0;border-top:1px solid var(--border)"><div class="row-between"><b>PM syncs</b><span class="chip chip-good"><i data-lucide="circle-check"></i>Operational</span></div><div class="uptime" aria-hidden="true"><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class="warn"></i><i class="warn"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div><div class="stack-sm" style="padding:16px 0;border-top:1px solid var(--border)"><div class="row-between"><b>Notifications</b><span class="chip chip-good"><i data-lucide="circle-check"></i>Operational</span></div><div class="uptime" aria-hidden="true"><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div></div></div>
+  <div class="stack-sm"><h2 class="web-h3">Past incidents</h2><div class="card card-body stack-sm"><b>[DATE] · Delayed PM syncs</b><p class="muted dense">[INCIDENT SUMMARY: what happened, what was affected, when it was resolved. No customer or patient details.]</p></div></div>
+</div></section>
+</div></div></div>
+</section>
+</div>
+<script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/shell.js"></script>
+</body>
+</html>

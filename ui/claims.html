@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanpost UI · Claims and patients</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/reference.css">
+</head>
+<body>
+<header class="ref-top">
+  <a class="brand" href="index.html"><span data-mark></span>Cleanpost UI</a>
+  <nav aria-label="Areas">
+    <a href="shell.html">Shell and states</a>
+    <a href="auth.html">Sign-in</a>
+    <a href="work.html">Work queue</a>
+    <a href="claims.html" class="active" aria-current="page">Claims and patients</a>
+    <a href="money.html">Money in</a>
+    <a href="clients.html">Clients and setup</a>
+    <a href="admin.html">Reports and admin</a>
+    <a href="outputs.html">Emails and PDFs</a>
+    <a href="website.html">Website</a>
+  </nav>
+  <button type="button" class="btn btn-secondary btn-sm" id="theme-toggle" style="margin-left:auto"><i data-lucide="moon"></i>Theme</button>
+</header>
+
+<div class="ref-body">
+<div class="ref-intro"><h1>Claims and patients</h1><p>The claims list, the claim record with its tabs, the editor used for reviews and corrections, the modals that change a claim's state, and the patient record used to fix coverage. The main example is Hart, J. at Willamette Ortho, whose line 2 was denied by Cigna.</p></div>
+<!-- ============================ C-01 ============================ -->
+<section class="ref-view" id="C-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-01</span><h2>Claims list</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /claims</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Find any claim and work lists of claims by state, age or deadline.</dd><dt>Data</dt><dd>claims joined with patients (last name, first initial), clients, payers, current claim_version totals, latest claim_events row; counts per saved view.</dd><dt>Actions</dt><dd><ul><li>Saved view tabs switch the filter set; counts per tab.</li><li>Search by patient name, patient control number or payer claim number.</li><li>Filters: client, payer, status (multi), mode, DOS range.</li><li>Columns popover (shown) toggles and orders columns; saved per user.</li><li>Row click opens C-02. Selecting Ready claims enables "Release selected" (C-17).</li><li>Export: CSV of non-PHI columns for billers; admins may include patient names (re-auth, audit-logged).</li></ul></dd><dt>States</dt><dd>Loading: table skeleton. Empty view: "No claims in this view" with link to All open. Search with no results suggests checking another client filter. 10,000+ rows: server pagination, counts shown as estimates over 10,000.</dd><dt>Rules</dt><dd>Status chips use the shared vocabulary for every claim state (Draft, Built, Needs review, Blocked, Ready, Submitted, Accepted, Rejected, Paid, Partially paid, Denied, Corrected, Reversed, On hold, Closed, Voided). Default sort balance descending within the view.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="All clients"><main class="main">
+<div class="page-head"><h1>Claims</h1><span class="muted">4,218 open claims · $612,480 open balance</span>
+<div class="actions"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="columns-3"></i>Columns</button><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="download"></i>Export</button></div></div>
+<nav class="tabs" aria-label="Saved views">
+<a href="#C-01" class="active" aria-current="page">All open <span class="count-badge">4,218</span></a>
+<a href="#C-01">Needs review <span class="count-badge">41</span></a>
+<a href="#C-01">Rejected <span class="count-badge">12</span></a>
+<a href="#C-01">Denied <span class="count-badge">38</span></a>
+<a href="#C-01">Awaiting payment over 30 days <span class="count-badge">96</span></a>
+<a href="#C-01">Filing deadline under 30 days <span class="count-badge">7</span></a>
+<a href="#C-01">Closed</a>
+</nav>
+<div class="filters">
+<label class="search" style="max-width:320px"><i data-lucide="search"></i><span class="sr-only">Search claims</span><input type="search" placeholder="Patient, control number, payer claim number"></label>
+<button type="button" class="filter-select">Client: <b>All</b><i data-lucide="chevron-down"></i></button>
+<button type="button" class="filter-select">Payer: <b>Any</b><i data-lucide="chevron-down"></i></button>
+<button type="button" class="filter-select">Status: <b>Any open</b><i data-lucide="chevron-down"></i></button>
+<button type="button" class="filter-select">Mode: <b>Any</b><i data-lucide="chevron-down"></i></button>
+<button type="button" class="filter-select">DOS: <b>Last 90 days</b><i data-lucide="chevron-down"></i></button>
+</div>
+<div class="card flush"><div class="table-wrap"><table class="table nowrap">
+<thead><tr><th class="w-check"><input type="checkbox" aria-label="Select all"></th><th><span class="sort">Patient</span></th><th>DOS</th><th>Client</th><th>Payer</th><th class="num">Charge</th><th class="num">Paid</th><th class="num"><span class="sort">Balance<i data-lucide="chevron-down"></i></span></th><th>Status</th><th class="num">Age</th><th>Last event</th></tr></thead>
+<tbody><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Hart, J.</a></td><td>Oct 2</td><td>Willamette Ortho <span class="mode">C</span></td><td>Cigna</td><td class="num">$1,084.00</td><td class="num">$412.18</td><td class="num">$446.00</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Partially paid</span></td><td class="num">19 d</td><td class="muted">835 read from PM</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Nguyen, M.</a></td><td>Oct 27</td><td>Lakeside Family Med <span class="mode">A</span></td><td>UnitedHealthcare</td><td class="num">$312.00</td><td class="num">—</td><td class="num">$312.00</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Needs review</span></td><td class="num">2 d</td><td class="muted">Scrubbed, confidence 72</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Burke, H.</a></td><td>Oct 26</td><td>Cascade Pediatrics <span class="mode">B</span></td><td>PacificSource</td><td class="num">$145.00</td><td class="num">—</td><td class="num">$145.00</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Blocked</span></td><td class="num">3 d</td><td class="muted">Pointer 3 missing</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Rivera, A.</a></td><td>Oct 22</td><td>Lakeside Family Med <span class="mode">A</span></td><td>Aetna</td><td class="num">$145.00</td><td class="num">—</td><td class="num">$145.00</td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Rejected</span></td><td class="num">7 d</td><td class="muted">277CA A7</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Moreno, L.</a></td><td>Sep 18</td><td>Cascade Pediatrics <span class="mode">B</span></td><td>Moda Health</td><td class="num">$410.00</td><td class="num">—</td><td class="num">$410.00</td><td><span class="chip chip-flight"><i data-lucide="clock"></i>Accepted</span></td><td class="num">41 d</td><td class="muted">Status: pended for records</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Kim, S.</a></td><td>Oct 20</td><td>Cascade Pediatrics <span class="mode">B</span></td><td>Regence BCBS</td><td class="num">$312.00</td><td class="num">$0.00</td><td class="num">$312.00</td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Denied</span></td><td class="num">9 d</td><td class="muted">CO-197</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Patel, R.</a></td><td>Oct 28</td><td>Willamette Ortho <span class="mode">C</span></td><td>Medicare</td><td class="num">$96.00</td><td class="num">—</td><td class="num">$96.00</td><td><span class="chip chip-ready"><i data-lucide="send"></i>Ready</span></td><td class="num">1 d</td><td class="muted">Releases at 6:00 pm batch</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Ellison, P.</a></td><td>Oct 6</td><td>Riverbend Counseling <span class="mode">A</span></td><td>Optum</td><td class="num">$180.00</td><td class="num">$118.40</td><td class="num">$0.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Paid</span></td><td class="num">23 d</td><td class="muted">Posted by user</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Lindqvist, E.</a></td><td>Oct 28</td><td>Cascade Pediatrics <span class="mode">B</span></td><td>Moda Health</td><td class="num">$188.00</td><td class="num">—</td><td class="num">$188.00</td><td><span class="chip chip-flight"><i data-lucide="clock"></i>Submitted</span></td><td class="num">1 d</td><td class="muted">Stedi accepted</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Okafor, T.</a></td><td>Oct 24</td><td>Cascade Pediatrics <span class="mode">B</span></td><td>Regence BCBS</td><td class="num">$210.00</td><td class="num">—</td><td class="num">$210.00</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>On hold</span></td><td class="num">5 d</td><td class="muted">Coverage ended</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Cole, B.</a></td><td>Sep 30</td><td>Harbor Dermatology <span class="mode">A</span></td><td>Aetna</td><td class="num">$220.00</td><td class="num">$0.00</td><td class="num">$0.00</td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Voided</span></td><td class="num">29 d</td><td class="muted">Duplicate of HDE-26-000144</td></tr><tr><td><input type="checkbox" aria-label="Select row"></td><td><a href="#C-02">Brooks, K.</a></td><td>Oct 21</td><td>Lakeside Family Med <span class="mode">A</span></td><td>Aetna</td><td class="num">$198.00</td><td class="num">$112.10</td><td class="num">$0.00</td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Closed</span></td><td class="num">8 d</td><td class="muted">Patient balance billed</td></tr></tbody></table></div>
+<div class="table-foot"><span>Showing 1–12 of 4,218</span><span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm">Previous</button><button type="button" class="btn btn-secondary btn-sm">Next</button></div></div>
+<div class="popover" style="width:280px;align-self:flex-end">
+<div class="row-between"><b class="dense">Columns</b><button type="button" class="btn btn-ghost btn-sm">Reset</button></div>
+<label class="check"><input type="checkbox" checked>Patient</label><label class="check"><input type="checkbox" checked>DOS</label><label class="check"><input type="checkbox" checked>Client</label><label class="check"><input type="checkbox" checked>Payer</label><label class="check"><input type="checkbox">Patient control number</label><label class="check"><input type="checkbox">Payer claim number</label><label class="check"><input type="checkbox">Rendering provider</label><label class="check"><input type="checkbox" checked>Last event</label>
+</div></main></div></div></div>
+</section>
+
+<!-- ============================ C-02 ============================ -->
+<section class="ref-view" id="C-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-02</span><h2>Claim detail: summary</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /claims/:id</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>One place to understand a claim's state, why it is there and what to do next.</dd><dt>Data</dt><dd>Header: claims, current claim_version, patients (last name, initial, age), payers, clients, totals from remit_claims. Body: open work item for the claim, latest scrub_results (confidence, findings, ai_summary), latest denial codes with suggestion, last 4 claim_events.</dd><dt>Actions</dt><dd>Header actions change by status: Needs review → Release (C-11), Edit (C-08), Hold (C-12); Rejected or Denied → Build correction (C-09); Submitted or Accepted → Check status (C-15); any open state → Write off (C-14), Void (C-13), Add note (C-16) in the more menu. Suggestion: Build correction with this fix opens C-09 with the fix applied; Dismiss records the choice.</dd><dt>States</dt><dd>No open work item: denial card replaced by a status summary ("Accepted by Cigna, usually pays in 17 days"). Filing deadline within 14 days: amber deadline figure and banner. Voided or closed: read-only, actions hidden except Add note.</dd><dt>Rules</dt><dd>Viewing a claim detail is audit-logged. Patient shown as "Last, F." here; full name and DOB on C-06 behind reveal. AI text always labeled Suggested with evidence.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="Willamette Ortho"><main class="main"><a class="breadcrumb" href="#C-01"><i data-lucide="arrow-left"></i>Claims</a>
+<div class="card card-body stack">
+  <div class="row-between">
+    <div class="stack-sm">
+      <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Partially paid</span><span class="mode">Mode C</span><span class="code muted">WOR-26-001377 · v1 · freq 1</span></div>
+      <h1 class="title-l">Hart, J. · 58 y · DOS Oct 2, 2026</h1>
+      <div class="muted dense">Willamette Ortho · Cigna · rendering NPI <span class="code">1932204417</span> · POS <span class="code">11</span> · payer claim <span class="code">2026271550318</span></div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn btn-primary">Build correction</button>
+      <button type="button" class="btn btn-secondary"><i data-lucide="refresh-cw"></i>Check status</button>
+      <button type="button" class="btn btn-secondary">Write off</button>
+      <button type="button" class="icon-btn" aria-label="More actions"><i data-lucide="ellipsis"></i></button>
+    </div>
+  </div>
+  <dl class="dl" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <div><dt>Charge</dt><dd class="fig">$1,084.00</dd></div>
+    <div><dt>Paid</dt><dd class="fig" style="color:var(--success)">$412.18</dd></div>
+    <div><dt>Patient responsibility</dt><dd class="fig">$103.04</dd></div>
+    <div><dt>Open balance</dt><dd class="fig" style="color:var(--danger)">$446.00</dd></div>
+    <div><dt>Filing deadline</dt><dd class="fig">Dec 31, 2026</dd></div>
+  </dl>
+</div>
+<nav class="tabs" aria-label="Claim sections"><a href="#C-02" class="active" aria-current="page">Summary</a><a href="#C-03">Lines</a><a href="#C-04">Timeline</a><a href="#C-05">Versions (1)</a><a href="#C-06">Patient and coverage</a><a href="#C-07">Remittances (1)</a></nav>
+<div class="split">
+<div class="split-main stack">
+  <div class="card"><div class="card-head"><h2>Line 2 denied: coding</h2><span class="tag">Denial</span><span class="spacer"></span><span class="due soon">Assigned to Dana R. · due tomorrow</span></div>
+  <div class="card-body stack">
+    <div class="row"><span class="codechip bad">CO-4</span><span class="codechip">N519</span><span class="muted dense">Payer says the modifier is inconsistent with the procedure.</span></div>
+    <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Line 2 (<span class="code">20610</span>, left shoulder) has no modifier showing it is a separate site from the knee treated in the same visit. Add <span class="code">LT</span> and <span class="code">XS</span> to line 2 and send a corrected claim (frequency 7, Cigna claim <span class="code">2026271550318</span>).</p><div class="evidence">Diagnosis on line 2 (<span class="code">M75.42</span>) differs in site from lines 1 and 3 (<span class="code">M17.12</span>). 6 similar Cigna denials for this client were corrected this way in 90 days, all paid.</div><div class="row"><button type="button" class="btn btn-primary btn-sm">Build correction with this fix</button><button type="button" class="btn btn-secondary btn-sm">Dismiss</button></div></div>
+  </div></div>
+  <div class="card"><div class="card-head"><h2>Findings at release</h2><span class="muted dense">Scrubbed Oct 3, 9:03 am · rule set v14 · confidence 94</span></div>
+  <div class="card-body stack-sm">
+    <div class="finding"><i data-lucide="info"></i><div class="body"><div class="title">Injection units match the dose documented (4 units of <span class="code">J3301</span>)</div><div class="meta">Info · no change needed</div></div></div>
+    <div class="finding"><i data-lucide="info"></i><div class="body"><div class="title">Modifier 25 present on the visit line with a same-day procedure</div><div class="meta">Info · Cigna rule passed</div></div></div>
+  </div></div>
+</div>
+<div class="card" style="width:380px;flex:none"><div class="card-head"><h2>Recent activity</h2><a href="#C-04" class="dense" style="margin-left:auto">Full timeline</a></div><div class="card-body">
+<ol class="timeline">
+<li><span class="tl-dot warn"></span><div><div class="tl-title">Denial work item created for Dana R.</div><div class="tl-meta">Automation · Oct 21, 2:08 pm</div></div></li>
+<li><span class="tl-dot bad"></span><div><div class="tl-title">835: paid $412.18, line 2 denied CO-4</div><div class="tl-meta">Cigna EFT 7730551 · read from PM · Oct 21</div></div></li>
+<li><span class="tl-dot info"></span><div><div class="tl-title">277CA accepted by payer</div><div class="tl-meta">Stedi · Oct 3, 9:31 am</div></div></li>
+<li><span class="tl-dot good"></span><div><div class="tl-title">Released without review, confidence 94</div><div class="tl-meta">Automation · rule set v14 · Oct 3, 9:03 am</div></div></li>
+</ol></div>
+<div class="card-foot"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="message-square"></i>Add note</button></div></div>
+</div></main></div></div></div>
+</section>
+
+<!-- ============================ C-03 ============================ -->
+<section class="ref-view" id="C-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-03</span><h2>Claim detail: lines</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /claims/:id/lines</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Line-level view of what was billed and what happened to each line.</dd><dt>Data</dt><dd>claim_lines of the current version; matched remit_lines with allowed, paid, remit_adjustments (group, CARC, amount) and remit_remarks; diagnoses with sequence.</dd><dt>Actions</dt><dd>Hover or focus an adjustment chip for the code explainer (shown, R-08 pattern). Row click on a denied line opens the denial drawer (D-02).</dd><dt>States</dt><dd>Not yet adjudicated: allowed, paid, adjustments and balance columns show "—". Multiple remittances for one line (e.g. reversal): adjustments listed in date order with the remittance trace on hover.</dd><dt>Rules</dt><dd>Money right-aligned, tabular figures, totals row. Denied lines use row-bad. No CPT descriptions until licensed.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="Willamette Ortho"><main class="main"><a class="breadcrumb" href="#C-01"><i data-lucide="arrow-left"></i>Claims</a>
+<div class="card card-body stack">
+  <div class="row-between">
+    <div class="stack-sm">
+      <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Partially paid</span><span class="mode">Mode C</span><span class="code muted">WOR-26-001377 · v1 · freq 1</span></div>
+      <h1 class="title-l">Hart, J. · 58 y · DOS Oct 2, 2026</h1>
+      <div class="muted dense">Willamette Ortho · Cigna · rendering NPI <span class="code">1932204417</span> · POS <span class="code">11</span> · payer claim <span class="code">2026271550318</span></div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn btn-primary">Build correction</button>
+      <button type="button" class="btn btn-secondary"><i data-lucide="refresh-cw"></i>Check status</button>
+      <button type="button" class="btn btn-secondary">Write off</button>
+      <button type="button" class="icon-btn" aria-label="More actions"><i data-lucide="ellipsis"></i></button>
+    </div>
+  </div>
+  <dl class="dl" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <div><dt>Charge</dt><dd class="fig">$1,084.00</dd></div>
+    <div><dt>Paid</dt><dd class="fig" style="color:var(--success)">$412.18</dd></div>
+    <div><dt>Patient responsibility</dt><dd class="fig">$103.04</dd></div>
+    <div><dt>Open balance</dt><dd class="fig" style="color:var(--danger)">$446.00</dd></div>
+    <div><dt>Filing deadline</dt><dd class="fig">Dec 31, 2026</dd></div>
+  </dl>
+</div>
+<nav class="tabs" aria-label="Claim sections"><a href="#C-02">Summary</a><a href="#C-03" class="active" aria-current="page">Lines</a><a href="#C-04">Timeline</a><a href="#C-05">Versions (1)</a><a href="#C-06">Patient and coverage</a><a href="#C-07">Remittances (1)</a></nav>
+<div class="card flush"><div class="table-wrap"><table class="table nowrap">
+<thead><tr><th>#</th><th>Code</th><th>Mod</th><th class="num">Units</th><th>Dx</th><th class="num">Charge</th><th class="num">Allowed</th><th class="num">Paid</th><th>Adjustments</th><th class="num">Balance</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>1</td><td class="code">99214</td><td class="code">25</td><td class="num">1</td><td class="code">M17.12</td><td class="num">$238.00</td><td class="num">$151.40</td><td class="num">$121.12</td><td><span class="codechip">CO-45 $86.60</span> <span class="codechip">PR-2 $30.28</span></td><td class="num">$0.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Paid</span></td></tr>
+<tr class="row-bad"><td>2</td><td class="code">20610</td><td style="color:var(--danger);font-weight:500">none</td><td class="num">1</td><td class="code">M75.42</td><td class="num">$446.00</td><td class="num">$0.00</td><td class="num">$0.00</td><td><span class="codechip bad">CO-4 $446.00</span> <span class="codechip">N519</span></td><td class="num" style="color:var(--danger);font-weight:600">$446.00</td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Denied</span></td></tr>
+<tr><td>3</td><td class="code">J3301</td><td>—</td><td class="num">4</td><td class="code">M17.12</td><td class="num">$400.00</td><td class="num">$363.82</td><td class="num">$291.06</td><td><span class="codechip">CO-45 $36.18</span> <span class="codechip">PR-2 $72.76</span></td><td class="num">$0.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Paid</span></td></tr>
+</tbody>
+<tfoot><tr><td colspan="5"><b>Total</b></td><td class="num"><b>$1,084.00</b></td><td class="num"><b>$515.22</b></td><td class="num"><b>$412.18</b></td><td></td><td class="num"><b>$446.00</b></td><td></td></tr></tfoot>
+</table></div>
+<div class="table-foot"><span>Diagnoses: 1 <span class="code">M17.12</span> · 2 <span class="code">M75.42</span></span><span>Patient responsibility $103.04 transferred to the patient in the PM</span><span class="spacer"></span><span>Codes are shown without descriptions.</span></div></div>
+<div class="popover" style="width:340px">
+<div class="row"><span class="codechip bad">CO-4</span><b class="dense">Group CO, reason 4</b></div>
+<p class="dense">The procedure code is inconsistent with the modifier used, or a required modifier is missing. CO means the practice cannot bill the patient for this amount.</p>
+<p class="subtle">Shown when hovering or focusing any adjustment chip.</p>
+</div></main></div></div></div>
+</section>
+
+<!-- ============================ C-04 ============================ -->
+<section class="ref-view" id="C-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-04</span><h2>Claim detail: timeline</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /claims/:id/timeline</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Every event on the claim with who or what caused it, newest first.</dd><dt>Data</dt><dd>claim_events (all types) with actor; notes; linked remittances and status checks.</dd><dt>Actions</dt><dd>Filter segments: All, Payer responses, People, Automation. Add note (C-16). Event click expands its payload summary (e.g. 277CA status codes, 835 line breakdown).</dd><dt>States</dt><dd>Long timelines load 50 at a time with "Show older".</dd><dt>Rules</dt><dd>Actor always shown as user name or "Automation" plus rule set version. Dot color follows status meaning: info for transmissions, good for releases and verified postings, warn for work items, bad for rejections and denials, neutral for everything else.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="Willamette Ortho"><main class="main"><a class="breadcrumb" href="#C-01"><i data-lucide="arrow-left"></i>Claims</a>
+<div class="card card-body stack">
+  <div class="row-between">
+    <div class="stack-sm">
+      <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Partially paid</span><span class="mode">Mode C</span><span class="code muted">WOR-26-001377 · v1 · freq 1</span></div>
+      <h1 class="title-l">Hart, J. · 58 y · DOS Oct 2, 2026</h1>
+      <div class="muted dense">Willamette Ortho · Cigna · rendering NPI <span class="code">1932204417</span> · POS <span class="code">11</span> · payer claim <span class="code">2026271550318</span></div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn btn-primary">Build correction</button>
+      <button type="button" class="btn btn-secondary"><i data-lucide="refresh-cw"></i>Check status</button>
+      <button type="button" class="btn btn-secondary">Write off</button>
+      <button type="button" class="icon-btn" aria-label="More actions"><i data-lucide="ellipsis"></i></button>
+    </div>
+  </div>
+  <dl class="dl" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <div><dt>Charge</dt><dd class="fig">$1,084.00</dd></div>
+    <div><dt>Paid</dt><dd class="fig" style="color:var(--success)">$412.18</dd></div>
+    <div><dt>Patient responsibility</dt><dd class="fig">$103.04</dd></div>
+    <div><dt>Open balance</dt><dd class="fig" style="color:var(--danger)">$446.00</dd></div>
+    <div><dt>Filing deadline</dt><dd class="fig">Dec 31, 2026</dd></div>
+  </dl>
+</div>
+<nav class="tabs" aria-label="Claim sections"><a href="#C-02">Summary</a><a href="#C-03">Lines</a><a href="#C-04" class="active" aria-current="page">Timeline</a><a href="#C-05">Versions (1)</a><a href="#C-06">Patient and coverage</a><a href="#C-07">Remittances (1)</a></nav>
+<div class="card"><div class="card-head"><h2>Timeline</h2><div class="segmented" style="margin-left:auto"><button type="button" class="active">All</button><button type="button">Payer responses</button><button type="button">People</button><button type="button">Automation</button></div><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="message-square"></i>Add note</button></div>
+<div class="card-body"><ol class="timeline"><li><span class="tl-dot warn"></span><div><div class="tl-title">Denial work item created for Dana R.</div><div class="tl-meta">Automation · Oct 21, 2:08 pm · category Coding</div></div></li><li><span class="tl-dot bad"></span><div><div class="tl-title">835 read from PM: paid $412.18, line 2 denied CO-4</div><div class="tl-meta">Cigna EFT 7730551 · via PM clearinghouse (Mode C) · Oct 21, 2:05 pm</div></div></li><li><span class="tl-dot good"></span><div><div class="tl-title">PM posting verified against 835</div><div class="tl-meta">Lines 1 and 3 match · Oct 21, 2:05 pm</div></div></li><li><span class="tl-dot "></span><div><div class="tl-title">Note: "Called Cigna, claim in process, expect payment by Oct 24."</div><div class="tl-meta">Dana Reyes · Oct 15, 11:20 am</div></div></li><li><span class="tl-dot "></span><div><div class="tl-title">Status check: in process</div><div class="tl-meta">276/277 via Stedi · Oct 15, 11:02 am</div></div></li><li><span class="tl-dot info"></span><div><div class="tl-title">277CA accepted by payer</div><div class="tl-meta">Stedi webhook · Oct 3, 9:31 am</div></div></li><li><span class="tl-dot info"></span><div><div class="tl-title">999 accepted</div><div class="tl-meta">Stedi webhook · Oct 3, 9:05 am</div></div></li><li><span class="tl-dot info"></span><div><div class="tl-title">Submitted through Stedi; charge marked billed in Tebra</div><div class="tl-meta">Automation · Oct 3, 9:04 am</div></div></li><li><span class="tl-dot good"></span><div><div class="tl-title">Released without review, confidence 94</div><div class="tl-meta">Automation · rule set v14 · threshold 90 · Oct 3, 9:03 am</div></div></li><li><span class="tl-dot "></span><div><div class="tl-title">Eligibility active</div><div class="tl-meta">Stedi 271 · Oct 3, 9:02 am</div></div></li><li><span class="tl-dot "></span><div><div class="tl-title">Claim built from encounter 10443</div><div class="tl-meta">Pulled from Tebra · Oct 3, 9:02 am</div></div></li></ol></div></div></main></div></div></div>
+</section>
+
+<!-- ============================ C-05 ============================ -->
+<section class="ref-view" id="C-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-05</span><h2>Claim detail: versions</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /claims/:id/versions</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show every version of the claim and what changed between them.</dd><dt>Data</dt><dd>claim_versions with frequency_code, original_ref, created_by, release event, scrub_result; diff summary computed from corrections.</dd><dt>Actions</dt><dd>Compare opens C-10 with the selected version and its predecessor; View opens the read-only editor; a draft version shows Continue editing (C-09).</dd><dt>States</dt><dd>Single version: table with one row and the explanation footer. Voided claim: last row is the frequency 8 version.</dd><dt>Rules</dt><dd>Released versions are immutable (enforced in domain code). Frequency labels: 1 original, 7 replacement, 8 void.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="Willamette Ortho"><main class="main"><a class="breadcrumb" href="#C-01"><i data-lucide="arrow-left"></i>Claims</a>
+<div class="card card-body stack">
+  <div class="row-between">
+    <div class="stack-sm">
+      <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Partially paid</span><span class="mode">Mode C</span><span class="code muted">WOR-26-001377 · v1 · freq 1</span></div>
+      <h1 class="title-l">Hart, J. · 58 y · DOS Oct 2, 2026</h1>
+      <div class="muted dense">Willamette Ortho · Cigna · rendering NPI <span class="code">1932204417</span> · POS <span class="code">11</span> · payer claim <span class="code">2026271550318</span></div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn btn-primary">Build correction</button>
+      <button type="button" class="btn btn-secondary"><i data-lucide="refresh-cw"></i>Check status</button>
+      <button type="button" class="btn btn-secondary">Write off</button>
+      <button type="button" class="icon-btn" aria-label="More actions"><i data-lucide="ellipsis"></i></button>
+    </div>
+  </div>
+  <dl class="dl" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <div><dt>Charge</dt><dd class="fig">$1,084.00</dd></div>
+    <div><dt>Paid</dt><dd class="fig" style="color:var(--success)">$412.18</dd></div>
+    <div><dt>Patient responsibility</dt><dd class="fig">$103.04</dd></div>
+    <div><dt>Open balance</dt><dd class="fig" style="color:var(--danger)">$446.00</dd></div>
+    <div><dt>Filing deadline</dt><dd class="fig">Dec 31, 2026</dd></div>
+  </dl>
+</div>
+<nav class="tabs" aria-label="Claim sections"><a href="#C-02">Summary</a><a href="#C-03">Lines</a><a href="#C-04">Timeline</a><a href="#C-05" class="active" aria-current="page">Versions (1)</a><a href="#C-06">Patient and coverage</a><a href="#C-07">Remittances (1)</a></nav>
+<div class="card flush"><div class="table-wrap"><table class="table nowrap">
+<thead><tr><th>Version</th><th>Frequency</th><th>Created</th><th>By</th><th>Released</th><th class="num">Charge</th><th>Status</th><th>Changes from previous</th><th></th></tr></thead>
+<tbody>
+<tr class="row-muted"><td>v2 (draft)</td><td class="code">7 · replacement</td><td>Oct 29, 10:41 am</td><td>Dana Reyes</td><td>—</td><td class="num">$1,084.00</td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Draft</span></td><td>Line 2 modifiers LT, XS added</td><td><button type="button" class="btn btn-ghost btn-sm"><i data-lucide="git-compare"></i>Compare</button></td></tr>
+<tr><td>v1</td><td class="code">1 · original</td><td>Oct 3, 9:02 am</td><td>Automation</td><td>Oct 3, 9:04 am</td><td class="num">$1,084.00</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Partially paid</span></td><td class="muted">Original</td><td><button type="button" class="btn btn-ghost btn-sm">View</button></td></tr>
+</tbody></table></div>
+<div class="table-foot"><span>Versions are never edited after release. A correction is a new version linked to the original.</span></div></div></main></div></div></div>
+</section>
+
+<!-- ============================ C-06 ============================ -->
+<section class="ref-view" id="C-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-06</span><h2>Claim detail: patient and coverage</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /claims/:id/patient</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show who and what coverage the claim was billed to, with sensitive values masked.</dd><dt>Data</dt><dd>patients, coverages used on the claim version, eligibility_checks latest before release, documents (card images via short-lived signed URL).</dd><dt>Actions</dt><dd>Reveal DOB or member ID (G-12 pattern, shown: confirmation popover then 60-second reveal); Open patient (P-01); eligibility Details opens P-03; card image click opens full-size viewer.</dd><dt>States</dt><dd>No card on file: card tile shows Upload card (P-04). Coverage changed since release: banner "Coverage on file changed after this claim was sent" with link to P-01.</dd><dt>Rules</dt><dd>Every reveal and card image view writes an audit_events row. Masking keeps the last 4 characters of member IDs and the year of DOB.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="Willamette Ortho"><main class="main"><a class="breadcrumb" href="#C-01"><i data-lucide="arrow-left"></i>Claims</a>
+<div class="card card-body stack">
+  <div class="row-between">
+    <div class="stack-sm">
+      <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Partially paid</span><span class="mode">Mode C</span><span class="code muted">WOR-26-001377 · v1 · freq 1</span></div>
+      <h1 class="title-l">Hart, J. · 58 y · DOS Oct 2, 2026</h1>
+      <div class="muted dense">Willamette Ortho · Cigna · rendering NPI <span class="code">1932204417</span> · POS <span class="code">11</span> · payer claim <span class="code">2026271550318</span></div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn btn-primary">Build correction</button>
+      <button type="button" class="btn btn-secondary"><i data-lucide="refresh-cw"></i>Check status</button>
+      <button type="button" class="btn btn-secondary">Write off</button>
+      <button type="button" class="icon-btn" aria-label="More actions"><i data-lucide="ellipsis"></i></button>
+    </div>
+  </div>
+  <dl class="dl" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <div><dt>Charge</dt><dd class="fig">$1,084.00</dd></div>
+    <div><dt>Paid</dt><dd class="fig" style="color:var(--success)">$412.18</dd></div>
+    <div><dt>Patient responsibility</dt><dd class="fig">$103.04</dd></div>
+    <div><dt>Open balance</dt><dd class="fig" style="color:var(--danger)">$446.00</dd></div>
+    <div><dt>Filing deadline</dt><dd class="fig">Dec 31, 2026</dd></div>
+  </dl>
+</div>
+<nav class="tabs" aria-label="Claim sections"><a href="#C-02">Summary</a><a href="#C-03">Lines</a><a href="#C-04">Timeline</a><a href="#C-05">Versions (1)</a><a href="#C-06" class="active" aria-current="page">Patient and coverage</a><a href="#C-07">Remittances (1)</a></nav>
+<div class="grid-2">
+<div class="card"><div class="card-head"><h2>Patient</h2><a href="#P-01" class="dense" style="margin-left:auto">Open patient</a></div><div class="card-body">
+<dl class="kv"><dt>Name</dt><dd>Hart, James</dd><dt>Date of birth</dt><dd><span class="code">••/••/1968</span> <button type="button" class="btn btn-ghost btn-sm"><i data-lucide="eye"></i>Reveal</button></dd><dt>Sex</dt><dd>M</dd><dt>Address</dt><dd>2214 NW Fillmore Ave, Corvallis, OR 97330</dd><dt>PM account</dt><dd class="code">TEB-88213</dd></dl></div></div>
+<div class="card"><div class="card-head"><h2>Coverage billed</h2><span class="chip chip-good"><i data-lucide="circle-check"></i>Active on DOS</span></div><div class="card-body">
+<dl class="kv"><dt>Payer</dt><dd>Cigna · primary · payer ID <span class="code">62308</span></dd><dt>Member ID</dt><dd><span class="code">U••••••4471</span> <button type="button" class="btn btn-ghost btn-sm"><i data-lucide="eye"></i>Reveal</button></dd><dt>Group</dt><dd class="code">3341882</dd><dt>Subscriber</dt><dd>Self</dd><dt>Eligibility</dt><dd>Checked Oct 3, 9:02 am · copay $40 · deductible met · coinsurance 20% <a href="#P-03">Details</a></dd></dl></div></div>
+<div class="card"><div class="card-head"><h2>Insurance card</h2><span class="subtle">Uploaded Mar 12, 2026 · confirmed</span></div><div class="card-body grid-2">
+<div class="ghost-block" style="height:130px;display:flex;align-items:center;justify-content:center;color:var(--ink-subtle)"><span class="row"><i data-lucide="id-card"></i>Front</span></div>
+<div class="ghost-block" style="height:130px;display:flex;align-items:center;justify-content:center;color:var(--ink-subtle)"><span class="row"><i data-lucide="id-card"></i>Back</span></div></div></div>
+<div class="card"><div class="card-head"><h2>Other coverage</h2></div><div class="card-body"><p class="muted dense">No secondary coverage on file. Patient responsibility goes to the patient.</p></div></div>
+</div>
+<div class="popover" style="width:320px"><div class="row"><i data-lucide="lock"></i><b class="dense">Reveal member ID?</b></div><p class="dense muted">Your view will be recorded in the audit log.</p><div class="row"><button type="button" class="btn btn-primary btn-sm">Reveal for 60 seconds</button><button type="button" class="btn btn-ghost btn-sm">Cancel</button></div></div></main></div></div></div>
+</section>
+
+<!-- ============================ C-07 ============================ -->
+<section class="ref-view" id="C-07">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-07</span><h2>Claim detail: remittances</h2><div class="row"><span class="tag">Page tab</span><span class="tag">MVP</span><span class="tag">Route /claims/:id/remittances</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show every payment, adjustment and reversal received for this claim.</dd><dt>Data</dt><dd>remit_claims matched to the claim with remit_lines, remit_adjustments, remit_remarks; postings and verification results per line (Modes A, C) or posting status (Mode B).</dd><dt>Actions</dt><dd>Open remittance (R-03 or R-04 by mode); line posting chip links to the open work item (e.g. W-20).</dd><dt>States</dt><dd>None yet: empty state "No payment received. Cigna usually pays in 17 days." Reversal and correction pairs show both remittances, the reversal first with negative amounts.</dd><dt>Rules</dt><dd>Group code CO amounts cannot be billed to the patient; PR amounts can. The explainer popover (C-03) is available on every code chip.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="Willamette Ortho"><main class="main"><a class="breadcrumb" href="#C-01"><i data-lucide="arrow-left"></i>Claims</a>
+<div class="card card-body stack">
+  <div class="row-between">
+    <div class="stack-sm">
+      <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Partially paid</span><span class="mode">Mode C</span><span class="code muted">WOR-26-001377 · v1 · freq 1</span></div>
+      <h1 class="title-l">Hart, J. · 58 y · DOS Oct 2, 2026</h1>
+      <div class="muted dense">Willamette Ortho · Cigna · rendering NPI <span class="code">1932204417</span> · POS <span class="code">11</span> · payer claim <span class="code">2026271550318</span></div>
+    </div>
+    <div class="row">
+      <button type="button" class="btn btn-primary">Build correction</button>
+      <button type="button" class="btn btn-secondary"><i data-lucide="refresh-cw"></i>Check status</button>
+      <button type="button" class="btn btn-secondary">Write off</button>
+      <button type="button" class="icon-btn" aria-label="More actions"><i data-lucide="ellipsis"></i></button>
+    </div>
+  </div>
+  <dl class="dl" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <div><dt>Charge</dt><dd class="fig">$1,084.00</dd></div>
+    <div><dt>Paid</dt><dd class="fig" style="color:var(--success)">$412.18</dd></div>
+    <div><dt>Patient responsibility</dt><dd class="fig">$103.04</dd></div>
+    <div><dt>Open balance</dt><dd class="fig" style="color:var(--danger)">$446.00</dd></div>
+    <div><dt>Filing deadline</dt><dd class="fig">Dec 31, 2026</dd></div>
+  </dl>
+</div>
+<nav class="tabs" aria-label="Claim sections"><a href="#C-02">Summary</a><a href="#C-03">Lines</a><a href="#C-04">Timeline</a><a href="#C-05">Versions (1)</a><a href="#C-06">Patient and coverage</a><a href="#C-07" class="active" aria-current="page">Remittances (1)</a></nav>
+<div class="card flush"><div class="card-head"><h2>Cigna · EFT 7730551 · Oct 21, 2026</h2><span class="chip chip-good"><i data-lucide="circle-check"></i>Balanced</span><span class="chip chip-good"><i data-lucide="circle-check"></i>PM posting verified</span><a href="money.html#R-04" class="dense" style="margin-left:auto">Open remittance</a></div>
+<div class="table-wrap"><table class="table nowrap">
+<thead><tr><th>Line</th><th>Code</th><th class="num">Charge</th><th class="num">Allowed</th><th class="num">Paid</th><th>Adjustments</th><th>Remarks</th><th>PM posting</th></tr></thead>
+<tbody>
+<tr><td>1</td><td class="code">99214</td><td class="num">$238.00</td><td class="num">$151.40</td><td class="num">$121.12</td><td><span class="codechip">CO-45 $86.60</span> <span class="codechip">PR-2 $30.28</span></td><td>—</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matches</span></td></tr>
+<tr class="row-bad"><td>2</td><td class="code">20610</td><td class="num">$446.00</td><td class="num">$0.00</td><td class="num">$0.00</td><td><span class="codechip bad">CO-4 $446.00</span></td><td><span class="codechip">N519</span></td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Written off in PM</span></td></tr>
+<tr><td>3</td><td class="code">J3301</td><td class="num">$400.00</td><td class="num">$363.82</td><td class="num">$291.06</td><td><span class="codechip">CO-45 $36.18</span> <span class="codechip">PR-2 $72.76</span></td><td>—</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matches</span></td></tr>
+</tbody></table></div>
+<div class="table-foot"><span>Claim status code <span class="code">2</span> (processed as primary) · payer claim <span class="code">2026271550318</span></span><span class="spacer"></span><a href="work.html#W-20">Posting difference on line 2</a></div></div></main></div></div></div>
+</section>
+
+<!-- ============================ C-08 ============================ -->
+<section class="ref-view" id="C-08">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-08</span><h2>Claim editor</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /claims/:id/edit</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Change any part of a claim and see the result of the checks as you type.</dd><dt>Data</dt><dd>Current claim_version payload (canonical 837 shape), providers and locations for the client, coverages, payers; scrub preview via POST /api/claims/:id/scrub (no save).</dd><dt>Actions</dt><dd>Edit fields; Add or remove diagnosis or line; Save draft (new draft version, no release); Save and release (save, scrub, release if no block findings, otherwise stay with findings shown); Discard (confirm if changes). Keyboard: ⌘S save draft, ⌘Enter save and release.</dd><dt>States</dt><dd>Changed fields carry .changed highlight. Scrub re-runs 400 ms after typing stops; meter shows skeleton while running. Block finding present: Save and release disabled with reason. PM write-back unavailable for this client: footer says "will create a task to update Tebra".</dd><dt>Rules</dt><dd>Each field change becomes a corrections row on save. The footer lists every change in plain words. Member ID masked unless revealed. Codes only, no descriptions.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="Lakeside Family Medicine"><main class="main">
+<a class="breadcrumb" href="#C-02"><i data-lucide="arrow-left"></i>Back to claim</a>
+<div class="page-head"><h1>Edit claim</h1><span class="muted">Nguyen, M. · Lakeside Family Medicine · UnitedHealthcare · <span class="code">LFM-26-004812</span> · v1 draft</span><span class="mode">Mode A</span></div>
+<div class="split">
+<div class="split-main stack">
+<fieldset class="fieldset"><legend>Billing and rendering provider</legend><div class="form-grid"><div class="field"><label for="c8a">Billing provider</label><select id="c8a" class="select"><option>Lakeside Family Medicine · NPI 1487726590</option></select></div><div class="field"><label for="c8b">Rendering provider</label><select id="c8b" class="select"><option>Dr. Elena Ruiz · NPI 1932204417</option></select></div><div class="field"><label for="c8c">Place of service</label><input id="c8c" class="input mono" value="11"></div><div class="field"><label for="c8d">Referring provider</label><input id="c8d" class="input" placeholder="None"></div></div></fieldset>
+<fieldset class="fieldset"><legend>Subscriber and payer</legend><div class="form-grid"><div class="field"><label for="c8e">Payer</label><select id="c8e" class="select"><option>UnitedHealthcare · 87726</option></select></div><div class="field"><label for="c8f">Member ID</label><input id="c8f" class="input mono" value="9●●●●●●2210"></div><div class="field"><label for="c8g">Prior authorization</label><input id="c8g" class="input mono" placeholder="Not required"></div><div class="field"><label for="c8h">Date of service</label><input id="c8h" class="input" value="Oct 27, 2026"></div></div></fieldset>
+<fieldset class="fieldset"><legend>Diagnoses</legend><div class="form-grid"><div class="field"><label for="c8i">1</label><input id="c8i" class="input mono" value="E11.9"></div><div class="field"><label for="c8j">2</label><input id="c8j" class="input mono" value="L82.1"></div></div><button type="button" class="btn btn-ghost btn-sm" style="align-self:flex-start"><i data-lucide="plus"></i>Add diagnosis</button></fieldset>
+<fieldset class="fieldset"><legend>Lines</legend><div class="table-wrap"><table class="table nowrap"><thead><tr><th>#</th><th>Code</th><th>Modifiers</th><th class="num">Units</th><th>Dx pointers</th><th class="num">Charge</th><th></th></tr></thead><tbody>
+<tr><td>1</td><td><input class="input mono" aria-label="Line 1 code" value="99213" style="width:90px"></td><td><input class="input mono changed" aria-label="Line 1 modifiers, changed" value="25" style="width:110px;border-color:var(--warning)"></td><td class="num"><input class="input mono" aria-label="Line 1 units" value="1" style="width:56px"></td><td><input class="input mono" aria-label="Line 1 pointers" value="1" style="width:80px"></td><td class="num"><input class="input mono" aria-label="Line 1 charge" value="145.00" style="width:96px;text-align:right"></td><td><button type="button" class="icon-btn ghost" aria-label="Remove line 1"><i data-lucide="trash-2"></i></button></td></tr>
+<tr><td>2</td><td><input class="input mono" aria-label="Line 2 code" value="11102" style="width:90px"></td><td><input class="input mono" aria-label="Line 2 modifiers" value="" style="width:110px"></td><td class="num"><input class="input mono" aria-label="Line 2 units" value="1" style="width:56px"></td><td><input class="input mono" aria-label="Line 2 pointers" value="2" style="width:80px"></td><td class="num"><input class="input mono" aria-label="Line 2 charge" value="167.00" style="width:96px;text-align:right"></td><td><button type="button" class="icon-btn ghost" aria-label="Remove line 2"><i data-lucide="trash-2"></i></button></td></tr>
+</tbody></table></div><button type="button" class="btn btn-ghost btn-sm" style="align-self:flex-start"><i data-lucide="plus"></i>Add line</button></fieldset>
+<div class="card card-body row-between" style="position:sticky;bottom:0">
+<div class="stack-sm"><span class="overline">1 change</span><span class="dense">Line 1 modifier 25 added <span class="subtle">· will be written back to Tebra</span></span></div>
+<div class="row"><button type="button" class="btn btn-secondary">Discard</button><button type="button" class="btn btn-secondary">Save draft</button><button type="button" class="btn btn-primary">Save and release</button></div>
+</div>
+</div>
+<aside class="card" style="width:380px;flex:none;position:sticky;top:0" aria-label="Live findings">
+<div class="card-head"><h2>Live check</h2><span class="subtle" style="margin-left:auto">Updated just now</span></div>
+<div class="card-body stack">
+<div class="meter"><div class="row-between subtle"><span>Confidence</span><span><b style="color:var(--success)">94</b> · threshold 90</span></div><div class="meter-bar"><div class="meter-fill good" style="width:94%"></div><div class="meter-mark" style="left:90%"></div></div><span class="subtle">Was 72 before your change.</span></div>
+<div class="finding"><i data-lucide="circle-check" style="color:var(--success)"></i><div class="body"><div class="title">Modifier 25 on the visit line</div><div class="meta">UHC rule now passes</div></div></div>
+<div class="finding"><i data-lucide="info"></i><div class="body"><div class="title">First claim for this client and payer in 60 days</div><div class="meta">History · −6</div></div></div>
+<div class="callout dense">No blocking issues. Saving and releasing sends this claim to Tebra to go out in tonight's 6:00 pm batch.</div>
+</div></aside>
+</div></main></div></div></div>
+</section>
+
+<!-- ============================ C-09 ============================ -->
+<section class="ref-view" id="C-09">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-09</span><h2>Correction mode of the editor</h2><div class="row"><span class="tag">State</span><span class="tag">MVP</span><span class="tag">Route /claims/:id/correct</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Build a replacement for an adjudicated claim, with the payer-required fields set automatically.</dd><dt>Data</dt><dd>Same as C-08 plus frequency 7, original_ref (payer claim control number from remit_claims), the suggested fix that opened it.</dd><dt>Actions</dt><dd>Undo fix; edit other fields; Save draft; Send corrected claim (scrub, then release in the claim's mode). Opened from Build correction on C-02, W-16 or D-02.</dd><dt>States</dt><dd>Rejected claims never use this mode (they resubmit as frequency 1 from C-08). Payer claim number missing: blocking finding with link to the remittance. Void instead: from the more menu (C-13).</dd><dt>Rules</dt><dd>Frequency and payer claim number fields are locked (disabled with lock icon and source). The denial work item auto-resolves when the corrected claim is accepted.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="Willamette Ortho"><main class="main">
+<a class="breadcrumb" href="#C-02"><i data-lucide="arrow-left"></i>Back to claim</a>
+<div class="page-head"><h1>Corrected claim</h1><span class="muted">Hart, J. · Willamette Ortho · Cigna · <span class="code">WOR-26-001377</span> · v2 draft</span><span class="mode">Mode C</span></div>
+<div class="banner"><i data-lucide="info"></i><span>This replaces the claim Cigna already processed. It goes out as frequency <b class="code">7</b> with Cigna claim number <b class="code">2026271550318</b>. Both are set for you and cannot be changed here.</span></div>
+<div class="split">
+<div class="split-main stack">
+<fieldset class="fieldset"><legend>Correction</legend><div class="form-grid"><div class="field"><label for="c9a">Claim frequency</label><input id="c9a" class="input mono" value="7 · replacement of prior claim" disabled><span class="help"><i data-lucide="lock"></i> Set by Cleanpost</span></div><div class="field"><label for="c9b">Payer claim number</label><input id="c9b" class="input mono" value="2026271550318" disabled><span class="help"><i data-lucide="lock"></i> From the 835 of Oct 21</span></div></div></fieldset>
+<div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested fix applied</div><p>Modifiers <span class="code">LT</span> and <span class="code">XS</span> added to line 2. Review before sending.</p><div class="row"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="rotate-ccw"></i>Undo fix</button></div></div>
+<fieldset class="fieldset"><legend>Lines</legend><div class="table-wrap"><table class="table nowrap"><thead><tr><th>#</th><th>Code</th><th>Modifiers</th><th class="num">Units</th><th>Dx pointers</th><th class="num">Charge</th></tr></thead><tbody>
+<tr><td>1</td><td class="code">99214</td><td class="code">25</td><td class="num">1</td><td class="code">1</td><td class="num">$238.00</td></tr>
+<tr><td>2</td><td class="code">20610</td><td><input class="input mono changed" aria-label="Line 2 modifiers, changed" value="LT, XS" style="width:120px;border-color:var(--warning)"></td><td class="num">1</td><td class="code">2</td><td class="num">$446.00</td></tr>
+<tr><td>3</td><td class="code">J3301</td><td>—</td><td class="num">4</td><td class="code">1</td><td class="num">$400.00</td></tr>
+</tbody></table></div></fieldset>
+<div class="card card-body row-between"><div class="stack-sm"><span class="overline">1 change</span><span class="dense">Line 2 modifiers LT, XS added</span></div><div class="row"><button type="button" class="btn btn-secondary">Discard</button><button type="button" class="btn btn-secondary">Save draft</button><button type="button" class="btn btn-primary">Send corrected claim</button></div></div>
+</div>
+<aside class="card" style="width:380px;flex:none" aria-label="Live findings"><div class="card-head"><h2>Live check</h2></div><div class="card-body stack">
+<div class="meter"><div class="row-between subtle"><span>Confidence</span><span><b style="color:var(--success)">91</b> · threshold 90</span></div><div class="meter-bar"><div class="meter-fill good" style="width:91%"></div><div class="meter-mark" style="left:90%"></div></div></div>
+<div class="finding"><i data-lucide="circle-check" style="color:var(--success)"></i><div class="body"><div class="title">Line 2 site modifier present</div><div class="meta">Addresses CO-4 denial</div></div></div>
+<div class="finding warn"><i data-lucide="triangle-alert"></i><div class="body"><div class="title">Corrected claims to Cigna take about 30 days</div><div class="meta">Payer history · info for planning</div></div></div>
+</div></aside>
+</div></main></div></div></div>
+</section>
+
+<!-- ============================ C-10 ============================ -->
+<section class="ref-view" id="C-10">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-10</span><h2>Compare versions</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>See exactly what differs between two versions of a claim.</dd><dt>Data</dt><dd>Two claim_versions payloads; field-level diff with human labels.</dd><dt>Actions</dt><dd>Changes only / Everything toggle; Open v2; Close (Esc).</dd><dt>States</dt><dd>Comparing non-adjacent versions shows a version picker in the head.</dd><dt>Rules</dt><dd>Old values in diff-old (struck), new values in diff-new. Member ID stays masked in diffs.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:620px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="drawer wide" role="dialog"><div class="drawer-head"><div><h2>Compare v1 and v2</h2><p class="muted dense">Hart, J. · <span class="code">WOR-26-001377</span></p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="drawer-body">
+<div class="row"><div class="segmented"><button type="button" class="active">Changes only</button><button type="button">Everything</button></div><span class="spacer"></span><span class="subtle">v1 released Oct 3 · v2 draft Oct 29</span></div>
+<table class="table"><thead><tr><th>Field</th><th>v1</th><th>v2</th></tr></thead><tbody>
+<tr><td>Claim frequency</td><td class="code"><span class="diff-old">1</span></td><td class="code"><span class="diff-new">7</span></td></tr>
+<tr><td>Payer claim number</td><td>—</td><td class="code"><span class="diff-new">2026271550318</span></td></tr>
+<tr><td>Line 2 modifiers</td><td class="code"><span class="diff-old">none</span></td><td class="code"><span class="diff-new">LT, XS</span></td></tr>
+</tbody></table>
+<div class="callout dense">Everything else is the same: providers, subscriber, diagnoses, line codes, units and charges.</div>
+</div>
+<div class="drawer-foot"><button type="button" class="btn btn-secondary">Close</button><button type="button" class="btn btn-primary">Open v2</button></div></div></div></div>
+</section>
+
+<!-- ============================ C-11 ============================ -->
+<section class="ref-view" id="C-11">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-11</span><h2>Release claim</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Confirm sending a claim that a person approved, because release cannot be undone.</dd><dt>Data</dt><dd>Claim, payer, total, line count, mode and what release does in that mode, remaining warnings.</dd><dt>Actions</dt><dd>Release claim (enqueues claim.release; toast "Claim released"); Cancel. Enter confirms when focus is on the dialog.</dd><dt>States</dt><dd>Mode B or C: "Sent through Stedi now; acknowledgment in about 30 minutes." Block finding appears after opening (data changed): release disabled, finding shown.</dd><dt>Rules</dt><dd>Approval event recorded with the user. Not shown for keyboard approve A when there are no warnings (approve is immediate; toast without undo).</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:520px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="center-stage"><div class="modal " role="dialog"><div class="modal-head"><div><h2>Release claim?</h2><p class="muted dense">Nguyen, M. · <span class="code">LFM-26-004812</span></p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="modal-body">
+<dl class="kv"><dt>Payer</dt><dd>UnitedHealthcare</dd><dt>Amount</dt><dd class="num">$312.00 · 2 lines</dd><dt>How it goes out</dt><dd><span class="mode">Mode A</span> Released in Tebra; goes out in tonight's 6:00 pm batch through Tebra's clearinghouse</dd></dl>
+<div class="finding warn"><i data-lucide="triangle-alert"></i><div class="body"><div class="title">1 warning remains: first claim for this payer in 60 days</div><div class="meta">Releasing confirms you reviewed it</div></div></div>
+</div>
+<div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary"><i data-lucide="send"></i>Release claim</button></div></div></div></div></div>
+</section>
+
+<!-- ============================ C-12 ============================ -->
+<section class="ref-view" id="C-12">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-12</span><h2>Hold claim</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Stop a claim from releasing until something it needs arrives.</dd><dt>Data</dt><dd>Hold reasons list; filing deadline.</dd><dt>Actions</dt><dd>Reason (required), until (default until released), note; Hold claim (status On hold, timeline event, work item snoozed accordingly).</dd><dt>States</dt><dd>"Other" makes note required. Date past deadline − 14 days shows an inline error.</dd><dt>Rules</dt><dd>A held claim shows On hold chip and appears in the timely filing watch.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:620px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="center-stage"><div class="modal " role="dialog"><div class="modal-head"><h2>Hold claim</h2><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="modal-body">
+<div class="field"><label for="c12r">Reason</label><select id="c12r" class="select"><option>Waiting for information from the practice</option><option>Waiting for prior authorization</option><option>Waiting for referral</option><option>Coverage being verified</option><option>Other</option></select></div>
+<div class="field"><label for="c12u">Hold until</label><select id="c12u" class="select"><option>Until I release it</option><option>Fri, Oct 30</option><option>Pick a date</option></select><span class="help">Filing deadline: Jan 25, 2027. Holds cannot pass 14 days before the deadline.</span></div>
+<div class="field"><label for="c12n">Note</label><textarea id="c12n" class="textarea">Asked front desk for the referral number on Oct 29.</textarea></div>
+</div>
+<div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Hold claim</button></div></div></div></div></div>
+</section>
+
+<!-- ============================ C-13 ============================ -->
+<section class="ref-view" id="C-13">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-13</span><h2>Void claim</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Cancel a claim, explaining what happens with the payer.</dd><dt>Data</dt><dd>Claim status; whether accepted by the payer; amounts paid.</dd><dt>Actions</dt><dd>Reason (required); type VOID; Void claim (danger). Cancel.</dd><dt>States</dt><dd>Never submitted: "This claim was never sent. Voiding removes it from the queue." No typed confirmation needed. Accepted: frequency 8 explanation shown (as drawn).</dd><dt>Rules</dt><dd>Admin or biller with client access. Recorded with reason; claim moves to Voided; any open work items auto-resolve.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:560px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="center-stage"><div class="modal sm" role="dialog"><div class="modal-head"><h2>Void this claim?</h2><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="modal-body">
+<p>Cigna has already processed this claim, so voiding sends a cancellation (frequency <span class="code">8</span>) with Cigna claim <span class="code">2026271550318</span>. Cigna will take back the $412.18 it paid.</p>
+<div class="field"><label for="c13r">Reason</label><select id="c13r" class="select"><option>Billed in error</option><option>Duplicate claim</option><option>Wrong patient</option><option>Other</option></select></div>
+<div class="field"><label for="c13c">Type VOID to confirm</label><input id="c13c" class="input mono" value="VOID"></div>
+</div>
+<div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-danger">Void claim</button></div></div></div></div></div>
+</section>
+
+<!-- ============================ C-14 ============================ -->
+<section class="ref-view" id="C-14">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-14</span><h2>Write off balance</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Remove an open balance from A/R with a reason the billing company can report on.</dd><dt>Data</dt><dd>Line or claim balance; write-off reasons; tenant's write-off adjustment mapping for the PM.</dd><dt>Actions</dt><dd>Amount (defaults to balance, cannot exceed it), reason (required), note (required over $100); Write off (writes to PM via adapter or creates manual task).</dd><dt>States</dt><dd>Adapter cannot write: callout reads "Cleanpost creates a task to post this adjustment in Tebra." Amount over tenant limit (setting) requires admin.</dd><dt>Rules</dt><dd>Confirmation, not undo, because it writes to the PM. Audited; shows in denials report as written off.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:640px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="center-stage"><div class="modal " role="dialog"><div class="modal-head"><div><h2>Write off balance</h2><p class="muted dense">Hart, J. · line 2 · <span class="code">20610</span></p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="modal-body">
+<div class="form-grid">
+<div class="field"><label for="c14a">Amount</label><input id="c14a" class="input mono" value="$446.00"><span class="help">Open balance on this line: $446.00</span></div>
+<div class="field"><label for="c14r">Reason</label><select id="c14r" class="select"><option>Not worth pursuing</option><option>Timely filing limit passed</option><option>Payer policy, not billable</option><option>Small balance</option></select></div>
+<div class="field full"><label for="c14n">Note</label><textarea id="c14n" class="textarea" placeholder="Required for amounts over $100"></textarea></div>
+</div>
+<div class="callout dense"><b>In Tebra:</b> Cleanpost posts an adjustment of $446.00 with code <span class="code">WOFF</span>. The patient is not billed.</div>
+</div>
+<div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-danger">Write off $446.00</button></div></div></div></div></div>
+</section>
+
+<!-- ============================ C-15 ============================ -->
+<section class="ref-view" id="C-15">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-15</span><h2>Status check result</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show a 276/277 claim status response in plain language.</dd><dt>Data</dt><dd>277 response: status category and status codes, payer claim number, effective date, amounts; stored as a claim_events row.</dd><dt>Actions</dt><dd>Create task (where the status implies one); Close.</dd><dt>States</dt><dd>Checking: skeleton for up to 15 s, then "Moda did not respond. We will try again in an hour." Paid: "Paid on Oct 20; the payment has not arrived yet."</dd><dt>Rules</dt><dd>Rate-limited to one manual check per claim per day. Codes shown with plain meaning.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:700px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="drawer " role="dialog"><div class="drawer-head"><div><h2>Status check</h2><p class="muted dense">Moreno, L. · Moda Health · <span class="code">CPD-26-002210</span></p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="drawer-body">
+<div class="row"><span class="chip chip-flight"><i data-lucide="clock"></i>Accepted</span><span class="subtle">Checked today, 10:12 am via Stedi</span></div>
+<div class="callout"><b>Pended: waiting for medical records.</b> Moda has the claim and needs documentation before deciding.</div>
+<dl class="kv"><dt>Status category</dt><dd><span class="codechip">P1</span> Pending, in process</dd><dt>Status</dt><dd><span class="codechip">21</span> Missing or invalid information</dd><dt>Payer claim number</dt><dd class="code">MD26-8810442</dd><dt>Effective</dt><dd>Oct 12, 2026</dd><dt>Billed</dt><dd class="num">$410.00</dd></dl>
+<div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Ask the practice for the visit note and send it to Moda as a claim attachment.</p></div>
+<p class="subtle">Next automatic check: Nov 5. Manual checks are limited to one a day per claim.</p>
+</div>
+<div class="drawer-foot"><button type="button" class="btn btn-secondary">Close</button><button type="button" class="btn btn-primary">Create records request task</button></div></div></div></div>
+</section>
+
+<!-- ============================ C-16 ============================ -->
+<section class="ref-view" id="C-16">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-16</span><h2>Add note</h2><div class="row"><span class="tag">Popover</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Record a call or decision on the claim timeline and loop in a teammate.</dd><dt>Data</dt><dd>Users with access to the client for mentions.</dd><dt>Actions</dt><dd>Write note; @ opens a mention list; Add note (⌘Enter). Toast "Note added".</dd><dt>States</dt><dd>Empty note: Add disabled. Mentioned users get an in-app notification.</dd><dt>Rules</dt><dd>Notes are append-only and audited. Avoid pasting PHI from other patients; notes are shown only to users with access to the client.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px"><div class="stack-sm"><button type="button" class="btn btn-secondary btn-sm" style="align-self:flex-start"><i data-lucide="message-square"></i>Add note</button>
+<div class="popover" style="width:380px">
+<div class="field"><label for="c16n">Note on this claim</label><textarea id="c16n" class="textarea">Called Cigna, rep confirmed the corrected claim was received. @Priya Shah please check again next Friday.</textarea><span class="help">Type @ to mention a teammate. Notes cannot be deleted.</span></div>
+<div class="menu" style="border:1px solid var(--border);border-radius:var(--radius-md)"><div class="menu-item active"><span class="avatar sm">PS</span>Priya Shah<span class="meta">Admin</span></div><div class="menu-item"><span class="avatar sm">ML</span>Marcus Lee<span class="meta">Biller</span></div></div>
+<div class="row" style="justify-content:flex-end"><button type="button" class="btn btn-ghost btn-sm">Cancel</button><button type="button" class="btn btn-primary btn-sm">Add note</button></div>
+</div></div></div></div>
+</section>
+
+<!-- ============================ C-17 ============================ -->
+<section class="ref-view" id="C-17">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">C-17</span><h2>Bulk release confirmation</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Confirm releasing several approved claims at once, showing where they go and how.</dd><dt>Data</dt><dd>Selected claims grouped by client and mode with counts and amounts; payer breakdown; excluded claims with reasons.</dd><dt>Actions</dt><dd>Release N claims (enqueues one release job per claim; progress toast "Releasing 24 claims… 18 done"); Cancel.</dd><dt>States</dt><dd>Some fail during release: toast with "3 failed" link to a filtered claims list. Excluded claims listed in a banner, never silently dropped.</dd><dt>Rules</dt><dd>Only claims with no warn or block findings qualify. Each release is recorded with the approving user.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:620px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="center-stage"><div class="modal lg" role="dialog"><div class="modal-head"><div><h2>Release 24 claims?</h2><p class="muted dense">$7,842.00 total · selected from Claims and Work</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="modal-body">
+<table class="table nowrap"><thead><tr><th>Client</th><th>Mode</th><th>How they go out</th><th class="num">Claims</th><th class="num">Amount</th></tr></thead><tbody>
+<tr><td>Lakeside Family Medicine</td><td><span class="mode">A</span></td><td>Tebra batch at 6:00 pm</td><td class="num">14</td><td class="num">$4,316.00</td></tr>
+<tr><td>Cascade Pediatrics</td><td><span class="mode">B</span></td><td>Stedi, now</td><td class="num">8</td><td class="num">$2,920.00</td></tr>
+<tr><td>Willamette Ortho</td><td><span class="mode">C</span></td><td>Stedi, now</td><td class="num">2</td><td class="num">$606.00</td></tr>
+</tbody></table>
+<div class="dense muted">Payers: UnitedHealthcare 9, Regence 7, Aetna 5, Medicare 3</div>
+<div class="banner warn"><i data-lucide="triangle-alert"></i><span>3 selected claims have warnings and were left out. Review them one at a time.</span></div>
+</div>
+<div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary"><i data-lucide="send"></i>Release 24 claims</button></div></div></div></div></div>
+</section>
+<div class="ref-intro"><h1>Patients</h1><p>The patient record and the drawers used to fix coverage and demographics. Every edit writes back to the PM or creates a task to do so.</p></div>
+<!-- ============================ P-01 ============================ -->
+<section class="ref-view" id="P-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">P-01</span><h2>Patient detail</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /patients/:id</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Everything about one patient's coverage and claims, for fixing eligibility and coverage problems.</dd><dt>Data</dt><dd>patients, coverages ordered by priority with latest eligibility_checks, documents (cards), claims and balances, external_refs for the PM account.</dd><dt>Actions</dt><dd>Reveal DOB (audited); Upload card (P-04); Edit details (P-06); Add or edit coverage (P-02); Check eligibility again (Stedi 270, per coverage); eligibility line opens P-03; claim row opens C-02.</dd><dt>States</dt><dd>Opened from global search or any claim. No coverage: empty state "No insurance on file" with Add coverage. Eligibility check running: row shows skeleton.</dd><dt>Rules</dt><dd>Viewing is audit-logged. Edits write back to the PM via the adapter or create a manual task, and say which before saving.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px"><div class="app" data-nav="claims" data-client="Cascade Pediatrics"><main class="main">
+<a class="breadcrumb" href="#C-01"><i data-lucide="arrow-left"></i>Back</a>
+<div class="card card-body stack">
+<div class="row-between"><div class="stack-sm"><h1 class="title-l">Okafor, Tobi · 11 y</h1><div class="muted dense">Cascade Pediatrics · PM account <span class="code">AMD-55102</span> · DOB <span class="code">••/••/2015</span> <button type="button" class="btn btn-ghost btn-sm"><i data-lucide="eye"></i>Reveal</button></div></div>
+<div class="row"><button type="button" class="btn btn-secondary"><i data-lucide="upload"></i>Upload card</button><button type="button" class="btn btn-secondary"><i data-lucide="pencil"></i>Edit details</button></div></div>
+<dl class="dl" style="grid-template-columns:repeat(4,minmax(0,1fr))"><div><dt>Insurance balance</dt><dd class="fig">$210.00</dd></div><div><dt>Patient balance</dt><dd class="fig">$35.00</dd></div><div><dt>Open claims</dt><dd class="fig">1</dd></div><div><dt>Last visit</dt><dd class="fig">Oct 24, 2026</dd></div></dl>
+</div>
+<div class="grid-2">
+<div class="card"><div class="card-head"><h2>Coverage</h2><button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto"><i data-lucide="plus"></i>Add coverage</button></div>
+<div class="card-body stack-sm">
+<div class="finding bad"><i data-lucide="circle-x"></i><div class="body"><div class="title">Regence BlueCross BlueShield · primary</div><div class="meta">Member <span class="code">R••••••0921</span> · ended Sep 30, 2026 · checked today 8:02 am</div></div><button type="button" class="btn btn-secondary btn-sm">Edit</button></div>
+<div class="finding"><i data-lucide="circle-check" style="color:var(--success)"></i><div class="body"><div class="title">Oregon Health Plan · secondary</div><div class="meta">Member <span class="code">OHP••••7731</span> · active · checked today 8:02 am</div></div><button type="button" class="btn btn-secondary btn-sm">Edit</button></div>
+<div class="row"><button type="button" class="btn btn-ghost btn-sm"><i data-lucide="refresh-cw"></i>Check eligibility again</button></div>
+</div></div>
+<div class="card"><div class="card-head"><h2>Insurance cards</h2></div><div class="card-body grid-2">
+<div class="stack-sm"><div class="ghost-block" style="height:110px;display:flex;align-items:center;justify-content:center;color:var(--ink-subtle)"><span class="row"><i data-lucide="id-card"></i>Regence front</span></div><span class="subtle">Jan 8, 2026 · confirmed</span></div>
+<div class="stack-sm"><div class="ghost-block" style="height:110px;display:flex;align-items:center;justify-content:center;color:var(--ink-subtle)"><span class="row"><i data-lucide="id-card"></i>OHP front</span></div><span class="subtle">Oct 24, 2026 · confirmed</span></div>
+</div></div>
+</div>
+<div class="card flush"><div class="card-head"><h2>Claims</h2></div><div class="table-wrap"><table class="table nowrap">
+<thead><tr><th>DOS</th><th>Payer</th><th class="num">Charge</th><th class="num">Paid</th><th class="num">Balance</th><th>Status</th></tr></thead><tbody>
+<tr><td><a href="#C-02">Oct 24, 2026</a></td><td>Regence BCBS</td><td class="num">$210.00</td><td class="num">—</td><td class="num">$210.00</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>On hold</span></td></tr>
+<tr><td><a href="#C-02">Aug 12, 2026</a></td><td>Regence BCBS</td><td class="num">$185.00</td><td class="num">$150.00</td><td class="num">$0.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Paid</span></td></tr>
+<tr><td><a href="#C-02">Mar 3, 2026</a></td><td>Regence BCBS</td><td class="num">$240.00</td><td class="num">$205.00</td><td class="num">$0.00</td><td><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Closed</span></td></tr>
+</tbody></table></div></div></main></div></div></div>
+</section>
+
+<!-- ============================ P-02 ============================ -->
+<section class="ref-view" id="P-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">P-02</span><h2>Edit coverage</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Add or correct a patient's insurance so claims go to the right payer.</dd><dt>Data</dt><dd>coverages row, payers list (Stedi payer IDs), subscriber fields; adapter capability for writing coverage.</dd><dt>Actions</dt><dd>Edit fields; Check eligibility after saving (default on); Save coverage; Cancel. Changing priority reorders other coverages.</dd><dt>States</dt><dd>Adapter cannot write: callout reads "Tebra cannot be updated from Cleanpost yet. Saving creates a task to update coverage in Tebra." Validation errors inline (member ID format per payer where known).</dd><dt>Rules</dt><dd>Saving rebuilds held claims for this patient and re-runs scrub. Audited with before and after values.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:820px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="drawer " role="dialog"><div class="drawer-head"><div><h2>Edit coverage</h2><p class="muted dense">Okafor, T. · Oregon Health Plan</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="drawer-body">
+<div class="field"><label for="p2a">Payer</label><select id="p2a" class="select"><option>Oregon Health Plan · payer ID OHPMC</option></select></div>
+<div class="form-grid">
+<div class="field"><label for="p2b">Priority</label><select id="p2b" class="select"><option>Primary</option><option selected>Secondary</option></select></div>
+<div class="field"><label for="p2c">Member ID</label><input id="p2c" class="input mono" value="OHP00447731"></div>
+<div class="field"><label for="p2d">Group number</label><input id="p2d" class="input mono" placeholder="None"></div>
+<div class="field"><label for="p2e">Relationship to subscriber</label><select id="p2e" class="select"><option>Child</option></select></div>
+<div class="field"><label for="p2f">Effective</label><input id="p2f" class="input" value="Jan 1, 2026"></div>
+<div class="field"><label for="p2g">Ends</label><input id="p2g" class="input" placeholder="No end date"></div>
+</div>
+<div class="fieldset"><legend>Subscriber</legend><div class="form-grid"><div class="field"><label for="p2h">Name</label><input id="p2h" class="input" value="Okafor, Ngozi"></div><div class="field"><label for="p2i">Date of birth</label><input id="p2i" class="input" value="04/19/1984"></div></div></div>
+<label class="check"><input type="checkbox" checked>Check eligibility after saving</label>
+<div class="callout dense"><i data-lucide="refresh-cw"></i> <b>Writes back to AdvancedMD.</b> Cascade Pediatrics' connection can update coverage, so this change is saved in the PM too.</div>
+</div>
+<div class="drawer-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Save coverage</button></div></div></div></div>
+</section>
+
+<!-- ============================ P-03 ============================ -->
+<section class="ref-view" id="P-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">P-03</span><h2>Eligibility result</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Show a 271 eligibility response in plain terms.</dd><dt>Data</dt><dd>eligibility_checks.summary (status, plan, dates, copay, deductible, coinsurance, out-of-pocket, notes); raw 271 kept in storage.</dd><dt>Actions</dt><dd>Check again (new 270); Download PDF (Stedi eligibility PDF); Close.</dd><dt>States</dt><dd>Inactive: danger chip and the end date. Payer error: "Aetna did not respond. Try again in a few minutes." with error code. Partial data: missing values show "Not returned by payer".</dd><dt>Rules</dt><dd>Eligibility checks are billed per transaction; Check again warns if the last check was under an hour ago.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:700px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="drawer " role="dialog"><div class="drawer-head"><div><h2>Eligibility</h2><p class="muted dense">Okafor, T. · Oregon Health Plan · checked today 8:02 am</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="drawer-body">
+<div class="row"><span class="chip chip-good"><i data-lucide="circle-check"></i>Active</span><span class="subtle">Plan: OHP Plus · coverage Jan 1 – Dec 31, 2026</span></div>
+<dl class="dl"><div><dt>Copay, office visit</dt><dd class="fig">$0.00</dd></div><div><dt>Deductible remaining</dt><dd class="fig">$0.00</dd></div><div><dt>Coinsurance</dt><dd class="fig">0%</dd></div><div><dt>Out-of-pocket remaining</dt><dd class="fig">$0.00</dd></div></dl>
+<div class="stack-sm"><span class="overline">Plan notes from payer</span><ul class="dense" style="margin:0;padding-left:18px"><li>Primary care provider on file: Cascade Pediatrics</li><li>Prior authorization required for audiology services</li><li>Coordinated care organization: PacificSource Community Solutions</li></ul></div>
+<div class="callout dense">Regence coverage ended Sep 30, 2026 (checked at the same time).</div>
+</div>
+<div class="drawer-foot"><button type="button" class="btn btn-secondary"><i data-lucide="download"></i>Download PDF</button><button type="button" class="btn btn-primary"><i data-lucide="refresh-cw"></i>Check again</button></div></div></div></div>
+</section>
+
+<!-- ============================ P-04 ============================ -->
+<section class="ref-view" id="P-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">P-04</span><h2>Upload insurance card</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Capture a card image and extract its fields.</dd><dt>Data</dt><dd>documents (insurance_card_front, insurance_card_back) uploaded via signed URL; extraction job status.</dd><dt>Actions</dt><dd>Drop or choose file per side; Review fields (opens P-05 when extraction finishes); Cancel deletes uploads not yet confirmed.</dd><dt>States</dt><dd>Uploading, reading (progress), done. Unreadable image: "We could not read this photo. Retake it in good light with all four corners visible." Wrong file type or over 15 MB: inline error.</dd><dt>Rules</dt><dd>Back side optional. Files never pass through the app server unencrypted; upload goes straight to storage with a signed URL.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:600px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="center-stage"><div class="modal " role="dialog"><div class="modal-head"><div><h2>Upload insurance card</h2><p class="muted dense">Shah, N. · Cascade Pediatrics</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="modal-body">
+<div class="grid-2">
+<div class="stack-sm"><span class="label dense"><b>Front</b></span><div class="card card-body" style="border-style:dashed;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center"><i data-lucide="circle-check" style="color:var(--success)"></i><span class="dense">card-front.jpg</span><span class="subtle">2.1 MB</span></div></div>
+<div class="stack-sm"><span class="label dense"><b>Back</b></span><div class="card card-body" style="border-style:dashed;height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center"><i data-lucide="upload"></i><span class="dense">Drop a photo or PDF</span><button type="button" class="btn btn-secondary btn-sm">Choose file</button></div></div>
+</div>
+<div class="stack-sm"><div class="row-between subtle"><span>Reading front of card</span><span>About 5 seconds</span></div><div class="meter-bar"><div class="meter-fill good" style="width:60%"></div></div></div>
+<p class="subtle">JPG, PNG, HEIC or PDF up to 15 MB. Images are stored encrypted and shown only to people with access to this client.</p>
+</div>
+<div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary" disabled>Review fields</button></div></div></div></div></div>
+</section>
+
+<!-- ============================ P-05 ============================ -->
+<section class="ref-view" id="P-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">P-05</span><h2>Review card extraction</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Confirm or correct what was read from a card before it becomes coverage.</dd><dt>Data</dt><dd>documents.extracted with per-field confidence; payer match from alias table or Stedi member ID card payer lookup.</dd><dt>Actions</dt><dd>Edit any field; Confirm card (saves coverage, writes back to PM, optional eligibility check); Upload clearer photo (P-04).</dd><dt>States</dt><dd>Fields under 0.9 are marked invalid and focused first. No payer match: payer field becomes a search combobox with "No match found".</dd><dt>Rules</dt><dd>Same view as W-14 in full width. Confirmation recorded as user-reviewed; corrections improve the payer alias list.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:800px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="drawer wide" role="dialog"><div class="drawer-head"><div><h2>Review card</h2><p class="muted dense">Shah, N. · read Oct 28, 3:12 pm</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="drawer-body">
+<div class="grid-2"><div class="ghost-block" style="height:150px;display:flex;align-items:center;justify-content:center;color:var(--ink-subtle)"><span class="row"><i data-lucide="id-card"></i>Front</span></div><div class="ghost-block" style="height:150px;display:flex;align-items:center;justify-content:center;color:var(--ink-subtle)"><span class="row"><i data-lucide="id-card"></i>Back</span></div></div>
+<div class="form-grid">
+<div class="field"><label for="p5a">Payer</label><input id="p5a" class="input" value="Providence Health Plan"><span class="help">Matched to payer ID <span class="code">PHP01</span> · 0.98</span></div>
+<div class="field"><label for="p5b">Member ID</label><input id="p5b" class="input mono" value="PHP88120455"><span class="help">0.97</span></div>
+<div class="field"><label for="p5c">Group number</label><input id="p5c" class="input mono invalid" value="G0?318"><span class="error"><i data-lucide="triangle-alert"></i>Unclear, check the image · 0.61</span></div>
+<div class="field"><label for="p5d">Subscriber</label><input id="p5d" class="input" value="Shah, Anil"><span class="help">0.95</span></div>
+<div class="field"><label for="p5e">Plan type</label><input id="p5e" class="input" value="PPO"><span class="help">0.92</span></div>
+<div class="field"><label for="p5f">Payer phone</label><input id="p5f" class="input mono" value="800-878-4445"><span class="help">0.99</span></div>
+</div>
+<label class="check"><input type="checkbox" checked>Make this the primary coverage and check eligibility</label>
+</div>
+<div class="drawer-foot"><button type="button" class="btn btn-secondary">Upload clearer photo</button><button type="button" class="btn btn-primary">Confirm card</button></div></div></div></div>
+</section>
+
+<!-- ============================ P-06 ============================ -->
+<section class="ref-view" id="P-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">P-06</span><h2>Edit demographics</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Correct patient details that cause rejections (name, DOB, address).</dd><dt>Data</dt><dd>patients row; adapter capability for writing patient data.</dd><dt>Actions</dt><dd>Edit fields; Save details; Cancel (confirm if changed).</dd><dt>States</dt><dd>Adapter cannot write: "Saving creates a task to update the patient in Tebra." Field errors inline.</dd><dt>Rules</dt><dd>Audited with before and after values. The PM remains the system of record; a later sync showing different values creates a sync conflict note, not a silent overwrite.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:700px"><div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div><div class="scrim"></div><div class="drawer " role="dialog"><div class="drawer-head"><div><h2>Edit patient details</h2><p class="muted dense">Okafor, T. · Cascade Pediatrics</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+<div class="drawer-body">
+<div class="form-grid">
+<div class="field"><label for="p6a">First name</label><input id="p6a" class="input" value="Tobi"></div>
+<div class="field"><label for="p6b">Last name</label><input id="p6b" class="input" value="Okafor"></div>
+<div class="field"><label for="p6c">Date of birth</label><input id="p6c" class="input" value="02/11/2015"></div>
+<div class="field"><label for="p6d">Sex</label><select id="p6d" class="select"><option>M</option></select></div>
+<div class="field full"><label for="p6e">Address</label><input id="p6e" class="input" value="815 SW 9th St"></div>
+<div class="field"><label for="p6f">City</label><input id="p6f" class="input" value="Albany"></div>
+<div class="field"><label for="p6g">State and ZIP</label><input id="p6g" class="input" value="OR 97321"></div>
+<div class="field"><label for="p6h">Phone</label><input id="p6h" class="input mono" value="541-555-0142"></div>
+</div>
+<div class="callout dense"><b>Saved in AdvancedMD too.</b> Changes to name or date of birth re-run eligibility and re-check claims on hold.</div>
+</div>
+<div class="drawer-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Save details</button></div></div></div></div>
+</section>
+
+</div>
+<script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+/* Chrome of the design reference itself (not part of the product). */
+.ref-top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: var(--space-3); padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.ref-top .brand { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; font-size: 16px; color: var(--ink); }
+.ref-top .brand:hover { text-decoration: none; }
+.ref-top nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.ref-top nav a { font-size: 13px; font-weight: 500; padding: 4px 8px; border-radius: var(--radius-md); color: var(--ink-muted); }
+.ref-top nav a.active { background: var(--cobalt-tint); color: var(--cobalt); }
+.ref-body { padding-block: var(--space-6) var(--space-16); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: var(--space-16); max-width: 1520px; margin: 0 auto; }
+.ref-intro { max-width: 760px; display: flex; flex-direction: column; gap: var(--space-2); }
+.ref-intro h1 { font-family: var(--font-display); font-size: 32px; line-height: 38px; font-weight: 700; letter-spacing: -0.015em; }
+.ref-intro p { color: var(--ink-muted); }
+.ref-view { display: flex; flex-direction: column; gap: var(--space-4); scroll-margin-top: 72px; }
+.ref-meta { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: var(--space-6); align-items: start; border-top: 2px solid var(--ink); padding-top: var(--space-3); }
+.ref-title { display: flex; flex-direction: column; gap: 6px; }
+.ref-id { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--cobalt); }
+.ref-title h2 { font-family: var(--font-display); font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -0.01em; }
+.ref-title .row { gap: 6px; }
+.ref-spec { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: 13px; line-height: 19px; }
+.ref-spec dt { color: var(--ink-subtle); font-weight: 500; }
+.ref-spec dd { margin: 0; color: var(--ink); }
+.ref-spec ul { margin: 0; padding-left: 18px; }
+.ref-frame { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border); background: var(--canvas); }
+.ref-canvas { width: var(--w, 1440px); min-height: var(--h, auto); position: relative; }
+.ref-pad { padding: var(--space-6); display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: flex-start; }
+.ref-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-subtle); margin-bottom: 6px; }
+.ref-index { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-4); }
+.ref-index .card-body ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ref-index .code { color: var(--ink-subtle); margin-right: 6px; }
+@media (max-width: 760px) { .ref-meta { grid-template-columns: minmax(0, 1fr); } }

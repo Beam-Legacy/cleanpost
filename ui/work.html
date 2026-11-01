@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanpost UI · Work queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/reference.css">
+</head>
+<body>
+<header class="ref-top">
+  <a class="brand" href="index.html"><span data-mark></span>Cleanpost UI</a>
+  <nav aria-label="Areas">
+    <a href="shell.html">Shell and states</a>
+    <a href="auth.html">Sign-in</a>
+    <a href="work.html" class="active" aria-current="page">Work queue</a>
+    <a href="claims.html">Claims and patients</a>
+    <a href="money.html">Money in</a>
+    <a href="clients.html">Clients and setup</a>
+    <a href="admin.html">Reports and admin</a>
+    <a href="outputs.html">Emails and PDFs</a>
+    <a href="website.html">Website</a>
+  </nav>
+  <button type="button" class="btn btn-secondary btn-sm" id="theme-toggle" style="margin-left:auto"><i data-lucide="moon"></i>Theme</button>
+</header>
+
+<div class="ref-body">
+<div class="ref-intro">
+  <h1>Work queue</h1>
+  <p>The biller's home screen. One queue across every client they are assigned to, worked from the keyboard, with a side panel for each kind of work item so most items are resolved without leaving the list.</p>
+</div>
+
+<!-- ============================ W-01 ============================ -->
+<section class="ref-view" id="W-01">
+  <div class="ref-meta">
+    <div class="ref-title">
+      <span class="ref-id">W-01</span>
+      <h2>Work queue</h2>
+      <div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /work</span></div>
+    </div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Show everything that needs this user, most urgent first, and let them resolve items without leaving the list.</dd>
+      <dt>Data</dt><dd>work_items for the tenant, scoped to the user's client scope; joined client, payer, patient (last name, first initial), amount (claim balance or remittance total), reason (work_items.summary), due_at, assignee. Summary strip from reports rollups for today.</dd>
+      <dt>Actions</dt><dd><ul><li>Type chips filter by work item type; counts update live.</li><li>Row click or Enter opens the side panel (W-10 to W-24); J/K move; A approve; E edit; S snooze (W-06); R resolve (W-07); / search; ? shortcuts.</li><li>Checkbox selection shows the bulk bar (W-04).</li><li>Save view (W-08); Filters (W-09).</li></ul></dd>
+      <dt>States</dt><dd>Panel open: list switches to the compact two-line layout shown (item and reason; patient, payer and client). Panel closed: full columns as in W-02. Loading: table skeleton (G-20). Nothing due: W-03. Filter returns nothing: inline empty row "No items match these filters" with Clear filters. Panel closed: list takes full width.</dd>
+      <dt>Rules</dt><dd>Default sort priority, due time, amount. Due chip: amber within 4 business hours of SLA, red past due. Resolving an item moves focus to the next row. List shows reduced identifiers only.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="work" data-role="biller">
+      <main class="main">
+        <div class="page-head">
+          <h1>Work</h1><span class="muted">23 items assigned to you across 4 clients</span>
+          <div class="actions"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="bookmark"></i>Save view</button></div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><div class="kpi-label">Due today</div><div class="kpi-value">18</div></div>
+          <div class="kpi"><div class="kpi-label">Overdue</div><div class="kpi-value bad">3</div></div>
+          <div class="kpi"><div class="kpi-label">Ready to release</div><div class="kpi-value">41</div></div>
+          <div class="kpi"><div class="kpi-label">Released today</div><div class="kpi-value">412</div></div>
+          <div class="kpi"><div class="kpi-label">Posted today</div><div class="kpi-value good">$38,214</div></div>
+          <div class="kpi"><div class="kpi-label">Released without review today</div><div class="kpi-value">71%</div></div>
+        </div>
+        <div class="filters">
+          <button type="button" class="filter-chip on">All <span class="n">23</span></button>
+          <button type="button" class="filter-chip">Claim review <span class="n">9</span></button>
+          <button type="button" class="filter-chip">Rejections <span class="n">3</span></button>
+          <button type="button" class="filter-chip">Denials <span class="n">6</span></button>
+          <button type="button" class="filter-chip">Posting <span class="n">3</span></button>
+          <button type="button" class="filter-chip">Eligibility <span class="n">1</span></button>
+          <button type="button" class="filter-chip">Manual tasks <span class="n">1</span></button>
+          <span class="spacer"></span>
+          <button type="button" class="filter-select">Client: <b>All</b><i data-lucide="chevron-down"></i></button>
+          <button type="button" class="filter-select">Payer: <b>Any</b><i data-lucide="chevron-down"></i></button>
+          <button type="button" class="filter-select">Assignee: <b>Me</b><i data-lucide="chevron-down"></i></button>
+          <button type="button" class="icon-btn" aria-label="More filters"><i data-lucide="filter"></i></button>
+        </div>
+        <div class="split">
+          <div class="split-main card flush">
+            <div class="table-wrap">
+              <table class="table nowrap">
+                <thead><tr><th class="w-check"><span class="sr-only">Select</span><input type="checkbox" aria-label="Select all"></th><th><span class="sr-only">Priority</span></th><th>Item</th><th>Patient and client</th><th class="num">Amount</th><th>Due</th></tr></thead>
+                <tbody>
+                  <tr class="selected"><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p2"></span></td><td><div class="two-line"><b>Claim review</b><span class="sub truncate" style="max-width:200px">Modifier 25 likely missing on the visit line</span></div></td><td><div class="two-line"><span>Nguyen, M. · UnitedHealthcare</span><span class="sub">Lakeside Family Med <span class="mode">A</span></span></div></td><td class="num">$312.00</td><td><span class="due">21 h</span></td></tr>
+                  <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p1"></span></td><td><div class="two-line"><b>Rejection</b><span class="sub truncate" style="max-width:200px">Subscriber ID not found (277CA A7)</span></div></td><td><div class="two-line"><span>Rivera, A. · Aetna</span><span class="sub">Lakeside Family Med <span class="mode">A</span></span></div></td><td class="num">$145.00</td><td><span class="due soon">2 h</span></td></tr>
+                  <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p1"></span></td><td><div class="two-line"><b>Eligibility</b><span class="sub truncate" style="max-width:200px">Coverage ended Sep 30; visit Oct 24</span></div></td><td><div class="two-line"><span>Okafor, T. · Regence BCBS</span><span class="sub">Cascade Pediatrics <span class="mode">B</span></span></div></td><td class="num">$210.00</td><td><span class="due over">Overdue 3 h</span></td></tr>
+                  <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p2"></span></td><td><div class="two-line"><b>Denial</b><span class="sub truncate" style="max-width:200px">Modifier inconsistent with procedure (CO-4)</span></div></td><td><div class="two-line"><span>Hart, J. · Cigna</span><span class="sub">Willamette Ortho <span class="mode">C</span></span></div></td><td class="num">$446.00</td><td><span class="due">Tomorrow</span></td></tr>
+                  <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p2"></span></td><td><div class="two-line"><b>Posting difference</b><span class="sub truncate" style="max-width:200px">Denial written off in the PM</span></div></td><td><div class="two-line"><span>2 claims · Cigna</span><span class="sub">Willamette Ortho <span class="mode">C</span></span></div></td><td class="num">$544.00</td><td><span class="due soon">5 h</span></td></tr>
+                  <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p2"></span></td><td><div class="two-line"><b>Manual task</b><span class="sub truncate" style="max-width:200px">Post EFT 8841203 in SimplePractice</span></div></td><td><div class="two-line"><span>14 claims · Optum</span><span class="sub">Riverbend Counseling <span class="mode">A</span></span></div></td><td class="num">$2,980.00</td><td><span class="due">Today</span></td></tr>
+                  <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p1"></span></td><td><div class="two-line"><b>Timely filing</b><span class="sub truncate" style="max-width:200px">9 days left to file</span></div></td><td><div class="two-line"><span>Lindqvist, E. · Moda Health</span><span class="sub">Cascade Pediatrics <span class="mode">B</span></span></div></td><td class="num">$188.00</td><td><span class="due soon">4 h</span></td></tr>
+                  <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p3"></span></td><td><div class="two-line"><b>Claim review</b><span class="sub truncate" style="max-width:200px">First claim for this payer in 60 days</span></div></td><td><div class="two-line"><span>Patel, R. · Medicare</span><span class="sub">Willamette Ortho <span class="mode">C</span></span></div></td><td class="num">$96.00</td><td><span class="due">2 d</span></td></tr>
+                  <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p3"></span></td><td><div class="two-line"><b>Card review</b><span class="sub truncate" style="max-width:200px">Group number unreadable on card photo</span></div></td><td><div class="two-line"><span>Shah, N. · Providence</span><span class="sub">Cascade Pediatrics <span class="mode">B</span></span></div></td><td class="num">—</td><td><span class="due">2 d</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-foot"><span><span class="kbd">J</span> <span class="kbd">K</span> next, previous</span><span><span class="kbd">A</span> approve</span><span><span class="kbd">E</span> edit</span><span><span class="kbd">S</span> snooze</span><span><span class="kbd">R</span> resolve</span><span><span class="kbd">?</span> all shortcuts</span><span class="spacer"></span><span>Showing 9 of 23</span></div>
+          </div>
+          <aside class="panel" aria-label="Claim review" style="box-shadow:none">
+            <div class="panel-head">
+              <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Needs review</span><span class="mode">Mode A</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Open full page"><i data-lucide="external-link"></i></button><button type="button" class="icon-btn ghost" aria-label="Close panel"><i data-lucide="x"></i></button></div>
+              <h2>Nguyen, M. · 46 y · Oct 27, 2026</h2>
+              <div class="muted dense">Lakeside Family Medicine · UnitedHealthcare · <span class="code">LFM-26-004812</span> · $312.00</div>
+            </div>
+            <div class="panel-body">
+              <div class="meter"><div class="row-between subtle"><span>Confidence</span><span><b style="color:var(--warning)">72</b> of 100 · releases automatically at 90</span></div><div class="meter-bar"><div class="meter-fill" style="width:72%"></div><div class="meter-mark" style="left:90%"></div></div></div>
+              <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Visit billed with a same-day minor procedure. UnitedHealthcare requires modifier <span class="code">25</span> on the visit line in this case.</p><div class="evidence">Rule "UHC E/M with same-day procedure": 31 hits, 0 overrides in 90 days.</div></div>
+              <div class="stack-sm">
+                <span class="overline">Findings</span>
+                <div class="finding warn"><i data-lucide="triangle-alert"></i><div class="body"><div class="title">Add modifier 25 to line 1 (<span class="code">99213</span>)</div><div class="meta">Payer rule · −15</div></div><button type="button" class="btn btn-secondary btn-sm">Apply fix</button></div>
+                <div class="finding"><i data-lucide="info"></i><div class="body"><div class="title">First claim for this client and payer in 60 days</div><div class="meta">History · −20 until history builds up</div></div></div>
+              </div>
+              <table class="table">
+                <thead><tr><th>#</th><th>Code</th><th>Mod</th><th>Dx</th><th class="num">Charge</th></tr></thead>
+                <tbody><tr class="row-warn"><td>1</td><td class="code">99213</td><td style="color:var(--warning);font-weight:500">needs 25</td><td class="code">E11.9</td><td class="num">$145.00</td></tr><tr><td>2</td><td class="code">11102</td><td>—</td><td class="code">L82.1</td><td class="num">$167.00</td></tr></tbody>
+              </table>
+              <div class="why"><i data-lucide="circle-help"></i><span>In review because confidence is below this client's threshold of 90.</span></div>
+            </div>
+            <div class="panel-foot">
+              <button type="button" class="btn btn-primary">Apply fix and release <span class="kbd">A</span></button>
+              <button type="button" class="btn btn-secondary">Edit <span class="kbd">E</span></button>
+              <button type="button" class="btn btn-secondary">Hold</button>
+              <span class="spacer"></span>
+              <a href="claims.html#C-02" class="dense">Full claim</a>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ W-02 ============================ -->
+<section class="ref-view" id="W-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-02</span><h2>Work queue, admin view</h2><div class="row"><span class="tag">State</span><span class="tag">MVP</span><span class="tag">Route /work?view=team</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Let an admin see the whole team's queue, balance workload and catch unassigned items.</dd>
+      <dt>Data</dt><dd>Same as W-01 for all users; per-biller open, due today, overdue counts; unassigned count.</dd>
+      <dt>Actions</dt><dd>Workload card click filters the list to that biller. "Assign unassigned" opens W-05 with round-robin suggestion. Bulk assign from selection.</dd>
+      <dt>States</dt><dd>Admin and owner roles only. Billers who see W-02 via URL get G-23.</dd>
+      <dt>Rules</dt><dd>Assignment changes are audited and notify the new assignee (in-app).</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="work" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <div class="page-head"><h1>Work</h1><div class="segmented" role="tablist"><button type="button">Mine</button><button type="button" class="active">Team</button></div><span class="muted">61 open items · 7 unassigned</span><div class="actions"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="user-plus"></i>Assign unassigned</button></div></div>
+        <div class="grid-auto" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+          <div class="card card-body"><div class="row"><span class="avatar sm">DR</span><b>Dana Reyes</b></div><div class="row muted dense" style="margin-top:8px"><span>23 open</span>·<span>18 due today</span>·<span style="color:var(--danger)">3 overdue</span></div></div>
+          <div class="card card-body"><div class="row"><span class="avatar sm">ML</span><b>Marcus Lee</b></div><div class="row muted dense" style="margin-top:8px"><span>27 open</span>·<span>12 due today</span>·<span>0 overdue</span></div></div>
+          <div class="card card-body"><div class="row"><span class="avatar sm">PS</span><b>Priya Shah</b></div><div class="row muted dense" style="margin-top:8px"><span>4 open</span>·<span>2 due today</span>·<span>0 overdue</span></div></div>
+          <div class="card card-body" style="border-color:var(--warning)"><div class="row"><i data-lucide="inbox"></i><b>Unassigned</b></div><div class="row muted dense" style="margin-top:8px"><span>7 open</span>·<span style="color:var(--warning)">2 due within 4 h</span></div></div>
+        </div>
+        <div class="card flush"><div class="table-wrap"><table class="table nowrap">
+          <thead><tr><th class="w-check"><input type="checkbox" aria-label="Select all"></th><th><span class="sr-only">Priority</span></th><th>Type</th><th>Client</th><th>Patient</th><th class="num">Amount</th><th>Reason</th><th>Assignee</th><th>Due</th></tr></thead>
+          <tbody>
+            <tr><td><input type="checkbox" aria-label="Select row" checked></td><td><span class="prio p1"></span></td><td><b>Rejection</b></td><td>Harbor Dermatology</td><td>Cole, B.</td><td class="num">$220.00</td><td>Rendering NPI not on file with payer</td><td class="muted">Unassigned</td><td><span class="due soon">3 h</span></td></tr>
+            <tr><td><input type="checkbox" aria-label="Select row" checked></td><td><span class="prio p2"></span></td><td><b>Denial</b></td><td>Cascade Pediatrics</td><td>Kim, S.</td><td class="num">$312.00</td><td>No prior authorization (CO-197)</td><td class="muted">Unassigned</td><td><span class="due soon">4 h</span></td></tr>
+            <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p1"></span></td><td><b>Eligibility</b></td><td>Cascade Pediatrics</td><td>Okafor, T.</td><td class="num">$210.00</td><td>Coverage ended Sep 30</td><td><span class="row"><span class="avatar sm">DR</span>Dana</span></td><td><span class="due over">Overdue 3 h</span></td></tr>
+            <tr><td><input type="checkbox" aria-label="Select row"></td><td><span class="prio p2"></span></td><td><b>Claim review</b></td><td>Lakeside Family Med</td><td>Burke, H.</td><td class="num">$145.00</td><td>Diagnosis pointer missing on line 2</td><td><span class="row"><span class="avatar sm">ML</span>Marcus</span></td><td><span class="due">20 h</span></td></tr>
+          </tbody></table></div>
+          <div class="table-foot"><span>Showing 4 of 61</span></div>
+        </div>
+        <div class="row" style="position:sticky;bottom:0">
+          <div class="toast" style="background:var(--surface);color:var(--ink);border:1px solid var(--border)"><b>2 selected</b><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="user-plus"></i>Assign</button><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="clock"></i>Snooze</button><button type="button" class="btn btn-ghost btn-sm">Clear</button></div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ W-03 ============================ -->
+<section class="ref-view" id="W-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-03</span><h2>Work queue, all caught up</h2><div class="row"><span class="tag">State</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Confirm there is nothing to do and show what the system handled, so an empty queue reads as success rather than a broken page.</dd>
+      <dt>Data</dt><dd>Today's counts: claims released automatically, remittance lines posted or verified, items resolved by automation; next scheduled sync.</dd>
+      <dt>Actions</dt><dd>View items due later (removes the due filter); View team queue (admins).</dd>
+      <dt>States</dt><dd>Shown only when the user's unfiltered, unsnoozed queue is empty. With filters applied, use the inline "no matches" row instead.</dd>
+      <dt>Rules</dt><dd>Counts never link to PHI lists from this view.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="work" data-role="biller">
+      <main class="main">
+        <div class="page-head"><h1>Work</h1><span class="muted">Nothing assigned to you is due</span></div>
+        <div class="card">
+          <div class="empty">
+            <div class="glyph good"><i data-lucide="circle-check"></i></div>
+            <h2>Nothing needs you right now</h2>
+            <p>412 claims went out without review today, and 1,184 payment lines were posted or verified. 5 items are snoozed until tomorrow.</p>
+            <div class="row" style="justify-content:center;margin-top:8px"><button type="button" class="btn btn-secondary">Show snoozed items</button><button type="button" class="btn btn-ghost">Open claims list</button></div>
+            <p class="subtle" style="margin-top:8px">Next sync from all clients at 2:30 pm PT.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ W-04 ============================ -->
+<section class="ref-view" id="W-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-04</span><h2>Bulk action bar</h2><div class="row"><span class="tag">Component</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Act on several work items at once.</dd>
+      <dt>Data</dt><dd>Selected item IDs; how many are eligible for bulk approve (claim reviews whose findings are all info level).</dd>
+      <dt>Actions</dt><dd>Assign (W-05), Snooze (W-06), Approve and release eligible (opens C-17 confirmation), Clear selection (Esc).</dd>
+      <dt>States</dt><dd>Approve shows "Release 6 of 8" when some selected items are not eligible; disabled with tooltip when none are.</dd>
+      <dt>Rules</dt><dd>Floats at the bottom of the list, 16px above the edge. Releasing is never undoable, so it always confirms first.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px">
+    <div class="toast" style="background:var(--surface);color:var(--ink);border:1px solid var(--border)">
+      <b>8 selected</b>
+      <button type="button" class="btn btn-secondary btn-sm"><i data-lucide="user-plus"></i>Assign</button>
+      <button type="button" class="btn btn-secondary btn-sm"><i data-lucide="clock"></i>Snooze</button>
+      <button type="button" class="btn btn-primary btn-sm"><i data-lucide="send"></i>Release 6 of 8</button>
+      <button type="button" class="btn btn-ghost btn-sm">Clear <span class="kbd">Esc</span></button>
+    </div>
+    <p class="subtle" style="width:100%">2 selected claims have warnings and must be reviewed one at a time.</p>
+  </div></div>
+</section>
+
+<!-- ============================ W-05 ============================ -->
+<section class="ref-view" id="W-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-05</span><h2>Assign</h2><div class="row"><span class="tag">Popover</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Hand an item to a teammate with their workload in view.</dd>
+      <dt>Data</dt><dd>Users with access to the item's client; their open and overdue counts; the client's primary and backup biller.</dd>
+      <dt>Actions</dt><dd>Type to filter; Enter assigns the highlighted user; "Assign to me"; "Unassign".</dd>
+      <dt>States</dt><dd>Users without access to the client are not listed. Bulk mode only lists users with access to every selected client.</dd>
+      <dt>Rules</dt><dd>Audited; new assignee gets an in-app notification.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px">
+    <div class="popover menu">
+      <label class="search" style="max-width:none;margin:4px"><i data-lucide="search"></i><span class="sr-only">Find teammate</span><input type="search" placeholder="Find teammate"></label>
+      <div class="menu-item active"><i data-lucide="user"></i>Assign to me<span class="meta">23 open</span></div>
+      <div class="menu-sep"></div>
+      <div class="menu-item"><span class="avatar sm">ML</span>Marcus Lee <span class="tag" style="margin-left:4px">Primary</span><span class="meta">27 open</span></div>
+      <div class="menu-item"><span class="avatar sm">PS</span>Priya Shah <span class="tag" style="margin-left:4px">Backup</span><span class="meta">4 open</span></div>
+      <div class="menu-item"><span class="avatar sm">JB</span>Julia Beam<span class="meta">0 open</span></div>
+      <div class="menu-sep"></div>
+      <div class="menu-item muted"><i data-lucide="user-x"></i>Unassign</div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ W-06 ============================ -->
+<section class="ref-view" id="W-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-06</span><h2>Snooze</h2><div class="row"><span class="tag">Popover</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Hide an item until a time or until something it depends on happens.</dd>
+      <dt>Data</dt><dd>Snooze options valid for the item type (condition options only where the condition can be detected).</dd>
+      <dt>Actions</dt><dd>Pick a preset, a date and time, or a condition. Toast "Snoozed until Mon 8:00 am" with Undo.</dd>
+      <dt>States</dt><dd>Snoozing never moves the SLA; items past SLA show a warning that snoozing will not stop the overdue alert.</dd>
+      <dt>Rules</dt><dd>Snoozed items return to the top of the queue when they wake. Conditions: next sync, remittance received for this claim, eligibility re-checked.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px">
+    <div class="popover menu">
+      <div class="overline" style="padding:6px 10px 2px">Snooze until</div>
+      <div class="menu-item active"><i data-lucide="clock"></i>Later today<span class="meta">4:00 pm</span></div>
+      <div class="menu-item"><i data-lucide="sunrise"></i>Tomorrow<span class="meta">Fri 8:00 am</span></div>
+      <div class="menu-item"><i data-lucide="calendar"></i>Next week<span class="meta">Mon 8:00 am</span></div>
+      <div class="menu-item"><i data-lucide="calendar-clock"></i>Pick date and time</div>
+      <div class="menu-sep"></div>
+      <div class="overline" style="padding:6px 10px 2px">Or until</div>
+      <div class="menu-item"><i data-lucide="refresh-cw"></i>Next sync from the PM</div>
+      <div class="menu-item"><i data-lucide="landmark"></i>A payment arrives for this claim</div>
+      <div class="menu-item"><i data-lucide="shield-check"></i>Eligibility is re-checked</div>
+    </div>
+    <div class="toast"><i data-lucide="clock"></i>Snoozed until Fri 8:00 am<button type="button" class="btn btn-ghost btn-sm">Undo</button></div>
+  </div></div>
+</section>
+
+<!-- ============================ W-07 ============================ -->
+<section class="ref-view" id="W-07">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-07</span><h2>Resolve with reason</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Close an item whose resolution is not captured by a specific action, with a reason the team can report on.</dd>
+      <dt>Data</dt><dd>Reason list per item type (configurable in settings later); optional note.</dd>
+      <dt>Actions</dt><dd>Select reason (required), add note, Resolve. R opens it from the queue.</dd>
+      <dt>States</dt><dd>"Other" makes the note required. Resolve disabled until a reason is chosen.</dd>
+      <dt>Rules</dt><dd>Saved to work_items.resolution and audited. Resolve moves focus to the next queue item.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:620px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal" role="dialog" aria-labelledby="w07t">
+      <div class="modal-head"><div><h2 id="w07t">Resolve item</h2><p class="muted dense">No response · Rivera, A. · Aetna · <span class="code">LFM-26-004790</span></p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <fieldset class="fieldset" style="border:0;padding:0"><legend class="sr-only">Reason</legend>
+          <label class="check"><input type="radio" name="r" checked>Payer confirmed the claim is in process</label>
+          <label class="check"><input type="radio" name="r">Payer paid; remittance not received yet</label>
+          <label class="check"><input type="radio" name="r">Resubmitted outside Cleanpost</label>
+          <label class="check"><input type="radio" name="r">Duplicate of another item</label>
+          <label class="check"><input type="radio" name="r">Other</label>
+        </fieldset>
+        <div class="field"><label for="w07n">Note</label><textarea id="w07n" class="textarea">Called Aetna Oct 29, ref 55-1902. In process, expect payment within 14 days.</textarea><span class="help">Shown on the claim timeline.</span></div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Resolve</button></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ W-08 ============================ -->
+<section class="ref-view" id="W-08">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-08</span><h2>Save view</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Keep a filter combination as a named view in the queue.</dd>
+      <dt>Data</dt><dd>Current filters and sort, summarized in words.</dd>
+      <dt>Actions</dt><dd>Name (required), Share with team (admins only), Save. Saved views appear as chips after the type filters.</dd>
+      <dt>States</dt><dd>Duplicate name shows an inline error.</dd>
+      <dt>Rules</dt><dd>Shared views are visible to all users of the tenant but respect each user's client scope.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:520px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal sm" role="dialog" aria-labelledby="w08t">
+      <div class="modal-head"><h2 id="w08t">Save view</h2><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <div class="field"><label for="w08n">Name</label><input id="w08n" class="input" value="Aetna rejections"></div>
+        <div class="callout">Type is Rejection · Payer is Aetna · Assignee is anyone · Sorted by due time</div>
+        <label class="check"><input type="checkbox">Share with the team</label>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Save view</button></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ W-09 ============================ -->
+<section class="ref-view" id="W-09">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-09</span><h2>Filters</h2><div class="row"><span class="tag">Popover</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Narrow the queue beyond the type chips.</dd>
+      <dt>Data</dt><dd>Clients in scope, payers seen in open items, assignees, age, amount range, mode.</dd>
+      <dt>Actions</dt><dd>Apply updates the list and the URL query; Clear all; each active filter shows as a removable chip in the filter bar.</dd>
+      <dt>States</dt><dd>Options with zero matching items are shown greyed with a count of 0.</dd>
+      <dt>Rules</dt><dd>Filters persist per user until cleared.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px">
+    <div class="popover" style="width:360px">
+      <div class="field"><label for="w09c">Client</label><select id="w09c" class="select"><option>Any client</option></select></div>
+      <div class="field"><label for="w09p">Payer</label><select id="w09p" class="select"><option>Aetna, Cigna</option></select></div>
+      <div class="field"><span class="label">Mode</span><div class="segmented"><button type="button" class="active">Any</button><button type="button">A</button><button type="button">B</button><button type="button">C</button></div></div>
+      <div class="field"><span class="label">Amount</span><div class="row" style="flex-wrap:nowrap"><input class="input" aria-label="Minimum amount" value="$100"><span class="muted">to</span><input class="input" aria-label="Maximum amount" placeholder="Any"></div></div>
+      <div class="field"><label for="w09a">Age</label><select id="w09a" class="select"><option>Older than 3 days</option></select></div>
+      <div class="row-between" style="border-top:1px solid var(--border);padding-top:10px"><button type="button" class="btn btn-ghost btn-sm">Clear all</button><button type="button" class="btn btn-primary btn-sm">Apply</button></div>
+    </div>
+  </div></div>
+</section>
+
+<div class="ref-intro">
+  <h1>Side panel variants</h1>
+  <p>One layout per work item type. Every panel has the same frame: status and mode in the head, a "why is this here" line, the facts needed to decide, and one primary action in the footer. Each opens beside the list (W-01) and expands to the full record with the external-link button.</p>
+</div>
+
+<!-- ============================ W-10 ============================ -->
+<section class="ref-view" id="W-10">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-10</span><h2>Panel: claim review</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Approve or fix a claim that scored below the auto-release threshold.</dd>
+      <dt>Data</dt><dd>claims, current claim_version, scrub_results (confidence, findings, ai_summary), claim_lines, threshold in effect.</dd>
+      <dt>Actions</dt><dd>Apply fix (applies one suggestedFix, re-scrubs in place); Apply fix and release (A); Edit (E, opens C-08); Hold (C-12).</dd>
+      <dt>States</dt><dd>All findings info: primary becomes "Release" and bulk approve is allowed. Re-scrub in progress: meter shows skeleton.</dd>
+      <dt>Rules</dt><dd>Each edit writes a corrections row. Release in Mode A releases the charge in the PM; B/C submits via Stedi.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Claim review">
+      <div class="panel-head">
+        <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Needs review</span><span class="mode">Mode A</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Open full page"><i data-lucide="external-link"></i></button><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div>
+        <h2>Nguyen, M. · 46 y · Oct 27, 2026</h2>
+        <div class="muted dense">Lakeside Family Medicine · UnitedHealthcare · $312.00</div>
+      </div>
+      <div class="panel-body">
+        <div class="meter"><div class="row-between subtle"><span>Confidence</span><span><b style="color:var(--warning)">72</b> · threshold 90</span></div><div class="meter-bar"><div class="meter-fill" style="width:72%"></div><div class="meter-mark" style="left:90%"></div></div></div>
+        <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Add modifier <span class="code">25</span> to the visit line. UnitedHealthcare requires it when a visit and a minor procedure are billed the same day.</p></div>
+        <div class="finding warn"><i data-lucide="triangle-alert"></i><div class="body"><div class="title">Add modifier 25 to line 1 (<span class="code">99213</span>)</div><div class="meta">Payer rule · 31 hits, 0 overrides</div></div><button type="button" class="btn btn-secondary btn-sm">Apply fix</button></div>
+        <div class="why"><i data-lucide="circle-help"></i><span>Below this client's release threshold of 90.</span></div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Apply fix and release <span class="kbd">A</span></button><button type="button" class="btn btn-secondary">Edit <span class="kbd">E</span></button><button type="button" class="btn btn-secondary">Hold</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-11 ============================ -->
+<section class="ref-view" id="W-11">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-11</span><h2>Panel: claim blocked</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Fix a claim that cannot be sent because a required value is missing or invalid.</dd>
+      <dt>Data</dt><dd>Block findings with the field path; current value; inline editor for that field.</dd>
+      <dt>Actions</dt><dd>Fix in place (field editor) then Re-check; Edit full claim; Hold.</dd>
+      <dt>States</dt><dd>Fix that needs the PM (e.g. missing provider) shows "Fix in the PM" with the instructions and a Re-sync button.</dd>
+      <dt>Rules</dt><dd>Release is unavailable while any block finding remains.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Claim blocked">
+      <div class="panel-head">
+        <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Blocked</span><span class="mode">Mode B</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div>
+        <h2>Burke, H. · 8 y · Oct 26, 2026</h2>
+        <div class="muted dense">Cascade Pediatrics · PacificSource · $145.00</div>
+      </div>
+      <div class="panel-body">
+        <div class="finding bad"><i data-lucide="circle-x"></i><div class="body"><div class="title">Line 2 points to diagnosis 3, but the claim has 2 diagnoses</div><div class="meta">Structural · blocks sending</div></div></div>
+        <div class="field"><label for="w11p">Line 2 (<span class="code">90460</span>) diagnosis pointers</label><div class="input-group"><input id="w11p" class="input mono" value="1, 3"><button type="button" class="btn btn-secondary">Re-check</button></div><span class="error"><i data-lucide="circle-x"></i>Pointer 3 does not exist. Diagnoses: 1 <span class="code">Z23</span>, 2 <span class="code">Z00.129</span></span></div>
+        <div class="why"><i data-lucide="circle-help"></i><span>Claims with structural errors are never sent.</span></div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary" disabled>Release</button><button type="button" class="btn btn-secondary">Edit full claim</button><button type="button" class="btn btn-secondary">Hold</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-12 ============================ -->
+<section class="ref-view" id="W-12">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-12</span><h2>Panel: rejection</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Fix and resubmit a claim the clearinghouse or payer rejected before adjudication.</dd>
+      <dt>Data</dt><dd>claim_events of type ack_999 / ack_277ca with status category and codes; plain-language explanation; coverage on file; eligibility result.</dd>
+      <dt>Actions</dt><dd>Suggested fix (e.g. update member ID from latest eligibility); Fix and resubmit (new version, frequency 1, same patient control number); Edit; Resolve (W-07).</dd>
+      <dt>States</dt><dd>Repeat rejection for the same reason shows a warning with the count.</dd>
+      <dt>Rules</dt><dd>Rejected claims were never adjudicated, so corrections go out as frequency 1, not 7.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Rejection">
+      <div class="panel-head">
+        <div class="row"><span class="chip chip-bad"><i data-lucide="circle-x"></i>Rejected</span><span class="mode">Mode A</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div>
+        <h2>Rivera, A. · 42 y · Oct 22, 2026</h2>
+        <div class="muted dense">Lakeside Family Medicine · Aetna · $145.00 · rejected Oct 28, 9:14 am</div>
+      </div>
+      <div class="panel-body">
+        <div class="stack-sm"><div class="row"><span class="codechip bad">A7</span><span class="codechip">562</span></div><p>Aetna could not find this subscriber. The member ID on the claim (<span class="code">W12345678</span>) does not match their records.</p></div>
+        <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Use member ID <span class="code">W123456789</span> from the eligibility check on Oct 20. The claim is missing the last digit.</p><div class="evidence">Eligibility 271 from Aetna, Oct 20, active.</div></div>
+        <div class="why"><i data-lucide="circle-help"></i><span>Rejected claims were not processed by the payer. Resubmitting does not count as a duplicate.</span></div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Use ID and resubmit</button><button type="button" class="btn btn-secondary">Edit</button><button type="button" class="btn btn-secondary">Resolve</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-13 ============================ -->
+<section class="ref-view" id="W-13">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-13</span><h2>Panel: eligibility issue</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Resolve inactive or mismatched coverage before the claim goes out.</dd>
+      <dt>Data</dt><dd>eligibility_checks latest result per coverage; coverages for the patient; claim on hold; upcoming appointment if the PM provides it.</dd>
+      <dt>Actions</dt><dd>Check again (270); Use other coverage (if another active one exists); Update coverage (P-02); Mark self-pay; Open patient.</dd>
+      <dt>States</dt><dd>4-hour SLA when a visit is upcoming. Check in progress shows inline skeleton.</dd>
+      <dt>Rules</dt><dd>Coverage edits write back to the PM through the adapter or create a manual task; the panel says which before saving.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Eligibility issue">
+      <div class="panel-head">
+        <div class="row"><span class="chip chip-bad"><i data-lucide="circle-x"></i>Coverage inactive</span><span class="mode">Mode B</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div>
+        <h2>Okafor, T. · 11 y · Oct 24, 2026</h2>
+        <div class="muted dense">Cascade Pediatrics · claim on hold · $210.00</div>
+      </div>
+      <div class="panel-body">
+        <table class="table"><thead><tr><th>Coverage</th><th>Status</th><th>Checked</th></tr></thead><tbody>
+          <tr><td>Regence BCBS · primary</td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Ended Sep 30</span></td><td class="subtle">Today 8:02 am</td></tr>
+          <tr><td>Oregon Health Plan · secondary</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Active</span></td><td class="subtle">Today 8:02 am</td></tr>
+        </tbody></table>
+        <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Bill Oregon Health Plan as primary for this visit. Regence coverage ended before the date of service.</p></div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Make OHP primary and rebuild</button><button type="button" class="btn btn-secondary"><i data-lucide="refresh-cw"></i>Check again</button><button type="button" class="btn btn-secondary">Mark self-pay</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-14 ============================ -->
+<section class="ref-view" id="W-14">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-14</span><h2>Panel: card review</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Confirm insurance card fields the extraction was not sure about.</dd>
+      <dt>Data</dt><dd>documents (card front/back), extracted fields with confidence, matched payer.</dd>
+      <dt>Actions</dt><dd>Edit any field; Confirm (saves to coverage and writes back); Upload clearer photo (P-04).</dd>
+      <dt>States</dt><dd>Fields under 0.9 confidence are highlighted and focused first.</dd>
+      <dt>Rules</dt><dd>Image view is audit-logged. Images never leave encrypted storage except through short-lived signed URLs.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Card review">
+      <div class="panel-head"><div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Needs review</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Shah, N. · insurance card</h2><div class="muted dense">Cascade Pediatrics · uploaded by front desk Oct 28</div></div>
+      <div class="panel-body">
+        <div class="ghost-block" style="height:150px;display:flex;align-items:center;justify-content:center;color:var(--ink-subtle)"><span class="row"><i data-lucide="id-card"></i>Card front image</span></div>
+        <div class="form-grid">
+          <div class="field"><label for="w14p">Payer</label><input id="w14p" class="input" value="Providence Health Plan"><span class="help">Matched · 0.98</span></div>
+          <div class="field"><label for="w14m">Member ID</label><input id="w14m" class="input mono" value="PHP88120455"><span class="help">0.97</span></div>
+          <div class="field"><label for="w14g">Group number</label><input id="w14g" class="input mono invalid" value="G0?318"><span class="error"><i data-lucide="triangle-alert"></i>Unclear · 0.61</span></div>
+          <div class="field"><label for="w14s">Subscriber</label><input id="w14s" class="input" value="Shah, Anil"><span class="help">0.95</span></div>
+        </div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Confirm card</button><button type="button" class="btn btn-secondary"><i data-lucide="upload"></i>Upload clearer photo</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-15 ============================ -->
+<section class="ref-view" id="W-15">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-15</span><h2>Panel: no response</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Follow up on a claim with no acknowledgment or payment after the expected time.</dd>
+      <dt>Data</dt><dd>Last claim event, days since submission, payer's typical days to pay, last 276/277 result.</dd>
+      <dt>Actions</dt><dd>Check status now (276; result appears inline, full view C-15); Resubmit; Resolve with reason (W-07).</dd>
+      <dt>States</dt><dd>Status check returns "paid": item auto-resolves once the 835 arrives; shows a note meanwhile.</dd>
+      <dt>Rules</dt><dd>Status checks are rate-limited per claim (once per 24 hours).</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="No response">
+      <div class="panel-head"><div class="row"><span class="chip chip-flight"><i data-lucide="clock"></i>Accepted</span><span class="mode">Mode B</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Moreno, L. · 33 y · Sep 18, 2026</h2><div class="muted dense">Cascade Pediatrics · Moda Health · $410.00</div></div>
+      <div class="panel-body">
+        <dl class="dl"><div><dt>Accepted by payer</dt><dd>Sep 19</dd></div><div><dt>Days waiting</dt><dd>41</dd></div><div><dt>Moda usually pays in</dt><dd>18 days</dd></div></dl>
+        <div class="callout"><b>Status check today, 10:12 am:</b> Pended for medical records (<span class="code">P1</span>/<span class="code">21</span>). Moda is waiting for documentation.</div>
+        <div class="why"><i data-lucide="circle-help"></i><span>No payment 30 days after acceptance.</span></div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Create records request task</button><button type="button" class="btn btn-secondary"><i data-lucide="refresh-cw"></i>Check status</button><button type="button" class="btn btn-secondary">Resolve</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-16 ============================ -->
+<section class="ref-view" id="W-16">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-16</span><h2>Panel: denial</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Decide what to do with a denied or partly denied line.</dd>
+      <dt>Data</dt><dd>remit_claims/remit_lines/remit_adjustments/remit_remarks for the denial, category, AI explanation and suggested correction, amount at risk, appeal deadline if known.</dd>
+      <dt>Actions</dt><dd>Build correction (opens C-08 in correction mode with the fix applied); Write off (C-14 / D-03); Reassign.</dd>
+      <dt>States</dt><dd>Non-fixable categories (timely filing, duplicate) show write-off or appeal (Later) as primary.</dd>
+      <dt>Rules</dt><dd>Item auto-resolves when the corrected claim is accepted or the balance is written off.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Denial">
+      <div class="panel-head"><div class="row"><span class="chip chip-bad"><i data-lucide="circle-x"></i>Denied</span><span class="tag">Coding</span><span class="mode">Mode C</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Hart, J. · 58 y · Oct 2, 2026</h2><div class="muted dense">Willamette Ortho · Cigna · line 2 · $446.00 at risk</div></div>
+      <div class="panel-body">
+        <div class="row"><span class="codechip bad">CO-4</span><span class="codechip">N519</span><span class="muted dense">Modifier inconsistent with the procedure</span></div>
+        <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Line 2 (<span class="code">20610</span>, left shoulder) needs a modifier showing a separate site from the knee treated the same day. Add <span class="code">LT</span> and <span class="code">XS</span>, then send a corrected claim.</p><div class="evidence">6 similar Cigna denials for this client were corrected this way in 90 days, all paid.</div></div>
+        <dl class="dl"><div><dt>Amount at risk</dt><dd class="fig">$446.00</dd></div><div><dt>Corrected claim deadline</dt><dd>Jan 30, 2027</dd></div></dl>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Build correction</button><button type="button" class="btn btn-secondary">Write off</button><button type="button" class="btn btn-secondary">Reassign</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-17 ============================ -->
+<section class="ref-view" id="W-17">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-17</span><h2>Panel: unmatched remittance</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Connect a paid claim in an 835 to the right claim in Cleanpost.</dd>
+      <dt>Data</dt><dd>remit_claims row with match_status unmatched or ambiguous; candidate claims by patient, DOS, charge, payer with match evidence.</dd>
+      <dt>Actions</dt><dd>Link (on a candidate); Search claims (R-05); Mark as before go-live (posted outside Cleanpost); Mark not ours.</dd>
+      <dt>States</dt><dd>Ambiguous: two or more candidates shown with what differs.</dd>
+      <dt>Rules</dt><dd>Linking re-runs balancing and posting for that remittance.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Unmatched remittance">
+      <div class="panel-head"><div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Unmatched</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Cigna EFT 7730551 · 1 claim unmatched</h2><div class="muted dense">Willamette Ortho · paid $214.50 · control number <span class="code">WOR-25-009912</span></div></div>
+      <div class="panel-body">
+        <span class="overline">Possible match</span>
+        <div class="card card-body stack-sm"><div class="row-between"><b>Alvarez, S. · Aug 14, 2025</b><span class="chip chip-flight"><i data-lucide="clock"></i>Accepted</span></div><div class="dense muted">Charge $380.00 · Cigna · <span class="code">WOR-25-009912</span> not found; patient, date and charge match</div><div class="row"><button type="button" class="btn btn-secondary btn-sm">Link to this claim</button></div></div>
+        <div class="why"><i data-lucide="circle-help"></i><span>Billed before this client went live on Cleanpost, so the control number is not ours.</span></div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Mark as before go-live</button><button type="button" class="btn btn-secondary"><i data-lucide="search"></i>Search claims</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-18 ============================ -->
+<section class="ref-view" id="W-18">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-18</span><h2>Panel: out of balance</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Explain why a remittance does not add up and decide how to proceed.</dd>
+      <dt>Data</dt><dd>Payment amount (BPR), sum of claim paid, provider-level adjustments (PLB), difference; per-claim balancing failures.</dd>
+      <dt>Actions</dt><dd>Open remittance (R-03/R-04); Accept difference with reason (requires admin); Hold posting.</dd>
+      <dt>States</dt><dd>Two kinds, labeled separately: "835 does not balance" (before posting) and "PM posting does not match" (after posting).</dd>
+      <dt>Rules</dt><dd>Nothing posts from a remittance that does not balance unless an admin accepts the difference.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Out of balance">
+      <div class="panel-head"><div class="row"><span class="chip chip-bad"><i data-lucide="circle-x"></i>Out of balance</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>UnitedHealthcare EFT 6620194</h2><div class="muted dense">Lakeside Family Medicine · Oct 27 · 835 does not balance</div></div>
+      <div class="panel-body">
+        <div class="balance bad"><b>Off by $35.20</b><span>Payment $4,210.80 vs claims $4,246.00 − provider adjustments $0.00</span></div>
+        <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>The difference equals a $35.20 recoupment UnitedHealthcare usually reports as a provider-level adjustment. It may be missing from this file; ask the payer for a corrected 835.</p></div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Open remittance</button><button type="button" class="btn btn-secondary">Accept difference</button><button type="button" class="btn btn-secondary">Hold posting</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-19 ============================ -->
+<section class="ref-view" id="W-19">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-19</span><h2>Panel: adjustment code needs mapping</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Teach Cleanpost how to post an adjustment code it has not seen for this PM.</dd>
+      <dt>Data</dt><dd>Group code + CARC, plain meaning, PM type, PM adjustment codes available, lines waiting on this mapping.</dd>
+      <dt>Actions</dt><dd>Choose PM adjustment code and action; Save mapping (applies to this client or all clients on this PM). Opens R-07 for more options.</dd>
+      <dt>States</dt><dd>Admin only; billers see the item with "Ask an admin" instead of the form.</dd>
+      <dt>Rules</dt><dd>Saving resumes posting for every held line with this code.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Adjustment code needs mapping">
+      <div class="panel-head"><div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Posting held</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Map <span class="code">OA-94</span> for Tebra</h2><div class="muted dense">Processed in excess of charges · 3 lines waiting · $41.10</div></div>
+      <div class="panel-body">
+        <div class="field"><label for="w19c">Tebra adjustment code</label><select id="w19c" class="select"><option>OTHADJ · Other adjustment</option></select></div>
+        <div class="field"><label for="w19a">What to do with the amount</label><select id="w19a" class="select"><option>Adjust off the balance</option><option>Transfer to patient</option><option>Leave open</option><option>Record only</option></select></div>
+        <label class="check"><input type="checkbox" checked>Use for every client on Tebra</label>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Save mapping and post 3 lines</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-20 ============================ -->
+<section class="ref-view" id="W-20">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-20</span><h2>Panel: posting difference</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>In Modes A and C, flag where the PM's automatic posting differs from the 835.</dd>
+      <dt>Data</dt><dd>Per line: what the 835 says, what the PM posted (pullPostings), the difference and its effect on balances.</dd>
+      <dt>Actions</dt><dd>Correct in PM (via adapter if supported, else manual task with exact steps); Accept PM posting with reason; Open remittance (R-04).</dd>
+      <dt>States</dt><dd>Adapter cannot write: button reads "Create correction task".</dd>
+      <dt>Rules</dt><dd>Auto-resolves when a later sync shows the PM matches the 835.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Posting difference">
+      <div class="panel-head"><div class="row"><span class="chip chip-bad"><i data-lucide="circle-x"></i>Posting difference</span><span class="mode">Mode C</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Hart, J. · line 2 · <span class="code">20610</span></h2><div class="muted dense">Willamette Ortho · Cigna EFT 7730551</div></div>
+      <div class="panel-body">
+        <dl class="kv"><dt>835 says</dt><dd>Denied <span class="codechip bad">CO-4</span> $446.00; balance stays open</dd><dt>Tebra posted</dt><dd><span class="diff-old">Written off $446.00 (CONTR)</span></dd><dt>Effect</dt><dd>$446.00 disappears from A/R; denial would never be worked</dd></dl>
+        <div class="why"><i data-lucide="circle-help"></i><span>Tebra maps CO-4 to a contractual write-off. Fixing the mapping in Tebra prevents this for future payments.</span></div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Create correction task</button><button type="button" class="btn btn-secondary">Accept with reason</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-21 ============================ -->
+<section class="ref-view" id="W-21">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-21</span><h2>Panel: manual task</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Preview a task Cleanpost cannot do through an integration yet, and open it.</dd>
+      <dt>Data</dt><dd>manual_tasks with operation, client, PM, summary, worksheet reference.</dd>
+      <dt>Actions</dt><dd>Open task (M-01, full page because worksheets are wide); Reassign.</dd>
+      <dt>States</dt><dd>Started by someone else: shows who and when.</dd>
+      <dt>Rules</dt><dd>Shows which integration level would remove this task, so admins can prioritize.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Manual task">
+      <div class="panel-head"><div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Manual task</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Post Optum EFT 8841203 · 14 claims</h2><div class="muted dense">Riverbend Counseling · SimplePractice · $2,980.00</div></div>
+      <div class="panel-body">
+        <div class="balance"><b>Balanced</b><span>All 14 claims matched</span></div>
+        <p class="dense">Enter this payment in SimplePractice using the worksheet. About 10 minutes.</p>
+        <div class="why"><i data-lucide="plug-zap"></i><span>SimplePractice has no posting integration yet. A browser automation for posting would remove this task.</span></div>
+      </div>
+      <div class="panel-foot"><a class="btn btn-primary" href="money.html#M-01">Open task</a><button type="button" class="btn btn-secondary">Reassign</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-22 ============================ -->
+<section class="ref-view" id="W-22">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-22</span><h2>Panel: timely filing risk</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Get a claim out before the payer's filing limit passes.</dd>
+      <dt>Data</dt><dd>claims.filing_deadline, days left, current state and blocker, payer limit source (client-payer setting).</dd>
+      <dt>Actions</dt><dd>Fix blocker and release; Release now; Document proof of timely filing (upload); Escalate to admin.</dd>
+      <dt>States</dt><dd>Within 14 days: priority 1; within 3 days: red banner on the claim and daily email to the admin.</dd>
+      <dt>Rules</dt><dd>Cannot be snoozed past the deadline.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Timely filing risk">
+      <div class="panel-head"><div class="row"><span class="chip chip-bad"><i data-lucide="circle-x"></i>9 days left</span><span class="mode">Mode B</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Lindqvist, E. · 6 y · Aug 8, 2026</h2><div class="muted dense">Cascade Pediatrics · Moda Health · $188.00 · file by Nov 6</div></div>
+      <div class="panel-body">
+        <div class="finding bad"><i data-lucide="circle-x"></i><div class="body"><div class="title">On hold since Sep 2: waiting for referral number</div><div class="meta">Moda requires a referral for <span class="code">92557</span></div></div></div>
+        <div class="field"><label for="w22r">Referral number</label><input id="w22r" class="input mono" placeholder="From the practice"></div>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Add referral and release</button><button type="button" class="btn btn-secondary">Escalate</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-23 ============================ -->
+<section class="ref-view" id="W-23">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-23</span><h2>Panel: connection problem</h2><div class="row"><span class="tag">Panel</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Tell the admin a client's PM connection is failing and what stops working.</dd>
+      <dt>Data</dt><dd>connections status, failing operations, last success, error code in plain language, sync_runs.</dd>
+      <dt>Actions</dt><dd>Reconnect (I-04); View connection (I-02); Pause client (CL-08).</dd>
+      <dt>States</dt><dd>Billers see read-only text: "An admin has been notified."</dd>
+      <dt>Rules</dt><dd>No PHI in errors. Auto-resolves when the next sync succeeds.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Connection problem">
+      <div class="panel-head"><div class="row"><span class="chip chip-bad"><i data-lucide="circle-x"></i>Failed</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Lakeside Family Medicine · Tebra</h2><div class="muted dense">Last successful sync today 6:15 am · 3 failed runs</div></div>
+      <div class="panel-body">
+        <p>Tebra rejected the saved login. The customer key may have been regenerated or the API user's password changed.</p>
+        <dl class="kv"><dt>Stopped</dt><dd>New charges, claim status, payments</dd><dt>Still working</dt><dd>Eligibility, claims already in Cleanpost</dd></dl>
+      </div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Reconnect</button><button type="button" class="btn btn-secondary">View connection</button></div>
+    </aside>
+  </div></div>
+</section>
+
+<!-- ============================ W-24 ============================ -->
+<section class="ref-view" id="W-24">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">W-24</span><h2>Panel: underpayment</h2><div class="row"><span class="tag">Panel</span><span class="tag">Later</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Flag lines paid below the contracted rate.</dd>
+      <dt>Data</dt><dd>fee_schedules allowed amount vs 835 allowed and paid; history for the code and payer.</dd>
+      <dt>Actions</dt><dd>Dispute (creates a task; appeal drafting later); Accept; Update fee schedule.</dd>
+      <dt>States</dt><dd>Hidden until a fee schedule is loaded for the client and payer.</dd>
+      <dt>Rules</dt><dd>Threshold for flagging is configurable (default $5 and 2%).</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:560px">
+    <aside class="panel" aria-label="Underpayment">
+      <div class="panel-head"><div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Underpaid</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div><h2>Brooks, K. · <span class="code">99214</span></h2><div class="muted dense">Lakeside Family Medicine · Aetna · Oct 21</div></div>
+      <div class="panel-body"><dl class="dl"><div><dt>Contracted</dt><dd class="fig">$128.40</dd></div><div><dt>Allowed</dt><dd class="fig">$112.10</dd></div><div><dt>Short</dt><dd class="fig" style="color:var(--warning)">$16.30</dd></div></dl></div>
+      <div class="panel-foot"><button type="button" class="btn btn-primary">Dispute</button><button type="button" class="btn btn-secondary">Accept</button></div>
+    </aside>
+  </div></div>
+</section>
+
+</div>
+<script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/shell.js"></script>
+</body>
+</html>

@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanpost UI · Shell and states</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/reference.css">
+</head>
+<body>
+<header class="ref-top">
+  <a class="brand" href="index.html"><span data-mark></span>Cleanpost UI</a>
+  <nav aria-label="Areas">
+    <a href="shell.html" class="active" aria-current="page">Shell and states</a>
+    <a href="auth.html">Sign-in</a>
+    <a href="work.html">Work queue</a>
+    <a href="claims.html">Claims and patients</a>
+    <a href="money.html">Money in</a>
+    <a href="clients.html">Clients and setup</a>
+    <a href="admin.html">Reports and admin</a>
+    <a href="outputs.html">Emails and PDFs</a>
+    <a href="website.html">Website</a>
+  </nav>
+  <button type="button" class="btn btn-secondary btn-sm" id="theme-toggle" style="margin-left:auto"><i data-lucide="moon"></i>Theme</button>
+</header>
+
+<div class="ref-body">
+<div class="ref-intro">
+  <h1>Shell and system states</h1>
+  <p>The frame every screen sits in, the global tools reachable from anywhere, and the shared patterns for loading, empty, error, no-access and offline states. Pages reuse these instead of designing their own.</p>
+</div>
+
+<!-- ============================ G-01 ============================ -->
+<section class="ref-view" id="G-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-01</span><h2>App shell</h2><div class="row"><span class="tag">Page frame</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Hold every app page: sidebar navigation, top bar with client switcher, search, help, notifications and user menu, and the content area.</dd>
+      <dt>Data</dt><dd>Session user (name, initials, role, tenant); work item count assigned to the user; open manual task count; unread notification count; current client filter.</dd>
+      <dt>Actions</dt><dd><ul><li>Nav items route to their area; active item uses aria-current.</li><li>Collapse toggle (or [ key) shrinks the sidebar to 64px icons with tooltips.</li><li>Client switcher (G-02), search (G-03, ⌘K), help (G-07), notifications (G-04), avatar (G-05).</li></ul></dd>
+      <dt>States</dt><dd>Billers do not see the Admin section. Collapsed state remembered per user. Platform banner (G-13) sits above the top bar when active. Below 1024px the sidebar starts collapsed.</dd>
+      <dt>Rules</dt><dd>Content max width 1440px with space-6 padding. Top bar 56px. The client filter is always visible in the top bar and applies to every page.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="work" data-user="PS" data-user-name="Priya Shah">
+      <main class="main">
+        <div class="page-head"><h1>Page title</h1><span class="muted">Short description of what this page shows</span><div class="actions"><button type="button" class="btn btn-secondary">Secondary</button><button type="button" class="btn btn-primary">Primary action</button></div></div>
+        <div class="ghost-block" style="height:110px"></div>
+        <div class="ghost-block" style="height:420px"></div>
+      </main>
+    </div>
+  </div></div>
+  <div class="ref-label">Collapsed sidebar</div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app collapsed" data-nav="claims" data-role="biller" style="min-height:420px">
+      <main class="main">
+        <div class="page-head"><h1>Claims</h1><span class="muted">Sidebar collapsed to icons; hovering an icon shows its label as a tooltip</span></div>
+        <div class="ghost-block" style="height:260px"></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-02 ============================ -->
+<section class="ref-view" id="G-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-02</span><h2>Client switcher</h2><div class="row"><span class="tag">Popover</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Filter every screen to one client or all clients in the user's scope.</dd>
+      <dt>Data</dt><dd>clients in the user's client scope with status, PM and mode; open work items per client; last three clients used.</dd>
+      <dt>Actions</dt><dd>Type to filter; arrow keys and Enter select; "All clients" clears the filter. Selecting updates the URL (?client=) and every page.</dd>
+      <dt>States</dt><dd>Paused and onboarding clients listed with their status tag. A user with one client sees no switcher, just the client name.</dd>
+      <dt>Rules</dt><dd>Selection persists per user across sessions. Never lists clients outside the user's scope.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px">
+    <div class="stack-sm">
+      <button type="button" class="switcher" aria-expanded="true"><i data-lucide="building-2"></i>All clients<i data-lucide="chevron-down"></i></button>
+      <div class="popover menu" style="width:340px">
+        <label class="search" style="max-width:none;margin:4px"><i data-lucide="search"></i><span class="sr-only">Find client</span><input type="search" placeholder="Find client"></label>
+        <div class="menu-item active"><i data-lucide="layers"></i>All clients<span class="meta">5</span></div>
+        <div class="menu-sep"></div>
+        <div class="overline" style="padding:6px 10px 2px">Recent</div>
+        <div class="menu-item"><span class="dot good"></span>Lakeside Family Medicine<span class="meta"><span class="mode">A</span> 9 open</span></div>
+        <div class="menu-item"><span class="dot good"></span>Willamette Ortho<span class="meta"><span class="mode">C</span> 6 open</span></div>
+        <div class="menu-sep"></div>
+        <div class="overline" style="padding:6px 10px 2px">All</div>
+        <div class="menu-item"><span class="dot good"></span>Cascade Pediatrics<span class="meta"><span class="mode">B</span> 5 open</span></div>
+        <div class="menu-item"><span class="dot warn"></span>Riverbend Counseling<span class="meta"><span class="mode">A</span> 3 open</span></div>
+        <div class="menu-item"><span class="dot"></span>Harbor Dermatology<span class="meta"><span class="tag">Onboarding</span></span></div>
+      </div>
+    </div>
+    <p class="subtle" style="max-width:320px">Dot shows connection health: green healthy, amber degraded or manual tasks waiting, grey not live yet.</p>
+  </div></div>
+</section>
+
+<!-- ============================ G-03 ============================ -->
+<section class="ref-view" id="G-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-03</span><h2>Global search and command palette</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span><span class="tag">⌘K or /</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Find any patient, claim, remittance or client, and run common commands, without leaving the keyboard.</dd>
+      <dt>Data</dt><dd>Search across patients (name, DOB), claims (patient control number, payer claim number), remittances (trace number), clients; command list filtered by role.</dd>
+      <dt>Actions</dt><dd>Type to search (debounced 150ms); ↑↓ move; Enter opens; Tab cycles groups; Esc closes. Commands start with "&gt;" or match by name.</dd>
+      <dt>States</dt><dd>Empty query: recent records and suggested commands. No results: "Nothing matches 'x'" with tip to search by control or trace number. Loading: skeleton rows under each group.</dd>
+      <dt>Rules</dt><dd>Results respect client scope. Every search query is audit-logged (query hash and result count, not the text if it looks like a name). Patient rows show "Last, F." and age; full DOB only on match by DOB.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:760px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage" style="align-items:flex-start;padding-top:72px"><div class="modal lg" role="dialog" aria-label="Search and commands">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border)"><label class="row" style="flex-wrap:nowrap;gap:10px"><i data-lucide="search"></i><span class="sr-only">Search</span><input type="search" class="input" style="border:0;height:32px;padding:0;font-size:16px" value="rivera"><span class="kbd">Esc</span></label></div>
+      <div style="padding:8px;max-height:560px;overflow:auto" class="stack-sm">
+        <div><div class="overline" style="padding:6px 10px">Patients</div>
+          <div class="menu-item active"><i data-lucide="user"></i><span><b>Rivera, A.</b> · 42 y</span><span class="meta">Lakeside Family Medicine</span></div>
+          <div class="menu-item"><i data-lucide="user"></i><span><b>Rivera, D.</b> · 9 y</span><span class="meta">Cascade Pediatrics</span></div>
+        </div>
+        <div><div class="overline" style="padding:6px 10px">Claims</div>
+          <div class="menu-item"><i data-lucide="file-text"></i><span class="code">LFM-26-004790</span><span>Rivera, A. · Oct 22 · Aetna</span><span class="meta"><span class="chip chip-bad"><i data-lucide="circle-x"></i>Rejected</span></span></div>
+          <div class="menu-item"><i data-lucide="file-text"></i><span class="code">LFM-26-004412</span><span>Rivera, A. · Sep 30 · Aetna</span><span class="meta"><span class="chip chip-good"><i data-lucide="circle-check"></i>Paid</span></span></div>
+        </div>
+        <div><div class="overline" style="padding:6px 10px">Remittances</div>
+          <div class="menu-item"><i data-lucide="landmark"></i><span>Aetna EFT <span class="code">8810447</span> · includes Rivera, A.</span><span class="meta">$2,104.60 · Oct 14</span></div>
+        </div>
+        <div><div class="overline" style="padding:6px 10px">Clients</div>
+          <div class="menu-item"><i data-lucide="building-2"></i><span>Riverbend Counseling</span><span class="meta">SimplePractice · <span class="mode">A</span></span></div>
+        </div>
+        <div><div class="overline" style="padding:6px 10px">Commands</div>
+          <div class="menu-item"><i data-lucide="upload"></i>Upload 835 file<span class="meta">Remittances</span></div>
+          <div class="menu-item"><i data-lucide="arrow-right"></i>Go to denials<span class="meta"><span class="kbd">G</span> <span class="kbd">D</span></span></div>
+        </div>
+      </div>
+      <div class="table-foot" style="border-top:1px solid var(--border)"><span><span class="kbd">↑</span> <span class="kbd">↓</span> move</span><span><span class="kbd">Enter</span> open</span><span><span class="kbd">Tab</span> next group</span><span><span class="kbd">&gt;</span> commands only</span></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ G-04 ============================ -->
+<section class="ref-view" id="G-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-04</span><h2>Notifications</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Show alerts that need attention and link straight to the record.</dd>
+      <dt>Data</dt><dd>notifications for the user: type, entity reference, created_at, read_at. Types: SLA breach, assignment, connection failure, large denial, out of balance, rule proposals, client live.</dd>
+      <dt>Actions</dt><dd>Filter All / Unread / Urgent; click opens the record and marks read; Mark all read; Notification settings link (S-09).</dd>
+      <dt>States</dt><dd>Empty: "You're all caught up." Grouped Today / Earlier this week / Older.</dd>
+      <dt>Rules</dt><dd>Text never includes more than "Last, F." for patients. Urgent items also email per notification settings.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:760px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim" style="background:transparent"></div>
+    <div class="drawer" role="dialog" aria-labelledby="g04t">
+      <div class="drawer-head"><h2 id="g04t">Notifications</h2><button type="button" class="btn btn-ghost btn-sm" style="margin-left:auto">Mark all read</button><button type="button" class="icon-btn ghost" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div style="padding:12px 16px 0"><div class="segmented"><button type="button" class="active">All</button><button type="button">Unread 2</button><button type="button">Urgent 1</button></div></div>
+      <div class="drawer-body" style="gap:4px">
+        <span class="overline">Today</span>
+        <div class="menu-item" style="align-items:flex-start;background:var(--cobalt-tint)"><i data-lucide="plug-zap" style="color:var(--danger)"></i><div><b>Lakeside Family Medicine: Tebra connection failed</b><div class="subtle">New charges and payments are not syncing · 10:42 am</div></div></div>
+        <div class="menu-item" style="align-items:flex-start;background:var(--cobalt-tint)"><i data-lucide="clock" style="color:var(--danger)"></i><div><b>Eligibility issue for Okafor, T. is overdue</b><div class="subtle">Cascade Pediatrics · 9:00 am</div></div></div>
+        <div class="menu-item" style="align-items:flex-start"><i data-lucide="user-plus"></i><div><b>Priya assigned you 2 denials</b><div class="subtle">Cascade Pediatrics · 8:31 am</div></div></div>
+        <span class="overline" style="margin-top:8px">Earlier this week</span>
+        <div class="menu-item" style="align-items:flex-start"><i data-lucide="circle-x"></i><div><b>Denial over $1,000: Hart, J.</b><div class="subtle">Willamette Ortho · Cigna · $1,840.00 · Tue</div></div></div>
+        <div class="menu-item" style="align-items:flex-start"><i data-lucide="sparkles"></i><div><b>2 rules proposed from your corrections</b><div class="subtle">Review in Settings · Mon</div></div></div>
+        <div class="menu-item" style="align-items:flex-start"><i data-lucide="circle-check"></i><div><b>Willamette Ortho is live</b><div class="subtle">First sync completed · Mon</div></div></div>
+      </div>
+      <div class="drawer-foot"><a href="admin.html#S-09" class="dense">Notification settings</a></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-05 ============================ -->
+<section class="ref-view" id="G-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-05</span><h2>User menu</h2><div class="row"><span class="tag">Popover</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Personal settings and sign out.</dd>
+      <dt>Data</dt><dd>User name, email, role, tenant; density and theme preferences; other tenants the user belongs to.</dd>
+      <dt>Actions</dt><dd>Profile and security (A-09); density Compact/Comfortable; theme System/Light/Dark; Keyboard shortcuts (G-06); Switch company (A-07, only with 2+ tenants); Sign out.</dd>
+      <dt>States</dt><dd>Switch company hidden for single-tenant users.</dd>
+      <dt>Rules</dt><dd>Preferences save immediately per user. Sign out ends the session on the server.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px">
+    <div class="popover menu" style="width:300px">
+      <div class="row" style="padding:8px 10px;flex-wrap:nowrap"><span class="avatar">DR</span><div><b>Dana Reyes</b><div class="subtle">dana@northwindbilling.com · Biller</div></div></div>
+      <div class="menu-sep"></div>
+      <div class="menu-item"><i data-lucide="user"></i>Profile and security</div>
+      <div class="menu-item"><i data-lucide="keyboard"></i>Keyboard shortcuts<span class="meta"><span class="kbd">?</span></span></div>
+      <div class="menu-sep"></div>
+      <div style="padding:6px 10px" class="stack-sm">
+        <div class="row-between"><span class="dense">Density</span><div class="segmented"><button type="button" class="active">Compact</button><button type="button">Comfortable</button></div></div>
+        <div class="row-between"><span class="dense">Theme</span><div class="segmented"><button type="button" class="active">System</button><button type="button">Light</button><button type="button">Dark</button></div></div>
+      </div>
+      <div class="menu-sep"></div>
+      <div class="menu-item"><i data-lucide="building-2"></i>Switch company<span class="meta">Northwind Billing</span></div>
+      <div class="menu-item"><i data-lucide="log-out"></i>Sign out</div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-06 ============================ -->
+<section class="ref-view" id="G-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-06</span><h2>Keyboard shortcuts</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span><span class="tag">?</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Show every shortcut by area and let users remap them.</dd>
+      <dt>Data</dt><dd>Default shortcut map plus the user's overrides.</dd>
+      <dt>Actions</dt><dd>Search shortcuts; Remap (click a key, press the new key; conflicts are flagged); Reset to defaults.</dd>
+      <dt>States</dt><dd>Conflict: inline error naming the action that already uses the key.</dd>
+      <dt>Rules</dt><dd>Single-key shortcuts never fire while focus is in a text field. Shortcuts must not collide with screen reader keys.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:720px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal lg" role="dialog" aria-labelledby="g06t">
+      <div class="modal-head"><h2 id="g06t">Keyboard shortcuts</h2><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <label class="search" style="max-width:none"><i data-lucide="search"></i><span class="sr-only">Search shortcuts</span><input type="search" placeholder="Search shortcuts"></label>
+        <div class="grid-2" style="gap:24px">
+          <div class="stack-sm"><span class="overline">Anywhere</span>
+            <dl class="kv" style="grid-template-columns:1fr auto"><dt>Search and commands</dt><dd><span class="kbd">⌘</span> <span class="kbd">K</span></dd><dt>Go to work</dt><dd><span class="kbd">G</span> <span class="kbd">W</span></dd><dt>Go to claims</dt><dd><span class="kbd">G</span> <span class="kbd">C</span></dd><dt>Go to denials</dt><dd><span class="kbd">G</span> <span class="kbd">D</span></dd><dt>Toggle sidebar</dt><dd><span class="kbd">[</span></dd><dt>This list</dt><dd><span class="kbd">?</span></dd></dl>
+          </div>
+          <div class="stack-sm"><span class="overline">Work queue</span>
+            <dl class="kv" style="grid-template-columns:1fr auto"><dt>Next, previous item</dt><dd><span class="kbd">J</span> <span class="kbd">K</span></dd><dt>Open item</dt><dd><span class="kbd">Enter</span></dd><dt>Approve and release</dt><dd><span class="kbd">A</span></dd><dt>Edit claim</dt><dd><span class="kbd">E</span></dd><dt>Snooze</dt><dd><span class="kbd">S</span></dd><dt>Resolve with reason</dt><dd><span class="kbd">R</span></dd><dt>Select item</dt><dd><span class="kbd">X</span></dd></dl>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-ghost left">Reset to defaults</button><button type="button" class="btn btn-secondary">Remap keys</button><button type="button" class="btn btn-primary">Done</button></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ G-07 ============================ -->
+<section class="ref-view" id="G-07">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-07</span><h2>Get help</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Answer questions about the current screen and reach support without leaving it.</dd>
+      <dt>Data</dt><dd>Help articles tagged to the current route; support hours and response target.</dd>
+      <dt>Actions</dt><dd>Search help; open article inline; Contact support form (topic, message) which attaches the route and record IDs; Status page link.</dd>
+      <dt>States</dt><dd>After sending: confirmation with ticket number and expected response time.</dd>
+      <dt>Rules</dt><dd>Attachments are IDs only. The form warns not to type patient names or IDs into the message.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:780px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim" style="background:transparent"></div>
+    <div class="drawer" role="dialog" aria-labelledby="g07t">
+      <div class="drawer-head"><h2 id="g07t">Help</h2><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="drawer-body">
+        <label class="search" style="max-width:none"><i data-lucide="search"></i><span class="sr-only">Search help</span><input type="search" placeholder="Search help articles"></label>
+        <div class="stack-sm"><span class="overline">About this screen: Remittance verification</span>
+          <a href="#">What "Posting difference" means and how to fix it</a>
+          <a href="#">How Cleanpost matches payments to claims</a>
+          <a href="#">Mapping adjustment codes to your PM</a>
+        </div>
+        <hr class="divider">
+        <div class="stack-sm"><span class="overline">Contact support</span>
+          <div class="field"><label for="g07a">Topic</label><select id="g07a" class="select"><option>Payments and posting</option></select></div>
+          <div class="field"><label for="g07b">What happened</label><textarea id="g07b" class="textarea" placeholder="Describe what you expected and what you saw"></textarea><span class="help">We attach this screen and record IDs automatically. Please don't type patient names or member IDs.</span></div>
+          <div class="callout dense">Attached: route /remittances/7730551 · remittance rem_01J9… · client Willamette Ortho</div>
+        </div>
+      </div>
+      <div class="drawer-foot"><span class="subtle" style="margin-right:auto">Replies within 1 business hour</span><button type="button" class="btn btn-primary">Send to support</button></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-08 ============================ -->
+<section class="ref-view" id="G-08">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-08</span><h2>Toast</h2><div class="row"><span class="tag">Component</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Confirm an action in a few words, offer Undo where it is safe, and report background errors.</dd>
+      <dt>Data</dt><dd>Message, optional action (Undo, Retry, View), severity.</dd>
+      <dt>Actions</dt><dd>Undo reverts within 10 seconds; Retry re-runs the failed request; View opens the record. Close dismisses.</dd>
+      <dt>States</dt><dd>Confirmation (ink), error (danger, stays until dismissed). Up to 3 stacked, bottom left, newest on top.</dd>
+      <dt>Rules</dt><dd>No Undo for actions that already sent data to a payer or a PM; those confirm beforehand (G-11). Toasts are announced through a polite live region; errors use assertive.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px">
+    <div class="stack-sm">
+      <div class="toast" role="status"><i data-lucide="circle-check"></i>Item resolved<button type="button" class="btn btn-ghost btn-sm">Undo</button></div>
+      <div class="toast" role="status"><i data-lucide="send"></i>Claim released to Tebra<button type="button" class="btn btn-ghost btn-sm">View</button></div>
+      <div class="toast bad" role="alert"><i data-lucide="circle-x"></i>Couldn't save the coverage change. Nothing was sent to the PM.<button type="button" class="btn btn-secondary btn-sm">Retry</button><button type="button" class="icon-btn ghost" aria-label="Dismiss" style="color:inherit"><i data-lucide="x"></i></button></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-09 ============================ -->
+<section class="ref-view" id="G-09">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-09</span><h2>Session timeout warning</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Warn before signing the user out after 15 minutes idle.</dd>
+      <dt>Data</dt><dd>Seconds remaining (60 to 0); tenant session length setting.</dd>
+      <dt>Actions</dt><dd>Stay signed in (refreshes the session); Sign out now.</dd>
+      <dt>States</dt><dd>At 0, signs out and shows G-10. Unsaved claim edits are kept locally (field paths only, no PHI) and restored after sign-in.</dd>
+      <dt>Rules</dt><dd>Countdown announced at 60, 30 and 10 seconds to screen readers. The absolute 12-hour limit cannot be extended.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:520px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal sm" role="alertdialog" aria-labelledby="g09t">
+      <div class="modal-head"><i data-lucide="clock" class="icon-20"></i><h2 id="g09t">You'll be signed out in 0:42</h2></div>
+      <div class="modal-body"><p class="muted">For security, Cleanpost signs you out after 15 minutes without activity. Your open claim edits will be kept.</p></div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Sign out now</button><button type="button" class="btn btn-primary">Stay signed in</button></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ G-10 ============================ -->
+<section class="ref-view" id="G-10">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-10</span><h2>Signed out for inactivity</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /signed-out</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Explain why the user was signed out and get them back to where they were.</dd>
+      <dt>Data</dt><dd>Reason (inactivity, session limit, signed out elsewhere); return path; whether local edits were kept.</dd>
+      <dt>Actions</dt><dd>Sign in again (A-01 with return path).</dd>
+      <dt>States</dt><dd>Variants for "12-hour limit reached" and "Signed out by an admin".</dd>
+      <dt>Rules</dt><dd>No PHI on this page; return path is a route only.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px;--h:560px;display:flex;align-items:center;justify-content:center;padding:48px 0">
+    <div class="card" style="width:440px"><div class="card-body stack" style="padding:32px;align-items:flex-start">
+      <div class="row" style="gap:8px"><span data-mark></span><span style="font-family:var(--font-display);font-weight:700;font-size:20px;letter-spacing:-0.02em">cleanpost</span></div>
+      <h1 class="display-m">You were signed out</h1>
+      <p class="muted">You were inactive for 15 minutes, so we signed you out to protect patient information. Your claim edits were kept and will be there when you return.</p>
+      <a class="btn btn-primary btn-block" href="auth.html#A-01">Sign in again</a>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ G-11 ============================ -->
+<section class="ref-view" id="G-11">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-11</span><h2>Confirm action</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Pattern for actions that cannot be undone: sending data to a payer, writing to a PM, deleting or voiding.</dd>
+      <dt>Data</dt><dd>What will happen, to how many records, where it goes, and the amount.</dd>
+      <dt>Actions</dt><dd>Primary names the outcome ("Send 6 claims", "Void claim"); Cancel. Destructive variants require typing or checking a confirmation when more than one record is affected.</dd>
+      <dt>States</dt><dd>Sending: button shows progress and the modal can't be closed until the request returns. Partial failure: lists what failed with Retry.</dd>
+      <dt>Rules</dt><dd>Default focus on Cancel for destructive actions, on the primary for routine sends. Every confirmation is audit-logged with the actor.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:600px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage" style="gap:24px">
+      <div class="modal" style="width:500px" role="alertdialog" aria-labelledby="g11a">
+        <div class="modal-head"><h2 id="g11a">Send 6 claims to payers?</h2></div>
+        <div class="modal-body">
+          <p class="muted">These claims go out through Stedi now. Once sent they can only be changed with a corrected claim.</p>
+          <dl class="kv"><dt>Claims</dt><dd>6 · $1,904.00</dd><dt>Client</dt><dd>Cascade Pediatrics · <span class="mode">Mode B</span></dd><dt>Payers</dt><dd>Regence BCBS (4), Moda Health (2)</dd></dl>
+        </div>
+        <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary"><i data-lucide="send"></i>Send 6 claims</button></div>
+      </div>
+      <div class="modal" style="width:500px" role="alertdialog" aria-labelledby="g11b">
+        <div class="modal-head"><i data-lucide="triangle-alert" class="icon-20" style="color:var(--danger)"></i><h2 id="g11b">Void claim WOR-26-001377?</h2></div>
+        <div class="modal-body">
+          <p class="muted">Cigna already accepted this claim, so Cleanpost will send a void (frequency 8). The payer may recoup the $412.18 already paid.</p>
+          <div class="field"><label for="g11r">Reason</label><select id="g11r" class="select"><option>Billed under the wrong provider</option></select></div>
+          <label class="check"><input type="checkbox">I understand the payer may take back payment</label>
+        </div>
+        <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-danger" disabled>Void claim</button></div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-12 ============================ -->
+<section class="ref-view" id="G-12">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-12</span><h2>Reveal sensitive field</h2><div class="row"><span class="tag">Popover</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Show a masked value (full DOB, member ID, tax ID) only when needed, and record that it was viewed.</dd>
+      <dt>Data</dt><dd>Field name, masked value, full value fetched on reveal.</dd>
+      <dt>Actions</dt><dd>Eye button reveals for 30 seconds; Copy (copies and logs); Hide.</dd>
+      <dt>States</dt><dd>Masked by default: <span class="code">•••••6789</span>. Viewer role cannot reveal tax IDs.</dd>
+      <dt>Rules</dt><dd>Each reveal and copy writes an audit_events row (field, record, user). Value re-masks on blur or after 30 seconds.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px">
+    <div class="stack-sm">
+      <span class="ref-label">Masked</span>
+      <div class="row"><span class="muted dense">Member ID</span><span class="code">•••••6789</span><button type="button" class="icon-btn ghost" aria-label="Reveal member ID"><i data-lucide="eye"></i></button></div>
+    </div>
+    <div class="stack-sm">
+      <span class="ref-label">Revealed</span>
+      <div class="row"><span class="muted dense">Member ID</span><span class="code hl">W123456789</span><button type="button" class="icon-btn ghost" aria-label="Copy member ID"><i data-lucide="copy"></i></button><button type="button" class="icon-btn ghost" aria-label="Hide member ID"><i data-lucide="eye-off"></i></button></div>
+      <div class="popover" style="width:280px"><div class="row" style="flex-wrap:nowrap"><i data-lucide="lock"></i><span class="dense">Visible for 30 seconds. This view is recorded in the audit log.</span></div></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-13 ============================ -->
+<section class="ref-view" id="G-13">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-13</span><h2>Platform banner</h2><div class="row"><span class="tag">Component</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Tell every user about something outside their control that affects their work.</dd>
+      <dt>Data</dt><dd>Banner type, message, start and end time, affected clients or payers, link.</dd>
+      <dt>Actions</dt><dd>Details link; Dismiss (info only; warnings and outages stay until resolved).</dd>
+      <dt>States</dt><dd>Maintenance (info), payer or clearinghouse outage (warn), integration degraded for this tenant (bad). Only one banner at a time; highest severity wins.</dd>
+      <dt>Rules</dt><dd>Full-width above the top bar (edge style). Set by platform operators or raised automatically by health checks.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="stack-sm">
+      <div class="banner edge"><i data-lucide="info"></i><span><b>Scheduled maintenance Sun, Nov 8, 1:00–2:00 am PT.</b> Cleanpost will be read-only. Claims queued during this window go out afterward.</span><span class="spacer"></span><button type="button" class="icon-btn ghost" aria-label="Dismiss"><i data-lucide="x"></i></button></div>
+      <div class="banner edge warn"><i data-lucide="triangle-alert"></i><span><b>Moda Health is not accepting claims right now.</b> 14 claims are waiting and will send automatically when Moda is back. Eligibility checks to Moda may fail.</span><span class="spacer"></span><a href="#" class="dense">Status page</a></div>
+      <div class="banner edge bad"><i data-lucide="plug-zap"></i><span><b>Lakeside Family Medicine's Tebra connection failed at 10:42 am.</b> New charges and payments are not syncing.</span><span class="spacer"></span><a href="clients.html#I-04" class="btn btn-secondary btn-sm">Reconnect</a></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-14 ============================ -->
+<section class="ref-view" id="G-14">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-14</span><h2>First-week checklist</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Help a new biller get productive in the first week without a product tour.</dd>
+      <dt>Data</dt><dd>Checklist items completed per user, detected from activity (items resolved, shortcut use, saved views).</dd>
+      <dt>Actions</dt><dd>Each item links to where it's done; Hide checklist. Opened from a small progress pill in the sidebar footer.</dd>
+      <dt>States</dt><dd>All done: thank-you state, pill disappears.</dd>
+      <dt>Rules</dt><dd>Never blocks work. Admin checklist differs (invite team, set thresholds, review mappings).</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:640px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim" style="background:transparent"></div>
+    <div class="drawer" style="width:400px" role="dialog" aria-labelledby="g14t">
+      <div class="drawer-head"><div><h2 id="g14t">Your first week</h2><p class="subtle">3 of 5 done</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="drawer-body">
+        <div class="meter-bar"><div class="meter-fill good" style="width:60%"></div></div>
+        <ul class="timeline">
+          <li><i data-lucide="circle-check" style="color:var(--success)"></i><div><div class="tl-title">Work 10 items from the queue</div><div class="tl-meta">Done Tuesday</div></div></li>
+          <li><i data-lucide="circle-check" style="color:var(--success)"></i><div><div class="tl-title">Release a claim with the keyboard (A)</div><div class="tl-meta">Done Tuesday</div></div></li>
+          <li><i data-lucide="circle-check" style="color:var(--success)"></i><div><div class="tl-title">Look up a claim with ⌘K</div><div class="tl-meta">Done Wednesday</div></div></li>
+          <li><i data-lucide="circle-dashed"></i><div><div class="tl-title"><a href="work.html#W-08">Save a view for the work you do most</a></div></div></li>
+          <li><i data-lucide="circle-dashed"></i><div><div class="tl-title"><a href="money.html#R-04">Resolve a posting difference</a></div></div></li>
+        </ul>
+      </div>
+      <div class="drawer-foot"><button type="button" class="btn btn-ghost">Hide checklist</button></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-15 ============================ -->
+<section class="ref-view" id="G-15">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-15</span><h2>What's new</h2><div class="row"><span class="tag">Drawer</span><span class="tag">Later</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Tell users about changes that affect how they work.</dd>
+      <dt>Data</dt><dd>Release notes with date, title, short description, optional link to help.</dd>
+      <dt>Actions</dt><dd>Open from user menu or a dot on the help button; read more; close.</dd>
+      <dt>States</dt><dd>Unread dot until opened once after a release.</dd>
+      <dt>Rules</dt><dd>Only changes users will notice; no marketing.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:560px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim" style="background:transparent"></div>
+    <div class="drawer" style="width:400px" role="dialog" aria-labelledby="g15t">
+      <div class="drawer-head"><h2 id="g15t">What's new</h2><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="drawer-body">
+        <div class="stack-sm"><span class="subtle">Oct 27, 2026</span><b>Snooze until a payment arrives</b><p class="dense muted">Snooze a no-response item until the 835 for that claim comes in. It reopens on its own if nothing arrives in 14 days.</p></div>
+        <hr class="divider">
+        <div class="stack-sm"><span class="subtle">Oct 13, 2026</span><b>Bulk release for clean claims</b><p class="dense muted">Select claim reviews with only informational findings and release them together.</p></div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<div class="ref-intro">
+  <h1>System states</h1>
+  <p>Shared patterns for loading, empty, error, no access, not found and offline. Every page uses these in place of its own; page specs only describe the copy that changes.</p>
+</div>
+
+<!-- ============================ G-20 ============================ -->
+<section class="ref-view" id="G-20">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-20</span><h2>Loading</h2><div class="row"><span class="tag">State</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Show the shape of the page while data loads so nothing jumps when it arrives.</dd>
+      <dt>Data</dt><dd>None; skeleton matches the layout: table, detail page, dashboard.</dd>
+      <dt>Actions</dt><dd>None. Page chrome (sidebar, top bar, page title, filters) renders immediately and stays usable.</dd>
+      <dt>States</dt><dd>Skeleton appears after 200ms (avoid flicker). After 10 seconds, show "Still loading…" under the title; after 30, switch to G-22.</dd>
+      <dt>Rules</dt><dd>No full-page spinners. Shimmer stops under prefers-reduced-motion. aria-busy on the region.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:1440px;align-items:stretch">
+    <div class="stack-sm" style="flex:1 1 420px"><span class="ref-label">Table</span>
+      <div class="card flush" aria-busy="true"><table class="table"><thead><tr><th style="width:40%">&nbsp;</th><th>&nbsp;</th><th>&nbsp;</th></tr></thead><tbody>
+        <tr><td><div class="skeleton" style="width:80%"></div></td><td><div class="skeleton" style="width:60%"></div></td><td><div class="skeleton" style="width:40%"></div></td></tr>
+        <tr><td><div class="skeleton" style="width:70%"></div></td><td><div class="skeleton" style="width:50%"></div></td><td><div class="skeleton" style="width:45%"></div></td></tr>
+        <tr><td><div class="skeleton" style="width:85%"></div></td><td><div class="skeleton" style="width:65%"></div></td><td><div class="skeleton" style="width:30%"></div></td></tr>
+        <tr><td><div class="skeleton" style="width:60%"></div></td><td><div class="skeleton" style="width:55%"></div></td><td><div class="skeleton" style="width:40%"></div></td></tr>
+        <tr><td><div class="skeleton" style="width:75%"></div></td><td><div class="skeleton" style="width:45%"></div></td><td><div class="skeleton" style="width:35%"></div></td></tr>
+      </tbody></table></div>
+    </div>
+    <div class="stack-sm" style="flex:1 1 420px"><span class="ref-label">Detail page</span>
+      <div class="card card-body stack" aria-busy="true">
+        <div class="skeleton" style="width:30%;height:14px"></div>
+        <div class="skeleton" style="width:60%;height:22px"></div>
+        <div class="grid-3"><div class="skeleton" style="height:40px"></div><div class="skeleton" style="height:40px"></div><div class="skeleton" style="height:40px"></div></div>
+        <div class="skeleton" style="height:120px"></div>
+      </div>
+    </div>
+    <div class="stack-sm" style="flex:1 1 420px"><span class="ref-label">Dashboard</span>
+      <div class="stack" aria-busy="true">
+        <div class="kpis"><div class="kpi"><div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:40%;height:24px;margin-top:8px"></div></div><div class="kpi"><div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:40%;height:24px;margin-top:8px"></div></div><div class="kpi"><div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:40%;height:24px;margin-top:8px"></div></div></div>
+        <div class="card card-body"><div class="skeleton" style="height:140px"></div></div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-21 ============================ -->
+<section class="ref-view" id="G-21">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-21</span><h2>Empty</h2><div class="row"><span class="tag">State</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Say what will appear here and what to do next, so an empty area never looks broken.</dd>
+      <dt>Data</dt><dd>Page-specific copy: title, one sentence, primary action.</dd>
+      <dt>Actions</dt><dd>One primary next step (e.g. Add client, Upload 835); optional secondary link to help.</dd>
+      <dt>States</dt><dd>"Nothing yet" (cobalt glyph: the feature hasn't been used), "All done" (green glyph: work cleared), "No matches" (neutral, inline in tables with Clear filters).</dd>
+      <dt>Rules</dt><dd>Copy names the specific thing, never "No data".</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:1440px;align-items:stretch">
+    <div class="card" style="flex:1 1 420px"><div class="empty">
+      <div class="glyph"><i data-lucide="landmark"></i></div>
+      <h2>No remittances yet</h2>
+      <p>Payments appear here when 835s arrive from Stedi, sync from a client's PM, or are uploaded.</p>
+      <div class="row" style="justify-content:center;margin-top:8px"><button type="button" class="btn btn-primary"><i data-lucide="upload"></i>Upload 835</button><a href="#" class="btn btn-ghost">How payments get here</a></div>
+    </div></div>
+    <div class="card" style="flex:1 1 420px"><div class="empty">
+      <div class="glyph good"><i data-lucide="circle-check"></i></div>
+      <h2>No open denials</h2>
+      <p>Every denial from the last 90 days has been corrected or written off.</p>
+      <div class="row" style="justify-content:center;margin-top:8px"><button type="button" class="btn btn-secondary">See denial trends</button></div>
+    </div></div>
+    <div class="card flush" style="flex:1 1 420px"><table class="table"><thead><tr><th>Patient</th><th>Payer</th><th class="num">Amount</th></tr></thead><tbody>
+      <tr><td colspan="3"><div class="empty" style="padding:32px 16px"><div class="glyph neutral"><i data-lucide="search"></i></div><h2>No claims match these filters</h2><p>Payer is Moda Health · Status is Denied · Last 30 days</p><button type="button" class="btn btn-secondary btn-sm">Clear filters</button></div></td></tr>
+    </tbody></table></div>
+  </div></div>
+</section>
+
+<!-- ============================ G-22 ============================ -->
+<section class="ref-view" id="G-22">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-22</span><h2>Error</h2><div class="row"><span class="tag">State</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Say what failed, whether any data is affected, and how to recover.</dd>
+      <dt>Data</dt><dd>Error kind (load failed, save failed, service unavailable), request ID for support.</dd>
+      <dt>Actions</dt><dd>Try again; Contact support (G-07 with the request ID attached).</dd>
+      <dt>States</dt><dd>Section-level error (one card fails, rest of page works) and page-level error. Inline field errors are covered by form components.</dd>
+      <dt>Rules</dt><dd>Never shows stack traces or PHI. States plainly whether anything was saved or sent.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:1440px;align-items:stretch">
+    <div class="card" style="flex:1 1 560px"><div class="empty">
+      <div class="glyph bad"><i data-lucide="circle-x"></i></div>
+      <h2>This page didn't load</h2>
+      <p>We couldn't reach Cleanpost's servers. Nothing was changed. Check your connection and try again.</p>
+      <div class="row" style="justify-content:center;margin-top:8px"><button type="button" class="btn btn-primary"><i data-lucide="refresh-cw"></i>Try again</button><button type="button" class="btn btn-ghost">Contact support</button></div>
+      <p class="subtle">Request ID <span class="code">req_7Hc2kQ91</span></p>
+    </div></div>
+    <div class="card" style="flex:1 1 420px">
+      <div class="card-head"><h3>Payments by payer</h3></div>
+      <div class="card-body"><div class="banner bad"><i data-lucide="circle-x"></i><span>This chart couldn't load. The rest of the report is current.</span><button type="button" class="btn btn-secondary btn-sm" style="margin-left:auto">Try again</button></div></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-23 ============================ -->
+<section class="ref-view" id="G-23">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-23</span><h2>No access</h2><div class="row"><span class="tag">State</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Explain that the user's role or client scope doesn't include this, and who can change it.</dd>
+      <dt>Data</dt><dd>Required role or client; tenant admins' names.</dd>
+      <dt>Actions</dt><dd>Request access (notifies admins); Go to work queue.</dd>
+      <dt>States</dt><dd>Two reasons: role (e.g. biller opening Settings) and client scope (record belongs to an unassigned client).</dd>
+      <dt>Rules</dt><dd>Never reveals details of the record (no patient name, amount) when access is denied. Access denial is logged.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="settings" data-role="biller" style="min-height:560px">
+      <main class="main">
+        <div class="card"><div class="empty">
+          <div class="glyph neutral"><i data-lucide="lock"></i></div>
+          <h2>You don't have access to Settings</h2>
+          <p>Settings are limited to admins. Priya Shah and Julia Beam can change your role.</p>
+          <div class="row" style="justify-content:center;margin-top:8px"><button type="button" class="btn btn-primary">Request access</button><a class="btn btn-ghost" href="work.html#W-01">Go to work queue</a></div>
+        </div></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-24 ============================ -->
+<section class="ref-view" id="G-24">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-24</span><h2>Not found</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Handle a link to a record or page that doesn't exist or was voided and removed from view.</dd>
+      <dt>Data</dt><dd>Requested route; record type if known.</dd>
+      <dt>Actions</dt><dd>Search (opens G-03 prefilled with the ID from the URL); Go to work queue.</dd>
+      <dt>States</dt><dd>Same page for records outside the user's tenant (indistinguishable from missing).</dd>
+      <dt>Rules</dt><dd>Inside the app shell so navigation still works.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="claims" data-role="biller" style="min-height:560px">
+      <main class="main">
+        <div class="card"><div class="empty">
+          <div class="glyph neutral"><i data-lucide="file-search"></i></div>
+          <h2>We couldn't find that claim</h2>
+          <p>Claim <span class="code">LFM-26-009999</span> doesn't exist or isn't in your clients. Check the number or search for it.</p>
+          <div class="row" style="justify-content:center;margin-top:8px"><button type="button" class="btn btn-primary"><i data-lucide="search"></i>Search claims</button><a class="btn btn-ghost" href="work.html#W-01">Go to work queue</a></div>
+        </div></div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ G-25 ============================ -->
+<section class="ref-view" id="G-25">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">G-25</span><h2>Offline or reconnecting</h2><div class="row"><span class="tag">Component</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Tell the user the connection dropped and that their work is safe.</dd>
+      <dt>Data</dt><dd>Connection state; count of edits waiting to save.</dd>
+      <dt>Actions</dt><dd>Retry now. Actions that send data (release, post, resolve) are disabled while offline with a tooltip.</dd>
+      <dt>States</dt><dd>Reconnecting (warn), Offline after 30 seconds (bad), Back online (good, auto-hides after 3 seconds).</dd>
+      <dt>Rules</dt><dd>Pinned under the top bar. Nothing is sent to a payer or PM from a queued offline action without the user confirming once back online.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:1440px;flex-direction:column;align-items:stretch">
+    <div class="banner warn"><i data-lucide="refresh-cw"></i><span><b>Reconnecting…</b> Your edits are kept on this device until the connection returns.</span></div>
+    <div class="banner bad"><i data-lucide="wifi-off"></i><span><b>You're offline.</b> 2 edits are waiting to save. Releasing and posting are paused.</span><button type="button" class="btn btn-secondary btn-sm" style="margin-left:auto">Retry now</button></div>
+    <div class="banner good"><i data-lucide="circle-check"></i><span><b>Back online.</b> 2 edits saved.</span></div>
+  </div></div>
+</section>
+
+</div>
+<script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/shell.js"></script>
+</body>
+</html>

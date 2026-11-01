@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanpost UI · Emails and PDFs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/reference.css">
+<style>
+/* Emails and PDFs always render in the light theme, whatever the app theme.
+   These are the light values from tokens.css, re-declared on the output wrapper. */
+.light-only {
+  --canvas: #F5F7FA; --surface: #FFFFFF; --surface-sunken: #EDF1F5; --border: #D8DFE8; --border-control: #7D8A9C;
+  --ink: #0B1526; --ink-muted: #4A5A70; --ink-subtle: #5E6E84;
+  --cobalt: #2447D6; --cobalt-hover: #1A36B0; --on-cobalt: #FFFFFF; --cobalt-tint: #E9EEFF; --cobalt-soft: #9DB0F7;
+  --success: #0A6B3D; --success-tint: #E6F5EC; --warning: #8F4F00; --warning-tint: #FDF2E0; --danger: #B3261E; --danger-tint: #FDECEB;
+  --chart-1: #2447D6; --chart-2: #0E7C86; --chart-3: #B46A00; --chart-4: #8A3FA0; --chart-5: #5E6E84;
+  color-scheme: light; background: var(--canvas); color: var(--ink);
+}
+/* Email layout (build with react-email; table-based in production) */
+.email { width: 600px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); font-size: 15px; line-height: 23px; }
+.email-head { padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: -0.02em; }
+.email-body { padding: 28px 32px; display: flex; flex-direction: column; gap: 16px; }
+.email-body h1 { font-size: 22px; line-height: 28px; font-weight: 600; }
+.email-foot { padding: 20px 32px; border-top: 1px solid var(--border); font-size: 12px; line-height: 18px; color: var(--ink-subtle); display: flex; flex-direction: column; gap: 4px; }
+.email .btn { align-self: flex-start; height: 42px; padding: 0 20px; font-size: 15px; }
+.email .table { font-size: 14px; }
+.email-meta { font-size: 12px; color: var(--ink-subtle); }
+/* Printed page layout (render with a headless browser to PDF) */
+.paper { background: var(--surface); box-shadow: 0 1px 3px rgba(11,21,38,0.12); margin: 0 auto; padding: 48px; display: flex; flex-direction: column; gap: 20px; font-size: 12px; line-height: 17px; position: relative; }
+.paper.letter { width: 816px; min-height: 1056px; }
+.paper.landscape { width: 1056px; min-height: 816px; }
+.paper h1 { font-family: var(--font-display); font-size: 24px; line-height: 30px; font-weight: 700; letter-spacing: -0.01em; }
+.paper h2 { font-size: 13px; line-height: 18px; font-weight: 600; }
+.paper .table { font-size: 11.5px; line-height: 16px; }
+.paper .table th, .paper .table td { padding: 5px 8px; }
+.paper .kpi { padding: 10px 12px; }
+.paper .kpi-value { font-size: 20px; line-height: 26px; }
+.paper-foot { margin-top: auto; display: flex; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 10px; font-size: 10.5px; color: var(--ink-subtle); }
+.logo-slot { width: 120px; height: 40px; border: 1px dashed var(--border-control); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--ink-subtle); }
+.csv { font-family: var(--font-mono); font-size: 12px; line-height: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; white-space: pre; overflow-x: auto; margin: 0; color: var(--ink); }
+</style>
+</head>
+<body>
+<header class="ref-top">
+  <a class="brand" href="index.html"><span data-mark></span>Cleanpost UI</a>
+  <nav aria-label="Areas">
+    <a href="shell.html">Shell and states</a>
+    <a href="auth.html">Sign-in</a>
+    <a href="work.html">Work queue</a>
+    <a href="claims.html">Claims and patients</a>
+    <a href="money.html">Money in</a>
+    <a href="clients.html">Clients and setup</a>
+    <a href="admin.html">Reports and admin</a>
+    <a href="outputs.html" class="active" aria-current="page">Emails and PDFs</a>
+    <a href="website.html">Website</a>
+  </nav>
+  <button type="button" class="btn btn-secondary btn-sm" id="theme-toggle" style="margin-left:auto"><i data-lucide="moon"></i>Theme</button>
+</header>
+<div class="ref-body">
+<div class="ref-intro">
+  <h1>Emails and PDFs</h1>
+  <p>Everything Cleanpost sends or generates outside the app. Emails never contain PHI: they carry counts, client names and links into the app. PDFs that do contain PHI (the posting worksheet) say so in the footer. Outputs always render in the light theme.</p>
+</div>
+
+<section class="ref-view" id="E-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">E-01</span><h2>Invite</h2><div class="row"><span class="tag">Email</span><span class="tag">MVP</span><span class="tag">Template e-01</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Invite a person to join a billing company workspace.</dd><dt>Data</dt><dd>Inviter name, tenant name, role, client scope summary, invite link (single use, 7-day expiry).</dd><dt>Actions</dt><dd>Accept invite opens A-06.</dd><dt>States</dt><dd>Expired link opens A-06 with "This invite has expired. Ask Priya Shah to send a new one."</dd><dt>Rules</dt><dd>No PHI. Sent from the transactional provider; link token stored hashed.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad light-only" style="--w:760px;justify-content:center">
+  <div class="stack-sm" style="width:600px">
+    <div class="email-meta"><b>Subject:</b> Priya Shah invited you to Northwind Billing on Cleanpost<br><b>Preview text:</b> Join as a biller. The link expires in 7 days.<br><b>From:</b> Cleanpost &lt;notifications@[DOMAIN]&gt;</div>
+    <div class="email">
+      <div class="email-head"><span data-mark></span>cleanpost</div>
+      <div class="email-body">
+<h1>Join Northwind Billing on Cleanpost</h1>
+<p>Priya Shah invited you to work in Northwind Billing's Cleanpost workspace as a <b>biller</b> for 4 clients.</p>
+<a class="btn btn-primary" href="auth.html#A-06">Accept invite</a>
+<p class="muted" style="font-size:14px">You'll set a password and two-factor sign-in. This link expires on Nov 5, 2026 and works once.</p></div>
+      <div class="email-foot"><span>You received this because Priya Shah entered your email address.</span><span><a href="admin.html#S-09">Notification settings</a> · <a href="shell.html#G-07">Help</a></span><span>Cleanpost · [COMPANY ADDRESS]</span></div>
+    </div>
+  </div>
+</div></div>
+</section>
+
+<section class="ref-view" id="E-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">E-02</span><h2>Password reset</h2><div class="row"><span class="tag">Email</span><span class="tag">MVP</span><span class="tag">Template e-02</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Let a user reset a forgotten password.</dd><dt>Data</dt><dd>Reset link (single use, 30-minute expiry), request time, approximate location.</dd><dt>Actions</dt><dd>Reset password opens A-05.</dd><dt>States</dt><dd>Sent whether or not the email exists, so accounts cannot be discovered (A-04 shows the same message either way).</dd><dt>Rules</dt><dd>Resetting signs out other sessions. Two-factor is still required after reset.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad light-only" style="--w:760px;justify-content:center">
+  <div class="stack-sm" style="width:600px">
+    <div class="email-meta"><b>Subject:</b> Reset your Cleanpost password<br><b>Preview text:</b> This link expires in 30 minutes.<br><b>From:</b> Cleanpost &lt;notifications@[DOMAIN]&gt;</div>
+    <div class="email">
+      <div class="email-head"><span data-mark></span>cleanpost</div>
+      <div class="email-body">
+<h1>Reset your password</h1>
+<p>Someone asked to reset the password for this email on Oct 29, 2026 at 2:14 pm PT.</p>
+<a class="btn btn-primary" href="auth.html#A-05">Reset password</a>
+<p class="muted" style="font-size:14px">The link expires in 30 minutes. If you didn't ask for this, ignore this email; your password stays the same.</p></div>
+      <div class="email-foot"><span>You received this because a password reset was requested for your account.</span><span><a href="admin.html#S-09">Notification settings</a> · <a href="shell.html#G-07">Help</a></span><span>Cleanpost · [COMPANY ADDRESS]</span></div>
+    </div>
+  </div>
+</div></div>
+</section>
+
+<section class="ref-view" id="E-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">E-03</span><h2>New sign-in alert</h2><div class="row"><span class="tag">Email</span><span class="tag">MVP</span><span class="tag">Template e-03</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Tell a user about a sign-in from a new device so they can react to account takeover.</dd><dt>Data</dt><dd>Browser and OS, approximate location from IP, time.</dd><dt>Actions</dt><dd>This was me (no action); Secure my account opens A-09 with sign out all sessions and change password.</dd><dt>States</dt><dd>Not sent for devices the user has signed in from in the last 90 days.</dd><dt>Rules</dt><dd>Also notifies tenant admins when the user is an admin.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad light-only" style="--w:760px;justify-content:center">
+  <div class="stack-sm" style="width:600px">
+    <div class="email-meta"><b>Subject:</b> New sign-in to your Cleanpost account<br><b>Preview text:</b> Chrome on macOS, near Portland, OR.<br><b>From:</b> Cleanpost &lt;notifications@[DOMAIN]&gt;</div>
+    <div class="email">
+      <div class="email-head"><span data-mark></span>cleanpost</div>
+      <div class="email-body">
+<h1>New sign-in to your account</h1>
+<table class="table"><tbody><tr><td class="muted">Device</td><td>Chrome on macOS</td></tr><tr><td class="muted">Location</td><td>Near Portland, OR (approximate)</td></tr><tr><td class="muted">Time</td><td>Oct 29, 2026, 8:02 am PT</td></tr></tbody></table>
+<p>If this was you, you don't need to do anything.</p>
+<a class="btn btn-secondary" href="auth.html#A-09">This wasn't me</a></div>
+      <div class="email-foot"><span>Security alerts can't be turned off.</span><span><a href="admin.html#S-09">Notification settings</a> · <a href="shell.html#G-07">Help</a></span><span>Cleanpost · [COMPANY ADDRESS]</span></div>
+    </div>
+  </div>
+</div></div>
+</section>
+
+<section class="ref-view" id="E-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">E-04</span><h2>Daily digest</h2><div class="row"><span class="tag">Email</span><span class="tag">MVP</span><span class="tag">Template e-04</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Give each user a morning summary of their queue and yesterday's results.</dd><dt>Data</dt><dd>Per user: open items by type, due today, overdue; per client counts; yesterday claims released (and share without review), payments posted ($). Counts only.</dd><dt>Actions</dt><dd>Open work queue; each type row links to the filtered queue.</dd><dt>States</dt><dd>Skipped when the user has nothing open and nothing happened. Time set in S-09 (default 7:30 am local).</dd><dt>Rules</dt><dd>No patient names, codes or amounts per patient. Client names and totals only.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad light-only" style="--w:760px;justify-content:center">
+  <div class="stack-sm" style="width:600px">
+    <div class="email-meta"><b>Subject:</b> Your Cleanpost queue: 18 due today, 3 overdue<br><b>Preview text:</b> Yesterday: 1,204 claims released, $112,480 posted.<br><b>From:</b> Cleanpost &lt;notifications@[DOMAIN]&gt;</div>
+    <div class="email">
+      <div class="email-head"><span data-mark></span>cleanpost</div>
+      <div class="email-body">
+<h1>Good morning, Dana</h1>
+<div class="grid-3" style="gap:8px"><div class="kpi"><div class="kpi-label">Due today</div><div class="kpi-value">18</div></div><div class="kpi"><div class="kpi-label">Overdue</div><div class="kpi-value bad">3</div></div><div class="kpi"><div class="kpi-label">Open</div><div class="kpi-value">23</div></div></div>
+<table class="table"><thead><tr><th>Type</th><th class="num">Open</th></tr></thead><tbody><tr><td><a href="work.html#W-01">Claim review</a></td><td class="num">9</td></tr><tr><td><a href="work.html#W-01">Denials</a></td><td class="num">6</td></tr><tr><td><a href="work.html#W-01">Rejections</a></td><td class="num">3</td></tr><tr><td><a href="work.html#W-01">Posting differences</a></td><td class="num">3</td></tr><tr><td><a href="work.html#W-01">Other</a></td><td class="num">2</td></tr></tbody></table>
+<p><b>Yesterday across your clients:</b> 1,204 claims released (71% without review) and $112,480.36 in payments posted or verified.</p>
+<a class="btn btn-primary" href="work.html#W-01">Open work queue</a></div>
+      <div class="email-foot"><span>Daily digest for Dana Reyes, Northwind Billing. Sent at 7:30 am PT.</span><span><a href="admin.html#S-09">Notification settings</a> · <a href="shell.html#G-07">Help</a></span><span>Cleanpost · [COMPANY ADDRESS]</span></div>
+    </div>
+  </div>
+</div></div>
+</section>
+
+<section class="ref-view" id="E-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">E-05</span><h2>Urgent alert</h2><div class="row"><span class="tag">Email</span><span class="tag">MVP</span><span class="tag">Template e-05</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Reach the right person immediately for problems that cannot wait for the digest.</dd><dt>Data</dt><dd>Alert type, client, what stopped, since when. Types: connection failed; out-of-balance remittance over the set amount; timely filing within 3 days; priority 1 item past SLA.</dd><dt>Actions</dt><dd>One primary link to the record (e.g. Reconnect opens I-04).</dd><dt>States</dt><dd>Repeats at most every 4 hours per alert while unresolved; respects quiet hours except timely filing.</dd><dt>Rules</dt><dd>No PHI. Subject names the client, never a patient.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad light-only" style="--w:760px;justify-content:center">
+  <div class="stack-sm" style="width:600px">
+    <div class="email-meta"><b>Subject:</b> Action needed: Tebra connection failed for Lakeside Family Medicine<br><b>Preview text:</b> New charges and payments are not syncing.<br><b>From:</b> Cleanpost &lt;notifications@[DOMAIN]&gt;</div>
+    <div class="email">
+      <div class="email-head"><span data-mark></span>cleanpost</div>
+      <div class="email-body">
+<div class="banner bad"><i data-lucide="circle-x"></i><b>Connection failed</b></div>
+<h1>Lakeside Family Medicine: Tebra connection failed</h1>
+<p>Tebra rejected the saved login at 6:45 am PT. Since then, new charges, claim status and payments are not syncing. Claims already in Cleanpost are not affected.</p>
+<a class="btn btn-primary" href="clients.html#I-04">Reconnect</a>
+<p class="muted" style="font-size:14px">You get this because you're an admin for Northwind Billing.</p></div>
+      <div class="email-foot"><span>Urgent alerts are sent to admins and the assigned biller.</span><span><a href="admin.html#S-09">Notification settings</a> · <a href="shell.html#G-07">Help</a></span><span>Cleanpost · [COMPANY ADDRESS]</span></div>
+    </div>
+  </div>
+</div></div>
+</section>
+
+<section class="ref-view" id="E-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">E-06</span><h2>Client live</h2><div class="row"><span class="tag">Email</span><span class="tag">MVP</span><span class="tag">Template e-06</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Confirm a client went live and set expectations for the first week.</dd><dt>Data</dt><dd>Client, mode, PM, go-live time, first sync counts, review-everything end date, primary and backup biller.</dd><dt>Actions</dt><dd>Open client (CL-02).</dd><dt>States</dt><dd>Sent to tenant admins and the assigned billers when the client moves to live.</dd><dt>Rules</dt><dd>Counts only.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad light-only" style="--w:760px;justify-content:center">
+  <div class="stack-sm" style="width:600px">
+    <div class="email-meta"><b>Subject:</b> Harbor Dermatology is live on Cleanpost<br><b>Preview text:</b> First sync pulled 214 encounters. Review everything runs until Nov 13.<br><b>From:</b> Cleanpost &lt;notifications@[DOMAIN]&gt;</div>
+    <div class="email">
+      <div class="email-head"><span data-mark></span>cleanpost</div>
+      <div class="email-body">
+<h1>Harbor Dermatology is live</h1>
+<table class="table"><tbody><tr><td class="muted">PM</td><td>athenaOne</td></tr><tr><td class="muted">Mode</td><td><span class="mode">Mode A</span></td></tr><tr><td class="muted">First sync</td><td>214 encounters, 61 patients updated</td></tr><tr><td class="muted">Billers</td><td>Marcus Lee (primary), Dana Reyes (backup)</td></tr></tbody></table>
+<p><b>This week:</b> every claim comes to the queue for review until Nov 13. After that, you can raise the release threshold from the client's settings.</p>
+<a class="btn btn-primary" href="clients.html#CL-02">Open client</a></div>
+      <div class="email-foot"><span>Sent to Northwind Billing admins and assigned billers.</span><span><a href="admin.html#S-09">Notification settings</a> · <a href="shell.html#G-07">Help</a></span><span>Cleanpost · [COMPANY ADDRESS]</span></div>
+    </div>
+  </div>
+</div></div>
+</section>
+
+<section class="ref-view" id="E-07">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">E-07</span><h2>Monthly invoice</h2><div class="row"><span class="tag">Email</span><span class="tag">MVP</span><span class="tag">Template e-07</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Bill the tenant for the month.</dd><dt>Data</dt><dd>usage_records summed by client and mode; base fee; per-claim price; invoice number and due date. Prices are placeholders until final.</dd><dt>Actions</dt><dd>View invoice (S-11); Pay invoice (billing provider hosted page).</dd><dt>States</dt><dd>Paid by card on file: subject says "Receipt" instead of "Invoice".</dd><dt>Rules</dt><dd>Sent to the tenant billing contact. No PHI.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad light-only" style="--w:760px;justify-content:center">
+  <div class="stack-sm" style="width:600px">
+    <div class="email-meta"><b>Subject:</b> Cleanpost invoice CP-2026-10 for Northwind Billing<br><b>Preview text:</b> October 2026 · due Nov 15.<br><b>From:</b> Cleanpost &lt;notifications@[DOMAIN]&gt;</div>
+    <div class="email">
+      <div class="email-head"><span data-mark></span>cleanpost</div>
+      <div class="email-body">
+<h1>October 2026 invoice</h1>
+<table class="table"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Amount</th></tr></thead><tbody>
+<tr><td>Platform base fee</td><td class="num">1</td><td class="num">[BASE FEE]</td></tr>
+<tr><td>Claims released · Lakeside Family Medicine</td><td class="num">2,604</td><td class="num">[AMOUNT]</td></tr>
+<tr><td>Claims released · Cascade Pediatrics</td><td class="num">3,118</td><td class="num">[AMOUNT]</td></tr>
+<tr><td>Claims released · Willamette Ortho</td><td class="num">1,486</td><td class="num">[AMOUNT]</td></tr>
+<tr><td>Claims released · Riverbend Counseling</td><td class="num">912</td><td class="num">[AMOUNT]</td></tr>
+<tr><td><b>Total</b></td><td class="num"><b>8,120</b></td><td class="num"><b>[TOTAL]</b></td></tr></tbody></table>
+<p class="muted" style="font-size:14px">Invoice CP-2026-10 · due Nov 15, 2026 · per-claim price [PER-CLAIM PRICE]</p>
+<div class="row"><a class="btn btn-primary" href="admin.html#S-11">View invoice</a></div></div>
+      <div class="email-foot"><span>Sent to the billing contact for Northwind Billing.</span><span><a href="admin.html#S-09">Notification settings</a> · <a href="shell.html#G-07">Help</a></span><span>Cleanpost · [COMPANY ADDRESS]</span></div>
+    </div>
+  </div>
+</div></div>
+</section>
+
+<section class="ref-view" id="F-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">F-01</span><h2>Client monthly report</h2><div class="row"><span class="tag">PDF</span><span class="tag">MVP</span><span class="tag">Export from RP-02 / RP-06</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>The billing company's monthly report to a practice, under the billing company's brand.</dd><dt>Data</dt><dd>Report rollups for the client and month; onboarding baseline; branding from S-10 (logo, name, address); optional note entered in RP-06.</dd><dt>Actions</dt><dd>Generated from RP-06; downloaded or emailed by the billing company (Cleanpost does not email practices).</dd><dt>States</dt><dd>No baseline recorded: deltas hidden, footnote explains. Missing logo: name only.</dd><dt>Rules</dt><dd>No patient-level data. US Letter portrait, 0.5 in margins. Cleanpost appears only in the small footer line.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad light-only" style="--w:960px;justify-content:center">
+<div class="paper letter">
+  <div class="row-between"><div class="row"><div class="logo-slot">[LOGO]</div><div><b style="font-size:14px">Northwind Billing</b><div class="subtle">[BILLING COMPANY ADDRESS] · [PHONE]</div></div></div><div class="subtle" style="text-align:right">Prepared Nov 2, 2026<br>For Lakeside Family Medicine</div></div>
+  <div><h1>Revenue cycle report · October 2026</h1><p class="muted">Lakeside Family Medicine, compared with the baseline recorded at onboarding (July 2026).</p></div>
+  <div class="grid-3" style="gap:10px">
+    <div class="kpi"><div class="kpi-label">Collections</div><div class="kpi-value">$186,420</div><div class="kpi-delta good">+11% vs baseline month</div></div>
+    <div class="kpi"><div class="kpi-label">First-pass acceptance</div><div class="kpi-value">97.1%</div><div class="kpi-delta good">Baseline 89.0%</div></div>
+    <div class="kpi"><div class="kpi-label">Denial rate</div><div class="kpi-value">4.2%</div><div class="kpi-delta good">Baseline 9.8%</div></div>
+    <div class="kpi"><div class="kpi-label">Days in A/R</div><div class="kpi-value">24</div><div class="kpi-delta good">Baseline 38</div></div>
+    <div class="kpi"><div class="kpi-label">Charge to submission (median)</div><div class="kpi-value">0.6 days</div><div class="kpi-delta good">Baseline 3.1 days</div></div>
+    <div class="kpi"><div class="kpi-label">Claims submitted</div><div class="kpi-value">2,604</div><div class="kpi-delta">Baseline 2,410</div></div>
+  </div>
+  <div class="stack-sm"><h2>By payer</h2><table class="table"><thead><tr><th>Payer</th><th class="num">Claims</th><th class="num">First-pass accepted</th><th class="num">Denial rate</th><th class="num">Paid</th><th class="num">Avg days to pay</th></tr></thead><tbody>
+    <tr><td>Medicare (Noridian JF)</td><td class="num">412</td><td class="num">98.5%</td><td class="num">2.4%</td><td class="num">$48,210</td><td class="num">14</td></tr>
+    <tr><td>Regence BlueCross BlueShield</td><td class="num">388</td><td class="num">97.4%</td><td class="num">3.9%</td><td class="num">$52,880</td><td class="num">17</td></tr>
+    <tr><td>Oregon Health Plan</td><td class="num">301</td><td class="num">95.0%</td><td class="num">6.6%</td><td class="num">$21,940</td><td class="num">22</td></tr>
+    <tr><td>UnitedHealthcare</td><td class="num">214</td><td class="num">96.7%</td><td class="num">5.1%</td><td class="num">$34,120</td><td class="num">19</td></tr>
+    <tr><td>Aetna</td><td class="num">133</td><td class="num">97.7%</td><td class="num">3.0%</td><td class="num">$19,630</td><td class="num">16</td></tr>
+  </tbody></table></div>
+  <div class="grid-2">
+    <div class="stack-sm"><h2>Insurance A/R by age · $142,880</h2><div class="bars">
+      <div class="bar-row" style="grid-template-columns:60px 1fr 70px;font-size:11.5px"><span>0–30</span><span class="bar-track"><span class="bar-fill" style="width:100%;display:block"></span></span><span class="v">$98,420</span></div>
+      <div class="bar-row" style="grid-template-columns:60px 1fr 70px;font-size:11.5px"><span>31–60</span><span class="bar-track"><span class="bar-fill" style="width:27%;display:block"></span></span><span class="v">$26,310</span></div>
+      <div class="bar-row" style="grid-template-columns:60px 1fr 70px;font-size:11.5px"><span>61–90</span><span class="bar-track"><span class="bar-fill" style="width:11%;display:block"></span></span><span class="v">$11,240</span></div>
+      <div class="bar-row" style="grid-template-columns:60px 1fr 70px;font-size:11.5px"><span>91–120</span><span class="bar-track"><span class="bar-fill" style="width:5%;display:block"></span></span><span class="v">$4,630</span></div>
+      <div class="bar-row" style="grid-template-columns:60px 1fr 70px;font-size:11.5px"><span>120+</span><span class="bar-track"><span class="bar-fill" style="width:2%;display:block"></span></span><span class="v">$2,280</span></div>
+    </div></div>
+    <div class="stack-sm"><h2>Denials · 41 lines · $9,214 · 33 corrected</h2><div class="bars">
+      <div class="bar-row" style="grid-template-columns:110px 1fr 30px;font-size:11.5px"><span>Eligibility</span><span class="bar-track"><span class="bar-fill" style="width:100%;display:block;background:var(--chart-2)"></span></span><span class="v">12</span></div>
+      <div class="bar-row" style="grid-template-columns:110px 1fr 30px;font-size:11.5px"><span>Missing info</span><span class="bar-track"><span class="bar-fill" style="width:75%;display:block;background:var(--chart-2)"></span></span><span class="v">9</span></div>
+      <div class="bar-row" style="grid-template-columns:110px 1fr 30px;font-size:11.5px"><span>Coding</span><span class="bar-track"><span class="bar-fill" style="width:67%;display:block;background:var(--chart-2)"></span></span><span class="v">8</span></div>
+      <div class="bar-row" style="grid-template-columns:110px 1fr 30px;font-size:11.5px"><span>Authorization</span><span class="bar-track"><span class="bar-fill" style="width:50%;display:block;background:var(--chart-2)"></span></span><span class="v">6</span></div>
+      <div class="bar-row" style="grid-template-columns:110px 1fr 30px;font-size:11.5px"><span>Other</span><span class="bar-track"><span class="bar-fill" style="width:50%;display:block;background:var(--chart-2)"></span></span><span class="v">6</span></div>
+    </div></div>
+  </div>
+  <div class="stack-sm"><h2>Notes from Northwind Billing</h2><p class="muted">[OPTIONAL NOTE written by the billing company before export, e.g. payer changes or action items for the practice.]</p></div>
+  <div class="paper-foot"><span>Northwind Billing · Confidential · Contains no patient-level information</span><span>Prepared with Cleanpost · Page 1 of 1</span></div>
+</div></div></div>
+</section>
+
+<section class="ref-view" id="F-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">F-02</span><h2>Posting worksheet</h2><div class="row"><span class="tag">PDF</span><span class="tag">MVP</span><span class="tag">Generated for M-01</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>A printable or downloadable worksheet for posting a payment by hand in a PM without a posting integration.</dd><dt>Data</dt><dd>Remittance header, matched claims and lines, adjustments mapped to the PM's codes (adjustment_mappings), patient responsibility, PM-specific steps.</dd><dt>Actions</dt><dd>Download PDF or CSV from M-01. The "Entered" boxes are for paper use; the app tracks completion in M-01.</dd><dt>States</dt><dd>Long remittances paginate with a repeated header row.</dd><dt>Rules</dt><dd>Contains PHI: footer warning, generation is audit-logged, signed URL expires in 15 minutes. Landscape US Letter.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad light-only" style="--w:1152px;justify-content:center">
+<div class="paper landscape">
+  <div class="row-between"><div><h1>Posting worksheet · Optum EFT 8841203</h1><p class="muted">Riverbend Counseling · SimplePractice · payment date Oct 27, 2026</p></div><div class="row"><span data-mark></span><b>cleanpost</b></div></div>
+  <div class="grid-auto" style="grid-template-columns:repeat(5,minmax(0,1fr));gap:10px">
+    <div class="kpi"><div class="kpi-label">Payment</div><div class="kpi-value">$2,980.00</div></div>
+    <div class="kpi"><div class="kpi-label">Claims</div><div class="kpi-value">14</div></div>
+    <div class="kpi"><div class="kpi-label">Contractual</div><div class="kpi-value">$1,206.40</div></div>
+    <div class="kpi"><div class="kpi-label">Patient responsibility</div><div class="kpi-value">$528.20</div></div>
+    <div class="kpi"><div class="kpi-label">Balance check</div><div class="kpi-value good">Balanced</div></div>
+  </div>
+  <table class="table"><thead><tr><th>Entered</th><th>Client</th><th>Account</th><th>DOS</th><th>Code</th><th class="num">Paid</th><th>Adjustments (SimplePractice names)</th><th class="num">Patient owes</th></tr></thead><tbody><tr><td><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--border-control);border-radius:2px"></span></td><td>Ellison, P.</td><td class="code">RBC-20418</td><td>Oct 6</td><td class="code">90837</td><td class="num">$118.40</td><td>Contractual $61.60 · Copay $20.00</td><td class="num">$20.00</td></tr><tr><td><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--border-control);border-radius:2px"></span></td><td>Ellison, P.</td><td class="code">RBC-20418</td><td>Oct 13</td><td class="code">90834</td><td class="num">$92.50</td><td>Contractual $37.50 · Copay $20.00</td><td class="num">$20.00</td></tr><tr><td><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--border-control);border-radius:2px"></span></td><td>Gomez, R.</td><td class="code">RBC-20533</td><td>Oct 7</td><td class="code">90837</td><td class="num">$138.40</td><td>Contractual $61.60</td><td class="num">$0.00</td></tr><tr><td><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--border-control);border-radius:2px"></span></td><td>Chen, W.</td><td class="code">RBC-20602</td><td>Oct 9</td><td class="code">90791</td><td class="num">$0.00</td><td>Deductible $168.20 · Contractual $81.80</td><td class="num">$168.20</td></tr><tr><td><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--border-control);border-radius:2px"></span></td><td>Shah, N.</td><td class="code">RBC-20377</td><td>Oct 10</td><td class="code">90837</td><td class="num">$118.40</td><td>Contractual $61.60 · Copay $20.00</td><td class="num">$20.00</td></tr><tr><td><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--border-control);border-radius:2px"></span></td><td>Okafor, D.</td><td class="code">RBC-20640</td><td>Oct 14</td><td class="code">90834</td><td class="num">$112.50</td><td>Contractual $37.50</td><td class="num">$0.00</td></tr><tr><td><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--border-control);border-radius:2px"></span></td><td>Lindqvist, A.</td><td class="code">RBC-20655</td><td>Oct 15</td><td class="code">90837</td><td class="num">$118.40</td><td>Contractual $61.60 · Copay $20.00</td><td class="num">$20.00</td></tr><tr><td><span style="display:inline-block;width:12px;height:12px;border:1px solid var(--border-control);border-radius:2px"></span></td><td>Patel, M.</td><td class="code">RBC-20701</td><td>Oct 16</td><td class="code">90832</td><td class="num">$74.80</td><td>Contractual $25.20</td><td class="num">$0.00</td></tr>
+  <tr class="row-muted"><td></td><td colspan="7">Page 1 of 2 · 6 more claims on page 2</td></tr></tbody></table>
+  <p class="muted">Steps: open Insurance payments, add a payment from Optum with reference 8841203, date Oct 27, 2026, amount $2,980.00. Enter each line as shown. Leave patient responsibility on the client's balance.</p>
+  <div class="paper-foot"><span>Contains PHI. Handle and dispose of according to your HIPAA policy. Task MT-0418 · generated Oct 29, 2026 2:21 pm PT by Dana Reyes</span><span>Page 1 of 2</span></div>
+</div></div></div>
+</section>
+
+<section class="ref-view" id="F-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">F-03</span><h2>Audit export</h2><div class="row"><span class="tag">CSV</span><span class="tag">MVP</span><span class="tag">Export from S-13</span></div></div>
+    <dl class="ref-spec"><dt>Purpose</dt><dd>Answer compliance requests about who viewed or changed what.</dd><dt>Data</dt><dd>audit_events filtered in S-13 (date range, user, action, entity, client).</dd><dt>Actions</dt><dd>Export from S-13; large exports are generated in the background and offered as a download link in notifications.</dd><dt>States</dt><dd>Over 100,000 rows: split into files of 100,000.</dd><dt>Rules</dt><dd>Admin only, requires re-authentication, and the export itself is audit-logged. Field names only, never PHI values.</dd></dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:1200px;flex-direction:column">
+<pre class="csv">timestamp_utc,user_email,user_role,action,entity_type,entity_id,client,field,ip_address,user_agent
+2026-10-29T21:14:03Z,dana.reyes@northwindbilling.com,biller,view,claim,0192d3a1-7c4e-7a10-9f2b-4c1e88a0d311,Lakeside Family Medicine,,203.0.113.24,Chrome 130 / macOS
+2026-10-29T21:14:41Z,dana.reyes@northwindbilling.com,biller,reveal,patient,0192d3a1-6b02-71f3-8e44-2a9c0f7b1e02,Lakeside Family Medicine,member_id,203.0.113.24,Chrome 130 / macOS
+2026-10-29T21:15:10Z,dana.reyes@northwindbilling.com,biller,update,claim_version,0192d3a1-7c4e-7a10-9f2b-4c1e88a0d312,Lakeside Family Medicine,lines[0].modifiers,203.0.113.24,Chrome 130 / macOS
+2026-10-29T21:15:12Z,automation:release,system,release,claim,0192d3a1-7c4e-7a10-9f2b-4c1e88a0d311,Lakeside Family Medicine,,,
+2026-10-29T22:02:55Z,priya.shah@northwindbilling.com,admin,export,report,rp-client-2026-10,Lakeside Family Medicine,,198.51.100.7,Firefox 131 / Windows</pre>
+<p class="subtle">IDs and addresses are synthetic. One row per event; UTF-8, comma-separated, quoted where needed. No PHI values are written to the export: field names only.</p>
+</div></div>
+</section>
+</div>
+<script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/shell.js"></script>
+</body>
+</html>

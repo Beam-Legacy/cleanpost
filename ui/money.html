@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanpost UI · Money in</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/tokens.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/reference.css">
+</head>
+<body>
+<header class="ref-top">
+  <a class="brand" href="index.html"><span data-mark></span>Cleanpost UI</a>
+  <nav aria-label="Areas">
+    <a href="shell.html">Shell and states</a>
+    <a href="auth.html">Sign-in</a>
+    <a href="work.html">Work queue</a>
+    <a href="claims.html">Claims and patients</a>
+    <a href="money.html" class="active" aria-current="page">Money in</a>
+    <a href="clients.html">Clients and setup</a>
+    <a href="admin.html">Reports and admin</a>
+    <a href="outputs.html">Emails and PDFs</a>
+    <a href="website.html">Website</a>
+  </nav>
+  <button type="button" class="btn btn-secondary btn-sm" id="theme-toggle" style="margin-left:auto"><i data-lucide="moon"></i>Theme</button>
+</header>
+
+<div class="ref-body">
+<div class="ref-intro">
+  <h1>Money in</h1>
+  <p>Remittances, posting, denials and the manual tasks that stand in for integrations we have not built yet. In Mode B Cleanpost posts each payment into the PM. In Modes A and C the PM posts it and Cleanpost checks every line against the 835.</p>
+</div>
+
+<!-- ============================ R-01 ============================ -->
+<section class="ref-view" id="R-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">R-01</span><h2>Remittances list</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /remittances</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>See every payment that has come in, and which ones still need matching, posting or checking.</dd>
+      <dt>Data</dt><dd>remittances (payment_date, payer, trace_number, payment_method, payment_amount_cents, source, status), counts of remit_claims by match_status, postings status, balance check result. Scoped to the client filter.</dd>
+      <dt>Actions</dt><dd><ul><li>Row click opens R-03 (Mode B) or R-04 (Modes A and C).</li><li>Upload 835 opens R-02.</li><li>Status chips filter: Needs attention, Posting, Posted, Verified.</li><li>Export CSV of non-PHI columns.</li></ul></dd>
+      <dt>States</dt><dd>Loading: table skeleton. No remittances yet: empty state explaining that payments appear after the first sync or upload, with Upload 835. Source "PM" rows show when the next sync will refresh them.</dd>
+      <dt>Rules</dt><dd>Sorted newest payment first. Amounts right-aligned with tabular figures. A row needing attention shows the reason in words, not only a chip.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="remits" data-role="biller">
+      <main class="main">
+        <div class="page-head"><h1>Remittances</h1><span class="muted">142 payments in October · $412,880.15</span><div class="actions"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="download"></i>Export</button><button type="button" class="btn btn-primary btn-sm"><i data-lucide="upload"></i>Upload 835</button></div></div>
+        <div class="filters">
+          <button type="button" class="filter-chip on">All <span class="n">142</span></button>
+          <button type="button" class="filter-chip">Needs attention <span class="n">5</span></button>
+          <button type="button" class="filter-chip">Posting <span class="n">2</span></button>
+          <button type="button" class="filter-chip">Posted <span class="n">61</span></button>
+          <button type="button" class="filter-chip">Verified <span class="n">74</span></button>
+          <span class="spacer"></span>
+          <button type="button" class="filter-select">Client: <b>All</b><i data-lucide="chevron-down"></i></button>
+          <button type="button" class="filter-select">Payer: <b>Any</b><i data-lucide="chevron-down"></i></button>
+          <button type="button" class="filter-select">Date: <b>Last 30 days</b><i data-lucide="chevron-down"></i></button>
+        </div>
+        <div class="card flush"><div class="table-wrap"><table class="table nowrap">
+          <thead><tr><th>Paid on</th><th>Client</th><th>Payer</th><th>Trace</th><th>Method</th><th class="num">Amount</th><th class="num">Claims</th><th>Source</th><th>Status</th><th>Attention</th></tr></thead>
+          <tbody>
+            <tr><td>Oct 29</td><td>Cascade Pediatrics <span class="mode">B</span></td><td>Regence BCBS</td><td class="code">5512087</td><td>ACH</td><td class="num">$1,162.40</td><td class="num">6</td><td>Stedi</td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Failed</span></td><td>1 claim did not post in AdvancedMD</td></tr>
+            <tr><td>Oct 27</td><td>Riverbend Counseling <span class="mode">A</span></td><td>Optum</td><td class="code">8841203</td><td>ACH</td><td class="num">$2,980.00</td><td class="num">14</td><td>Upload</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Manual posting</span></td><td>Post in SimplePractice</td></tr>
+            <tr><td>Oct 27</td><td>Lakeside Family Med <span class="mode">A</span></td><td>UnitedHealthcare</td><td class="code">6620194</td><td>ACH</td><td class="num">$4,210.80</td><td class="num">11</td><td>PM</td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Out of balance</span></td><td>835 does not balance by $35.20</td></tr>
+            <tr><td>Oct 21</td><td>Willamette Ortho <span class="mode">C</span></td><td>Cigna</td><td class="code">7730551</td><td>ACH</td><td class="num">$6,482.37</td><td class="num">9</td><td>PM</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>2 differences</span></td><td>PM posting does not match on 2 lines</td></tr>
+            <tr><td>Oct 21</td><td>Willamette Ortho <span class="mode">C</span></td><td>Medicare</td><td class="code">88301922</td><td>ACH</td><td class="num">$3,904.12</td><td class="num">17</td><td>PM</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Verified</span></td><td class="muted">—</td></tr>
+            <tr><td>Oct 20</td><td>Cascade Pediatrics <span class="mode">B</span></td><td>Oregon Health Plan</td><td class="code">40017763</td><td>ACH</td><td class="num">$4,212.60</td><td class="num">23</td><td>Stedi</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Posted</span></td><td class="muted">—</td></tr>
+            <tr><td>Oct 18</td><td>Lakeside Family Med <span class="mode">A</span></td><td>Aetna</td><td class="code">AE20261018</td><td>CHK</td><td class="num">$918.44</td><td class="num">5</td><td>PM</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Verified</span></td><td class="muted">—</td></tr>
+            <tr><td>Oct 17</td><td>Cascade Pediatrics <span class="mode">B</span></td><td>Moda Health</td><td class="code">MH-771204</td><td>NON</td><td class="num">$0.00</td><td class="num">2</td><td>Stedi</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Posted</span></td><td class="muted">Zero-pay: denials only</td></tr>
+          </tbody></table></div>
+          <div class="table-foot"><span>Showing 8 of 142</span><span class="spacer"></span><span>Source PM refreshes at the next sync, 2:30 pm PT</span></div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ R-02 ============================ -->
+<section class="ref-view" id="R-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">R-02</span><h2>Upload 835</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Bring in remittance files that do not arrive automatically, and check what is in them before importing.</dd>
+      <dt>Data</dt><dd>Uploaded file (835 X12 or a PM export); parse result: payer, payments, trace numbers, totals, claims count, client match by payee NPI or tax ID; duplicate check on payer + trace + amount + date.</dd>
+      <dt>Actions</dt><dd>Drop or browse files (several at once); review the parse summary; untick a payment to skip it; Import.</dd>
+      <dt>States</dt><dd>Step 1: drop zone. Step 2: summary (shown). Parse error: the file name, line and segment where it failed, and "Nothing was imported". Duplicate: the payment row is unticked and labeled "Already imported Oct 27".</dd>
+      <dt>Rules</dt><dd>Raw file is stored encrypted before parsing. Import is idempotent; duplicates are recorded and ignored. Payments whose payee does not match a client cannot be imported.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:780px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal lg" role="dialog" aria-labelledby="r02t">
+      <div class="modal-head"><div><h2 id="r02t">Upload 835</h2><p class="muted dense">X12 835 files or remittance exports from your PM.</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <div class="callout" style="display:flex;align-items:center;gap:12px;border:1px dashed var(--border-control);background:var(--canvas)">
+          <i data-lucide="upload"></i><span><b>Drop more files here</b> or <a href="#R-02">browse</a></span><span class="spacer"></span><span class="subtle">optum_2026-10-27.835 · 41 KB</span>
+        </div>
+        <div class="balance"><b>Read 2 payments</b><span>from 1 file · Riverbend Counseling (payee NPI <span class="code">1720948815</span>)</span></div>
+        <div class="card flush"><table class="table nowrap">
+          <thead><tr><th class="w-check"><span class="sr-only">Import</span></th><th>Payer</th><th>Trace</th><th>Paid on</th><th class="num">Claims</th><th class="num">Amount</th><th>Check</th></tr></thead>
+          <tbody>
+            <tr><td><input type="checkbox" checked aria-label="Import Optum 8841203"></td><td>Optum</td><td class="code">8841203</td><td>Oct 27</td><td class="num">14</td><td class="num">$2,980.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Balances</span></td></tr>
+            <tr class="row-muted"><td><input type="checkbox" aria-label="Import Optum 8840119"></td><td>Optum</td><td class="code">8840119</td><td>Oct 20</td><td class="num">9</td><td class="num">$1,744.50</td><td><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Already imported Oct 21</span></td></tr>
+          </tbody></table></div>
+        <div class="banner warn"><i data-lucide="triangle-alert"></i><span>Optum 8840119 was imported on Oct 21. It will be skipped so nothing is posted twice.</span></div>
+      </div>
+      <div class="modal-foot"><span class="left subtle">Riverbend uses manual posting, so a posting task will be created.</span><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Import 1 payment</button></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ R-03 ============================ -->
+<section class="ref-view" id="R-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">R-03</span><h2>Remittance detail: posting (Mode B)</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /remittances/:id</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Show a payment Cleanpost received from Stedi and how each claim in it was posted into the PM.</dd>
+      <dt>Data</dt><dd>remittances header; balance check (BPR payment = sum of CLP paid − PLB); remit_claims with remit_lines, remit_adjustments (group + CARC) mapped through adjustment_mappings to PM codes, remit_remarks; postings per claim (status, method, attempts, last_error).</dd>
+      <dt>Actions</dt><dd><ul><li>Expand a claim to see its lines and adjustments with the PM code each maps to.</li><li>Post now (retries pending or failed claims); Send to manual (creates M-01).</li><li>Code chips open R-08. Claim link opens C-02.</li><li>View raw 835 (admin, audit-logged).</li></ul></dd>
+      <dt>States</dt><dd>Posting in progress: per-claim spinner chip "Posting". Partial failure: R-09 banner. Denied line: posted with balance left open, chip "Denial worked separately".</dd>
+      <dt>Rules</dt><dd>Nothing posts unless the 835 balances. Post now asks for confirmation (G-11) because it writes to the PM. Every posting attempt is audited with method (API, file, browser, manual).</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="remits" data-client="Cascade Pediatrics" data-role="biller">
+      <main class="main">
+        <a class="breadcrumb" href="#R-01"><i data-lucide="arrow-left"></i>Remittances</a>
+        <div class="card card-body stack">
+          <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>5 of 6 posted</span><span class="mode">Mode B · Cleanpost posts</span><span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="file-text"></i>View raw 835</button><button type="button" class="btn btn-primary btn-sm"><i data-lucide="refresh-cw"></i>Post now</button></div>
+          <h1 class="title-l">Regence BCBS · EFT 5512087 · $1,162.40 · Oct 29, 2026</h1>
+          <div class="balance"><i data-lucide="circle-check"></i><b>835 balances</b><span>Payment $1,162.40 = claims paid $1,162.40 − provider adjustments $0.00</span></div>
+          <dl class="dl"><div><dt>Claims</dt><dd class="fig">6</dd></div><div><dt>Posted to AdvancedMD</dt><dd class="fig" style="color:var(--success)">5</dd></div><div><dt>Failed</dt><dd class="fig" style="color:var(--danger)">1</dd></div><div><dt>Denied lines</dt><dd class="fig">1</dd></div><div><dt>Patient responsibility</dt><dd class="fig">$75.00</dd></div><div><dt>Received</dt><dd>Stedi · Oct 29, 7:12 am</dd></div></dl>
+        </div>
+        <div class="banner bad"><i data-lucide="circle-x"></i><span><b>Shah, N. did not post.</b> AdvancedMD said the charge is locked by another user. Cleanpost retried 3 times.</span><span class="spacer"></span><button type="button" class="btn btn-secondary btn-sm">Send to manual</button><button type="button" class="btn btn-primary btn-sm">Retry now</button></div>
+        <div class="card flush"><div class="table-wrap"><table class="table nowrap">
+          <thead><tr><th><span class="sr-only">Expand</span></th><th>Patient</th><th>Claim</th><th>DOS</th><th class="num">Charge</th><th class="num">Paid</th><th>Adjustments</th><th class="num">Patient owes</th><th>Posting</th></tr></thead>
+          <tbody>
+            <tr><td><button type="button" class="icon-btn ghost" aria-label="Collapse"><i data-lucide="chevron-down"></i></button></td><td><b>Kim, S.</b></td><td class="code">CPD-26-002188</td><td>Oct 8</td><td class="num">$310.00</td><td class="num">$198.20</td><td><span class="codechip">CO-45</span> $81.80 · <span class="codechip">PR-2</span> $30.00</td><td class="num">$30.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Posted</span></td></tr>
+            <tr><td></td><td colspan="8" style="background:var(--canvas);padding:0">
+              <table class="table nowrap" style="margin:4px 0 8px 48px;width:calc(100% - 64px)">
+                <thead><tr><th>Line</th><th>Code</th><th class="num">Charge</th><th class="num">Allowed</th><th class="num">Paid</th><th>835 adjustment</th><th>Posted in AdvancedMD as</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td class="code">99213</td><td class="num">$190.00</td><td class="num">$140.20</td><td class="num">$110.20</td><td><span class="codechip">CO-45</span> $49.80 above contracted rate · <span class="codechip">PR-2</span> $30.00 coinsurance</td><td><span class="code">CONTADJ</span> write-off · <span class="code">PTRESP</span> to patient</td></tr>
+                  <tr><td>2</td><td class="code">90460</td><td class="num">$120.00</td><td class="num">$88.00</td><td class="num">$88.00</td><td><span class="codechip">CO-45</span> $32.00 above contracted rate</td><td><span class="code">CONTADJ</span> write-off</td></tr>
+                </tbody>
+              </table>
+            </td></tr>
+            <tr><td><button type="button" class="icon-btn ghost" aria-label="Expand"><i data-lucide="chevron-right"></i></button></td><td><b>Burke, H.</b></td><td class="code">CPD-26-002171</td><td>Oct 6</td><td class="num">$260.00</td><td class="num">$182.40</td><td><span class="codechip">CO-45</span> $77.60</td><td class="num">$0.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Posted</span></td></tr>
+            <tr><td><button type="button" class="icon-btn ghost" aria-label="Expand"><i data-lucide="chevron-right"></i></button></td><td><b>Moreno, L.</b></td><td class="code">CPD-26-002140</td><td>Sep 30</td><td class="num">$410.00</td><td class="num">$286.50</td><td><span class="codechip">CO-45</span> $98.50 · <span class="codechip">PR-3</span> $25.00</td><td class="num">$25.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Posted</span></td></tr>
+            <tr><td><button type="button" class="icon-btn ghost" aria-label="Expand"><i data-lucide="chevron-right"></i></button></td><td><b>Lindqvist, E.</b></td><td class="code">CPD-26-002093</td><td>Sep 22</td><td class="num">$188.00</td><td class="num">$0.00</td><td><span class="codechip bad">CO-197</span> $188.00 no prior authorization</td><td class="num">$0.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Posted</span> <span class="subtle">balance left open</span></td></tr>
+            <tr class="row-bad"><td><button type="button" class="icon-btn ghost" aria-label="Expand"><i data-lucide="chevron-right"></i></button></td><td><b>Shah, N.</b></td><td class="code">CPD-26-002210</td><td>Oct 9</td><td class="num">$520.00</td><td class="num">$396.30</td><td><span class="codechip">CO-45</span> $123.70</td><td class="num">$0.00</td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Failed</span></td></tr>
+            <tr><td><button type="button" class="icon-btn ghost" aria-label="Expand"><i data-lucide="chevron-right"></i></button></td><td><b>Cole, B.</b></td><td class="code">CPD-26-002199</td><td>Oct 7</td><td class="num">$145.00</td><td class="num">$99.00</td><td><span class="codechip">CO-45</span> $26.00 · <span class="codechip">PR-2</span> $20.00</td><td class="num">$20.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Posted</span></td></tr>
+          </tbody></table></div>
+          <div class="table-foot"><span>Totals: charge $1,833.00 · paid $1,162.40 · patient owes $75.00</span><span class="spacer"></span><span>Lindqvist denial is in the denials list</span></div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ R-04 ============================ -->
+<section class="ref-view" id="R-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">R-04</span><h2>Remittance detail: verification (Modes A and C)</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /remittances/:id</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Check that what the PM posted automatically matches the 835, line by line, and work the differences.</dd>
+      <dt>Data</dt><dd>Parsed 835 (from the PM via pullRemittances, or uploaded); PM postings via pullPostings; per-line comparison: paid, each adjustment translated to the PM code, patient responsibility; unmatched remit_claims.</dd>
+      <dt>Actions</dt><dd><ul><li>Show differences first (default on).</li><li>Per difference: Correct in PM (adapter or manual task), Accept PM posting with reason, Create posting task when nothing was posted.</li><li>Unmatched claim: Link to claim (R-05) or Mark as before go-live.</li></ul></dd>
+      <dt>States</dt><dd>All lines match: green banner "Verified" and the table collapses to a summary. PM has not posted yet: lines show "Waiting for PM" with the next sync time; becomes a difference after 2 syncs.</dd>
+      <dt>Rules</dt><dd>Cleanpost never posts in Modes A and C. Two separate checks, labeled separately: "835 balances" (before) and "PM posting matches" (after). Differences auto-resolve when a later sync matches.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="remits" data-client="Willamette Ortho" data-role="biller">
+      <main class="main">
+        <a class="breadcrumb" href="#R-01"><i data-lucide="arrow-left"></i>Remittances</a>
+        <div class="card card-body stack">
+          <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>3 things to resolve</span><span class="mode">Mode C · Tebra posts, Cleanpost checks</span></div>
+          <h1 class="title-l">Cigna · EFT 7730551 · $6,482.37 · Oct 21, 2026</h1>
+          <div class="grid-2">
+            <div class="balance"><i data-lucide="circle-check"></i><b>835 balances</b><span>Payment $6,482.37 = claims paid $6,470.17 + interest $12.20</span></div>
+            <div class="balance bad"><i data-lucide="circle-x"></i><b>PM posting does not match</b><span>2 of 21 lines differ · 18 match · 1 claim unmatched</span></div>
+          </div>
+          <dl class="dl"><div><dt>Claims</dt><dd class="fig">9</dd></div><div><dt>Lines</dt><dd class="fig">21</dd></div><div><dt>Lines matching</dt><dd class="fig" style="color:var(--success)">18</dd></div><div><dt>Differences</dt><dd class="fig" style="color:var(--danger)">2</dd></div><div><dt>Unmatched</dt><dd class="fig" style="color:var(--warning)">1</dd></div><div><dt>Read from</dt><dd>Tebra · Oct 21, 2:05 pm</dd></div></dl>
+        </div>
+        <div class="card card-body" style="border-color:var(--warning)">
+          <div class="row-between">
+            <div class="stack-sm"><b>Unmatched: control number <span class="code">WOR-25-009912</span> is not a Cleanpost claim</b><span class="muted dense">Paid $214.50 · DOS Aug 14, 2025 · Alvarez, S. Likely billed before this client went live on Cleanpost.</span></div>
+            <div class="row"><button type="button" class="btn btn-secondary btn-sm">Mark as before go-live</button><button type="button" class="btn btn-primary btn-sm">Link to claim</button></div>
+          </div>
+        </div>
+        <div class="card flush">
+          <div class="card-head"><h2>835 compared with what Tebra posted</h2><span class="spacer"></span><label class="check"><input type="checkbox" checked>Show differences first</label></div>
+          <div class="table-wrap"><table class="table">
+            <thead><tr><th>Claim and line</th><th>Code</th><th>835 says</th><th>Tebra posted</th><th>Result</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr class="row-bad"><td><div class="two-line"><b>Hart, J.</b><span class="sub code">WOR-26-001377 · line 2</span></div></td><td class="code">20610</td><td><div class="two-line"><span>Denied $446.00 <span class="codechip bad">CO-4</span></span><span class="sub">Modifier inconsistent with procedure; balance stays open</span></div></td><td><div class="two-line"><span class="diff-old">Written off $446.00</span><span class="sub">Tebra code CONTR (contractual)</span></div></td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Denial written off</span></td><td><button type="button" class="btn btn-secondary btn-sm">Reverse write-off</button></td></tr>
+              <tr class="row-bad"><td><div class="two-line"><b>Brooks, K.</b><span class="sub code">WOR-26-001402 · line 1</span></div></td><td class="code">99213</td><td><div class="two-line"><span>Paid $0.00 · <span class="codechip">PR-1</span> $98.00</span><span class="sub">Deductible; patient owes $98.00</span></div></td><td><div class="two-line"><span class="diff-old">Nothing posted</span><span class="sub">$98.00 still shows as insurance balance</span></div></td><td><span class="chip chip-bad"><i data-lucide="circle-x"></i>Missing posting</span></td><td><button type="button" class="btn btn-secondary btn-sm">Create posting task</button></td></tr>
+              <tr><td><div class="two-line"><b>Hart, J.</b><span class="sub code">WOR-26-001377 · line 1</span></div></td><td class="code">99214</td><td><div class="two-line"><span>Paid $121.12</span><span class="sub">CO-45 $86.60 · PR-2 $30.28</span></div></td><td><div class="two-line"><span>Paid $121.12</span><span class="sub">CONTR $86.60 · PTRESP $30.28</span></div></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matches</span></td><td></td></tr>
+              <tr><td><div class="two-line"><b>Hart, J.</b><span class="sub code">WOR-26-001377 · line 3</span></div></td><td class="code">J3301</td><td><div class="two-line"><span>Paid $291.06</span><span class="sub">CO-45 $36.18 · PR-2 $72.76</span></div></td><td><div class="two-line"><span>Paid $291.06</span><span class="sub">CONTR $36.18 · PTRESP $72.76</span></div></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matches</span></td><td></td></tr>
+              <tr><td><div class="two-line"><b>Moreno, L.</b><span class="sub code">WOR-26-001388 · line 1</span></div></td><td class="code">97110</td><td><div class="two-line"><span>Paid $88.20</span><span class="sub">CO-45 $61.80</span></div></td><td><div class="two-line"><span>Paid $88.20</span><span class="sub">CONTR $61.80</span></div></td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Matches</span></td><td></td></tr>
+            </tbody></table></div>
+          <div class="table-foot"><span>Showing 5 of 21 lines</span><span class="spacer"></span><span><span class="codechip">CO-45</span> above contracted rate, written off · <span class="codechip">PR-1</span> deductible · <span class="codechip">PR-2</span> coinsurance · <span class="codechip bad">CO-4</span> denied, balance stays open</span></div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ R-05 ============================ -->
+<section class="ref-view" id="R-05">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">R-05</span><h2>Link to claim</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Attach an unmatched or ambiguous paid claim from an 835 to the right claim in Cleanpost.</dd>
+      <dt>Data</dt><dd>The remit claim (patient name as reported, DOS, charge, payer claim number); candidate claims ranked by match evidence (patient, DOS, charge, payer).</dd>
+      <dt>Actions</dt><dd>Search by patient, control number or payer claim number; select a candidate; Link. "Not in Cleanpost" option marks it before go-live.</dd>
+      <dt>States</dt><dd>No candidates: empty row with search tips. Candidate already has a payment on this remittance: disabled with reason.</dd>
+      <dt>Rules</dt><dd>Linking records matched_by = user, re-runs the balance check and posting or verification for that claim, and is audited.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:700px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal lg" role="dialog" aria-labelledby="r05t">
+      <div class="modal-head"><div><h2 id="r05t">Link to claim</h2><p class="muted dense">Cigna EFT 7730551 · paid $214.50 · reported as Alvarez, S. · DOS Aug 14, 2025 · charge $380.00</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <label class="search" style="max-width:none"><i data-lucide="search"></i><span class="sr-only">Search claims</span><input type="search" value="Alvarez"></label>
+        <div class="card flush"><table class="table nowrap">
+          <thead><tr><th class="w-check"><span class="sr-only">Select</span></th><th>Patient</th><th>Claim</th><th>DOS</th><th>Payer</th><th class="num">Charge</th><th>Match</th></tr></thead>
+          <tbody>
+            <tr class="selected"><td><input type="radio" name="r05" checked aria-label="Select claim"></td><td>Alvarez, S.</td><td class="code">WOR-25-009877</td><td>Aug 14, 2025</td><td>Cigna</td><td class="num">$380.00</td><td><span class="chip chip-good"><i data-lucide="circle-check"></i>Patient, date, charge, payer</span></td></tr>
+            <tr><td><input type="radio" name="r05" aria-label="Select claim"></td><td>Alvarez, S.</td><td class="code">WOR-25-010203</td><td>Sep 3, 2025</td><td>Cigna</td><td class="num">$380.00</td><td><span class="chip chip-flight"><i data-lucide="clock"></i>Patient, charge, payer</span></td></tr>
+          </tbody></table></div>
+        <label class="check"><input type="radio" name="r05">This claim was billed outside Cleanpost (before go-live)</label>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Link and recheck</button></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ R-06 ============================ -->
+<section class="ref-view" id="R-06">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">R-06</span><h2>Out of balance</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Show exactly where a remittance fails to add up and decide whether to hold or accept the difference.</dd>
+      <dt>Data</dt><dd>BPR payment amount; sum of CLP paid; PLB provider adjustments with reason codes; per-claim check (charge − paid − adjustments); the claims that fail.</dd>
+      <dt>Actions</dt><dd>Hold posting (default); Accept difference with reason (admin only); Request corrected 835 (copies a payer-ready description); Open claim.</dd>
+      <dt>States</dt><dd>Two variants with their own titles: "835 does not balance" (shown) blocks posting; "PM posting does not match" (after posting) links to R-04 instead.</dd>
+      <dt>Rules</dt><dd>Accepting requires admin role and a reason, is audited, and posts the claims that individually balance.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:720px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="drawer" role="dialog" aria-labelledby="r06t">
+      <div class="drawer-head"><div class="stack-sm"><span class="chip chip-bad"><i data-lucide="circle-x"></i>835 does not balance</span><h2 id="r06t">UnitedHealthcare EFT 6620194</h2><span class="muted dense">Lakeside Family Medicine · Oct 27 · posting held</span></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="drawer-body">
+        <dl class="kv"><dt>Payment (BPR)</dt><dd class="num">$4,210.80</dd><dt>Claims paid (CLP)</dt><dd class="num">$4,246.00</dd><dt>Provider adjustments (PLB)</dt><dd class="num">$0.00</dd><dt><b>Difference</b></dt><dd class="num" style="color:var(--danger);font-weight:600">$35.20 short</dd></dl>
+        <div class="callout">Each of the 11 claims balances on its own. The gap is between the payment and the claim totals.</div>
+        <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>$35.20 matches a recoupment on claim <span class="code">LFM-26-004211</span> that UnitedHealthcare announced Oct 14. It is usually reported as a provider adjustment (<span class="code">WO</span>) and appears to be missing from this file.</p><div class="evidence">Payer letter Oct 14 · same amount · same payee.</div></div>
+        <div class="field"><label for="r06r">Reason, if you accept the difference</label><textarea id="r06r" class="textarea" placeholder="Required for admins accepting the difference"></textarea></div>
+      </div>
+      <div class="drawer-foot"><button type="button" class="btn btn-secondary">Accept difference</button><button type="button" class="btn btn-primary">Keep holding</button></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ R-07 ============================ -->
+<section class="ref-view" id="R-07">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">R-07</span><h2>Map adjustment code</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Tell Cleanpost which PM adjustment code and action to use for a group code and CARC.</dd>
+      <dt>Data</dt><dd>Group code, CARC and its plain meaning; PM type and its adjustment codes; existing mapping (if editing); lines affected (held now, and posted in the last 90 days).</dd>
+      <dt>Actions</dt><dd>Choose PM code, choose action (adjust off, transfer to patient, leave open, record only), scope (this client or all clients on this PM); Save.</dd>
+      <dt>States</dt><dd>Mapping a CO denial code as "adjust off" shows a warning that denials would disappear from A/R.</dd>
+      <dt>Rules</dt><dd>Admin only. Saving resumes posting of held lines. Changing an existing mapping applies to future postings only.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:720px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal" role="dialog" aria-labelledby="r07t">
+      <div class="modal-head"><div><h2 id="r07t">Map <span class="code">CO-97</span> for AdvancedMD</h2><p class="muted dense">Included in the payment for another service · seen on 4 lines</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <div class="field"><label for="r07c">AdvancedMD adjustment code</label><select id="r07c" class="select"><option>BUNDLE · Bundled service</option></select></div>
+        <div class="field"><span class="label">What to do with the amount</span>
+          <label class="check"><input type="radio" name="r07a">Adjust off the balance</label>
+          <label class="check"><input type="radio" name="r07a">Transfer to patient</label>
+          <label class="check"><input type="radio" name="r07a" checked>Leave open and create a denial item</label>
+          <label class="check"><input type="radio" name="r07a">Record only</label>
+        </div>
+        <div class="field"><span class="label">Applies to</span><div class="segmented"><button type="button">This client</button><button type="button" class="active">All clients on AdvancedMD</button></div></div>
+        <div class="banner warn"><i data-lucide="triangle-alert"></i><span>CO-97 is often a fixable bundling denial. Adjusting it off would remove it from A/R without anyone reviewing it.</span></div>
+      </div>
+      <div class="modal-foot"><span class="left subtle">4 held lines will post after saving.</span><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Save mapping</button></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ R-08 ============================ -->
+<section class="ref-view" id="R-08">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">R-08</span><h2>Code explainer</h2><div class="row"><span class="tag">Popover</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Explain any CARC, RARC or group code in plain words where it appears.</dd>
+      <dt>Data</dt><dd>code_sets (carc, rarc) with our plain-language label; group code meaning; how this tenant maps it for the client's PM; count in the last 90 days for this client.</dd>
+      <dt>Actions</dt><dd>Opens on hover or focus of any .codechip; "Change mapping" (admins) opens R-07; "See claims with this code" filters C-01.</dd>
+      <dt>States</dt><dd>Unknown code: shows the code and "No description on file" with a link to report it.</dd>
+      <dt>Rules</dt><dd>Our own plain-language labels; do not reproduce the X12 code list text verbatim (licensing).</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:960px">
+    <div class="stack-sm">
+      <span class="dense">Line 2 adjustment <span class="codechip bad" tabindex="0">CO-4</span></span>
+      <div class="popover" style="width:340px">
+        <div class="row"><span class="codechip bad">CO-4</span><b>Modifier does not fit the procedure</b></div>
+        <p class="dense">The payer denied the line because a modifier is missing or does not apply to this code.</p>
+        <dl class="kv" style="grid-template-columns:110px minmax(0,1fr)"><dt>Group CO</dt><dd>Contractual: the practice cannot bill the patient for it</dd><dt>Usual fix</dt><dd>Correct the modifier and send a corrected claim</dd><dt>Tebra mapping</dt><dd>Leave open, create denial item</dd><dt>Last 90 days</dt><dd>14 lines at Willamette Ortho</dd></dl>
+        <div class="row-between" style="border-top:1px solid var(--border);padding-top:8px"><a class="dense" href="claims.html#C-01">See claims with this code</a><button type="button" class="btn btn-ghost btn-sm">Change mapping</button></div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ R-09 ============================ -->
+<section class="ref-view" id="R-09">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">R-09</span><h2>Posting failed</h2><div class="row"><span class="tag">State</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Show which allocations of a Mode B posting failed, why, and how to finish them.</dd>
+      <dt>Data</dt><dd>postings (status failed or manual_required, attempts, last_error as an adapter error code); the allocations that failed with patient, claim, line and amounts.</dd>
+      <dt>Actions</dt><dd>Retry now (re-runs postPayment for failed allocations only); Send to manual (creates M-01 with only the failed allocations); Open connection (I-02) when the error is a connection problem.</dd>
+      <dt>States</dt><dd>Retrying: buttons disabled, chip "Posting". After 3 failed attempts Cleanpost sends to manual automatically and says so.</dd>
+      <dt>Rules</dt><dd>Never re-posts allocations that already succeeded. Error text comes from the adapter error code mapped to plain words, with no PHI.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas ref-pad" style="--w:1000px">
+    <div class="card" style="width:100%">
+      <div class="card-head"><span class="chip chip-bad"><i data-lucide="circle-x"></i>Posting failed</span><h2>1 of 6 claims did not post to AdvancedMD</h2><span class="spacer"></span><span class="subtle">3 attempts · last 7:41 am</span></div>
+      <div class="card-body stack">
+        <table class="table nowrap"><thead><tr><th>Patient</th><th>Claim</th><th>Line</th><th class="num">Paid</th><th class="num">Adjustments</th><th>Error</th></tr></thead>
+          <tbody><tr class="row-bad"><td>Shah, N.</td><td class="code">CPD-26-002210</td><td>1 · <span class="code">99204</span></td><td class="num">$396.30</td><td class="num">$123.70</td><td>Charge is locked: someone has it open in AdvancedMD</td></tr></tbody></table>
+        <div class="why"><i data-lucide="circle-help"></i><span>AdvancedMD will not accept a payment on a charge that another user is editing. Retrying after they close it usually works.</span></div>
+      </div>
+      <div class="card-foot"><button type="button" class="btn btn-primary"><i data-lucide="refresh-cw"></i>Retry now</button><button type="button" class="btn btn-secondary">Send to manual</button><span class="spacer"></span><span class="subtle">The other 5 claims are posted and will not be posted again.</span></div>
+    </div>
+  </div></div>
+</section>
+
+<div class="ref-intro">
+  <h1>Denials</h1>
+  <p>Every denied or partly denied line, grouped by why it was denied. Fixable categories lead to a corrected claim; the rest end in a write-off with a reason, or an appeal once appeals ship.</p>
+</div>
+
+<!-- ============================ D-01 ============================ -->
+<section class="ref-view" id="D-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">D-01</span><h2>Denials</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /denials</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>See where denied money sits by category and payer, spot trends, and work the denials.</dd>
+      <dt>Data</dt><dd>remit_lines with denial adjustments joined to work_items of type denial; category from denial triage; amount at risk; appeal deadline if known; weekly counts for 12 weeks.</dd>
+      <dt>Actions</dt><dd>Category cards filter the list; row click opens D-02; bulk write off (admin, with reason, D-03); chart toggles to a table view.</dd>
+      <dt>States</dt><dd>No open denials: empty state with this month's corrected and recovered totals. Chart with fewer than 4 weeks of data shows "Trend appears after 4 weeks".</dd>
+      <dt>Rules</dt><dd>Categories: Eligibility, Authorization, Coding, Bundling, Missing information, Timely filing, Duplicate, Coordination of benefits, Provider enrollment, Other. Dollar figures are open balance at risk, not billed charges.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="denials" data-role="biller">
+      <main class="main">
+        <div class="page-head"><h1>Denials</h1><span class="muted">71 open denied lines · $20,016 at risk · 44 corrected this month</span><div class="actions"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="download"></i>Export</button></div></div>
+        <div class="split">
+          <div class="split-main stack">
+            <div class="grid-auto" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+              <button type="button" class="card card-body option-card selected" style="gap:2px"><span class="kpi-label">Authorization</span><span class="kpi-value">$6,880</span><span class="subtle">11 lines</span></button>
+              <button type="button" class="card card-body option-card" style="gap:2px"><span class="kpi-label">Eligibility</span><span class="kpi-value">$4,210</span><span class="subtle">18 lines</span></button>
+              <button type="button" class="card card-body option-card" style="gap:2px"><span class="kpi-label">Coding</span><span class="kpi-value">$3,960</span><span class="subtle">14 lines</span></button>
+              <button type="button" class="card card-body option-card" style="gap:2px"><span class="kpi-label">Missing information</span><span class="kpi-value">$1,420</span><span class="subtle">9 lines</span></button>
+              <button type="button" class="card card-body option-card" style="gap:2px"><span class="kpi-label">Bundling</span><span class="kpi-value">$1,140</span><span class="subtle">6 lines</span></button>
+              <button type="button" class="card card-body option-card" style="gap:2px"><span class="kpi-label">Coordination of benefits</span><span class="kpi-value">$890</span><span class="subtle">4 lines</span></button>
+              <button type="button" class="card card-body option-card" style="gap:2px"><span class="kpi-label">Duplicate</span><span class="kpi-value">$510</span><span class="subtle">3 lines</span></button>
+              <button type="button" class="card card-body option-card" style="gap:2px"><span class="kpi-label">Other</span><span class="kpi-value">$410</span><span class="subtle">3 lines</span></button>
+              <button type="button" class="card card-body option-card" style="gap:2px"><span class="kpi-label">Timely filing</span><span class="kpi-value">$376</span><span class="subtle">2 lines</span></button>
+              <button type="button" class="card card-body option-card" style="gap:2px"><span class="kpi-label">Provider enrollment</span><span class="kpi-value">$220</span><span class="subtle">1 line</span></button>
+            </div>
+            <div class="card flush">
+              <div class="card-head"><h2>Authorization · 11 lines · $6,880</h2><span class="spacer"></span><button type="button" class="filter-select">Payer: <b>Any</b><i data-lucide="chevron-down"></i></button></div>
+              <div class="table-wrap"><table class="table">
+                <thead><tr><th>Patient</th><th>Client</th><th>Payer</th><th>Codes</th><th class="num">At risk</th><th>Suggested next step</th><th>Deadline</th></tr></thead>
+                <tbody>
+                  <tr class="selected"><td>Kim, S.</td><td>Cascade Pediatrics</td><td>Regence BCBS</td><td><span class="codechip bad">CO-197</span></td><td class="num">$312.00</td><td>Request retro authorization</td><td><span class="due">Dec 28</span></td></tr>
+                  <tr><td>Lindqvist, E.</td><td>Cascade Pediatrics</td><td>Regence BCBS</td><td><span class="codechip bad">CO-197</span></td><td class="num">$188.00</td><td>Request retro authorization</td><td><span class="due">Dec 21</span></td></tr>
+                  <tr><td>Hart, J.</td><td>Willamette Ortho</td><td>Cigna</td><td><span class="codechip bad">CO-197</span> <span class="codechip">N54</span></td><td class="num">$1,840.00</td><td>Add authorization number and send corrected claim</td><td><span class="due soon">Nov 12</span></td></tr>
+                  <tr><td>Patel, R.</td><td>Willamette Ortho</td><td>Moda Health</td><td><span class="codechip bad">CO-15</span></td><td class="num">$1,210.00</td><td>Authorization number on claim is invalid; check with practice</td><td><span class="due">Dec 2</span></td></tr>
+                </tbody></table></div>
+              <div class="table-foot"><span>Showing 4 of 11</span></div>
+            </div>
+          </div>
+          <div class="card" style="width:400px;flex:none">
+            <div class="card-head"><h2>Denied lines per week</h2><span class="spacer"></span><button type="button" class="btn btn-ghost btn-sm">Table view</button></div>
+            <div class="card-body">
+              <svg class="chart-svg" viewBox="0 0 360 200" role="img" aria-label="Denied lines per week over 12 weeks, falling from 22 to 12">
+                <line class="grid" x1="30" y1="20" x2="356" y2="20"/><line class="grid" x1="30" y1="70" x2="356" y2="70"/><line class="grid" x1="30" y1="120" x2="356" y2="120"/><line class="grid" x1="30" y1="170" x2="356" y2="170"/>
+                <text class="axis" x="24" y="24" text-anchor="end">30</text><text class="axis" x="24" y="74" text-anchor="end">20</text><text class="axis" x="24" y="124" text-anchor="end">10</text><text class="axis" x="24" y="174" text-anchor="end">0</text>
+                <rect x="36" y="60" width="20" height="110" rx="2" fill="var(--chart-5)"/>
+                <rect x="63" y="75" width="20" height="95" rx="2" fill="var(--chart-5)"/>
+                <rect x="90" y="50" width="20" height="120" rx="2" fill="var(--chart-5)"/>
+                <rect x="117" y="80" width="20" height="90" rx="2" fill="var(--chart-5)"/>
+                <rect x="144" y="65" width="20" height="105" rx="2" fill="var(--chart-5)"/>
+                <rect x="171" y="85" width="20" height="85" rx="2" fill="var(--chart-5)"/>
+                <rect x="198" y="70" width="20" height="100" rx="2" fill="var(--chart-1)"/>
+                <rect x="225" y="90" width="20" height="80" rx="2" fill="var(--chart-1)"/>
+                <rect x="252" y="95" width="20" height="75" rx="2" fill="var(--chart-1)"/>
+                <rect x="279" y="80" width="20" height="90" rx="2" fill="var(--chart-1)"/>
+                <rect x="306" y="100" width="20" height="70" rx="2" fill="var(--chart-1)"/>
+                <rect x="333" y="110" width="20" height="60" rx="2" fill="var(--chart-1)"/>
+                <text class="axis" x="46" y="190" text-anchor="middle">Aug 10</text><text class="axis" x="208" y="190" text-anchor="middle">Sep 14</text><text class="axis" x="343" y="190" text-anchor="middle">Oct 26</text>
+              </svg>
+              <div class="legend" style="margin-top:8px"><span><i class="sw" style="background:var(--chart-5)"></i>Before Cleanpost</span><span><i class="sw" style="background:var(--chart-1)"></i>On Cleanpost (live Sep 14)</span></div>
+              <p class="subtle" style="margin-top:8px">22 a week before go-live, 12 last week.</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ D-02 ============================ -->
+<section class="ref-view" id="D-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">D-02</span><h2>Denial detail</h2><div class="row"><span class="tag">Drawer</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Give everything needed to decide on one denial without opening the claim.</dd>
+      <dt>Data</dt><dd>Denied line and its claim; CARC, RARC and group codes with plain meaning; AI explanation and suggested correction with evidence; amount at risk; corrected-claim or appeal deadline; history of similar denials for this client and payer.</dd>
+      <dt>Actions</dt><dd>Build correction (C-08 in correction mode with the fix applied); Write off (D-03); Mark for appeal (Later, D-04); Reassign; Open claim.</dd>
+      <dt>States</dt><dd>Correction already in flight: shows the corrected claim's status instead of actions. Non-fixable category: primary action is Write off.</dd>
+      <dt>Rules</dt><dd>AI text is labeled Suggested with its evidence. Accepting or dismissing the suggestion is recorded.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:760px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="drawer" role="dialog" aria-labelledby="d02t">
+      <div class="drawer-head"><div class="stack-sm"><div class="row"><span class="chip chip-bad"><i data-lucide="circle-x"></i>Denied</span><span class="tag">Authorization</span></div><h2 id="d02t">Hart, J. · Cigna · $1,840.00</h2><span class="muted dense">Willamette Ortho · <span class="code">WOR-26-001290</span> · DOS Sep 24 · line 1 <span class="code">29881</span></span></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="drawer-body">
+        <div class="stack-sm"><div class="row"><span class="codechip bad">CO-197</span><span class="dense">Prior authorization missing or not on the claim</span></div><div class="row"><span class="codechip">N54</span><span class="dense">Claim information does not match the authorization</span></div></div>
+        <div class="suggestion"><div class="suggestion-head"><i data-lucide="sparkles"></i>Suggested</div><p>Cigna has an authorization for this knee arthroscopy (<span class="code">A2609-55812</span>, approved Sep 18) but it was not on the claim. Add it to the claim and send a corrected claim.</p><div class="evidence">Authorization found in the PM encounter notes field · 3 similar Cigna denials for this client fixed this way, all paid.</div></div>
+        <dl class="dl"><div><dt>At risk</dt><dd class="fig">$1,840.00</dd></div><div><dt>Corrected claim by</dt><dd>Nov 12, 2026</dd></div><div><dt>Assigned to</dt><dd>Dana Reyes</dd></div></dl>
+        <div class="stack-sm"><span class="overline">History</span><ul class="timeline"><li><span class="tl-dot bad"></span><div><div class="tl-title">Denied in Cigna EFT 7730551</div><div class="tl-meta">Oct 21 · read from Tebra</div></div></li><li><span class="tl-dot info"></span><div><div class="tl-title">Accepted by Cigna</div><div class="tl-meta">Sep 26 · 277CA via Stedi</div></div></li></ul></div>
+      </div>
+      <div class="drawer-foot"><button type="button" class="btn btn-secondary">Write off</button><button type="button" class="btn btn-secondary">Reassign</button><button type="button" class="btn btn-primary">Build correction</button></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ D-03 ============================ -->
+<section class="ref-view" id="D-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">D-03</span><h2>Write off denial</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Close a denial by writing off its balance, with a reason the billing company can report to its client.</dd>
+      <dt>Data</dt><dd>Line, amount, client's PM write-off codes, reason list (not worth pursuing, timely filing missed, patient not covered and not billable, practice instruction, other).</dd>
+      <dt>Actions</dt><dd>Reason (required), PM write-off code, amount (defaults to full balance; partial allowed), note; Write off. Bulk mode shows count and total.</dd>
+      <dt>States</dt><dd>Amount over the tenant's approval limit (default $500) requires admin; billers see "Request approval" instead.</dd>
+      <dt>Rules</dt><dd>Destructive confirmation (writes to the PM via adapter or manual task). Recorded on the claim timeline and in reports as written off, separate from corrected.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:680px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal" role="dialog" aria-labelledby="d03t">
+      <div class="modal-head"><div><h2 id="d03t">Write off $376.00</h2><p class="muted dense">Timely filing · Okafor, T. · Moda Health · <span class="code">CPD-26-001544</span> line 1</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field"><label for="d03r">Reason</label><select id="d03r" class="select"><option>Timely filing missed</option></select></div>
+          <div class="field"><label for="d03c">AdvancedMD write-off code</label><select id="d03c" class="select"><option>TFWO · Timely filing write-off</option></select></div>
+          <div class="field"><label for="d03a">Amount</label><input id="d03a" class="input" value="$376.00"></div>
+          <div class="field full"><label for="d03n">Note</label><textarea id="d03n" class="textarea">Original claim held for referral past Moda's 90-day limit.</textarea></div>
+        </div>
+        <div class="banner warn"><i data-lucide="triangle-alert"></i><span>This writes the balance off in AdvancedMD and cannot be undone from Cleanpost.</span></div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-danger">Write off $376.00</button></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ D-04 ============================ -->
+<section class="ref-view" id="D-04">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">D-04</span><h2>Appeal draft</h2><div class="row"><span class="tag">Page</span><span class="tag">Later</span><span class="tag">Route /denials/:id/appeal</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Prepare an appeal for a denial that cannot be fixed with a corrected claim.</dd>
+      <dt>Data</dt><dd>Denial, claim, payer appeal address and method, deadline; generated letter (suggested); attachments (records, authorization, EOB).</dd>
+      <dt>Actions</dt><dd>Edit letter; add attachments; choose send method (payer portal task, fax, mail through Stedi paper); Mark as sent; Save draft.</dd>
+      <dt>States</dt><dd>Deadline within 7 days: red banner. Sent: read-only with sent date and follow-up reminder.</dd>
+      <dt>Rules</dt><dd>Letter is labeled Suggested until a person edits or approves it. Attachments are PHI and audit-logged.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="denials" data-role="biller">
+      <main class="main">
+        <a class="breadcrumb" href="#D-01"><i data-lucide="arrow-left"></i>Denials</a>
+        <div class="page-head"><h1>Appeal · Patel, R. · Medicare · $1,210.00</h1><span class="chip chip-outline"><i data-lucide="circle-dashed"></i>Draft</span><div class="actions"><button type="button" class="btn btn-secondary btn-sm">Save draft</button><button type="button" class="btn btn-primary btn-sm">Mark as sent</button></div></div>
+        <div class="banner warn"><i data-lucide="calendar-clock"></i><span>Redetermination must reach Noridian by <b>Jan 19, 2027</b> (120 days from the denial).</span></div>
+        <div class="split">
+          <div class="split-main card">
+            <div class="card-head"><h2>Letter</h2><span class="suggestion-head" style="margin-left:8px"><i data-lucide="sparkles"></i>Suggested</span><span class="spacer"></span><button type="button" class="btn btn-ghost btn-sm"><i data-lucide="refresh-cw"></i>Regenerate</button></div>
+            <div class="card-body"><textarea class="textarea" style="min-height:420px" aria-label="Appeal letter">Noridian Healthcare Solutions, JF Part B Redeterminations
+
+Re: Request for redetermination
+Beneficiary: Raj Patel · MBI on file
+Claim: WOR-26-001301 · Date of service Sep 10, 2026 · 27447
+
+We request redetermination of the denial dated Oct 21, 2026 (CO-50, not medically necessary). The enclosed records document six months of failed conservative treatment and imaging showing severe joint-space loss, which meet the coverage criteria in LCD L33618.
+
+Enclosed: operative note, imaging report, physical therapy notes (Mar–Aug 2026).
+
+Willamette Orthopedics · billing by Northwind Billing</textarea></div>
+          </div>
+          <div class="stack" style="width:360px;flex:none">
+            <div class="card"><div class="card-head"><h2>Attachments</h2><span class="spacer"></span><button type="button" class="btn btn-ghost btn-sm"><i data-lucide="plus"></i>Add</button></div><div class="card-body stack-sm dense">
+              <div class="row"><i data-lucide="file-text"></i>Operative note, Sep 10.pdf<span class="spacer"></span><span class="subtle">2 pages</span></div>
+              <div class="row"><i data-lucide="file-text"></i>MRI report, Jul 22.pdf<span class="spacer"></span><span class="subtle">1 page</span></div>
+              <div class="row"><i data-lucide="file-text"></i>PT notes, Mar–Aug.pdf<span class="spacer"></span><span class="subtle">14 pages</span></div>
+            </div></div>
+            <div class="card"><div class="card-head"><h2>Send by</h2></div><div class="card-body stack-sm">
+              <label class="check"><input type="radio" name="d04" checked>Mail through Stedi (printed and mailed)</label>
+              <label class="check"><input type="radio" name="d04">Payer portal (creates a task)</label>
+              <label class="check"><input type="radio" name="d04">Fax</label>
+            </div></div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<div class="ref-intro">
+  <h1>Manual tasks</h1>
+  <p>When a client's PM has no integration for an operation, Cleanpost prepares the work with every value filled in and a biller completes it in the PM. This is what lets a client go live before any integration exists.</p>
+</div>
+
+<!-- ============================ M-01 ============================ -->
+<section class="ref-view" id="M-01">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">M-01</span><h2>Manual task</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /tasks/:id</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Let a biller complete an operation in the PM by hand, quickly and without mistakes.</dd>
+      <dt>Data</dt><dd>manual_tasks (operation, connection, payload_ref); for postings: remittance header, balance check, allocations per claim and line with amounts and adjustment names already mapped to the client's PM codes; PM-specific instructions where known.</dd>
+      <dt>Actions</dt><dd><ul><li>Copy buttons beside each value.</li><li>Tick rows as entered (kept per user while the task is open).</li><li>Download worksheet as CSV or PDF (F-02).</li><li>Mark as posted, with the PM's payment ID (required).</li><li>I couldn't complete this (M-02).</li></ul></dd>
+      <dt>States</dt><dd>Started by another user: banner with their name and time. Completed: read-only with who, when and the PM reference. A later sync that verifies the posting marks it verified.</dd>
+      <dt>Rules</dt><dd>Marking as posted records the actor and PM reference, resolves the work item, and, if the PM can be read, schedules verification. Worksheet downloads are audit-logged.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="tasks" data-client="Riverbend Counseling" data-role="biller">
+      <main class="main" style="max-width:1200px">
+        <a class="breadcrumb" href="#M-03"><i data-lucide="arrow-left"></i>Manual tasks</a>
+        <div class="card card-body stack-sm">
+          <div class="row"><span class="chip chip-warn"><i data-lucide="triangle-alert"></i>Manual task · due today</span><span class="muted dense">SimplePractice has no posting integration yet. Cleanpost matched and balanced this payment.</span></div>
+          <h1 class="title-l">Post Optum EFT 8841203 · $2,980.00 · 14 claims</h1>
+          <div class="balance"><i data-lucide="circle-check"></i><b>835 balances</b><span>All 14 claims matched · paid $2,980.00 · contractual adjustments $1,206.40 · patient responsibility $528.20</span></div>
+        </div>
+        <div class="split">
+          <div class="card card-body stack" style="width:360px;flex:none">
+            <h2 class="title-m">Steps in SimplePractice</h2>
+            <ol class="stack-sm" style="margin:0;padding-left:20px">
+              <li>Open Billing, then Insurance payments, and start a new payment from Optum.</li>
+              <li>Enter reference <span class="code">8841203</span> <button type="button" class="icon-btn ghost" style="width:24px;height:24px" aria-label="Copy reference"><i data-lucide="copy"></i></button>, date <b>Oct 27, 2026</b> and amount <b>$2,980.00</b>.</li>
+              <li>For each claim in the worksheet, enter the paid amount and adjustments as shown. Adjustment names already match Riverbend's codes.</li>
+              <li>Leave patient responsibility on the client's balance.</li>
+              <li>Save, then paste the payment ID SimplePractice shows below.</li>
+            </ol>
+            <div class="row"><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="download"></i>Worksheet CSV</button><button type="button" class="btn btn-secondary btn-sm"><i data-lucide="file-text"></i>Worksheet PDF</button></div>
+          </div>
+          <div class="split-main card flush">
+            <div class="card-head"><h2>Worksheet</h2><span class="spacer"></span><span class="subtle">2 of 14 entered</span></div>
+            <div class="table-wrap"><table class="table nowrap">
+              <thead><tr><th>Client account</th><th>DOS</th><th>Code</th><th class="num">Paid</th><th>Adjustments (SimplePractice name)</th><th class="num">Client owes</th><th>Entered</th></tr></thead>
+              <tbody>
+                <tr class="row-muted"><td><div class="two-line"><b>Ellison, P.</b><span class="sub code">RBC-20418</span></div></td><td>Oct 6</td><td class="code">90837</td><td class="num">$118.40 <button type="button" class="icon-btn ghost" style="width:24px;height:24px" aria-label="Copy paid amount"><i data-lucide="copy"></i></button></td><td>Contractual $61.60 · Copay $20.00</td><td class="num">$20.00</td><td><label class="check"><input type="checkbox" checked><span class="sr-only">Entered</span></label></td></tr>
+                <tr class="row-muted"><td><div class="two-line"><b>Ellison, P.</b><span class="sub code">RBC-20418</span></div></td><td>Oct 13</td><td class="code">90834</td><td class="num">$92.50 <button type="button" class="icon-btn ghost" style="width:24px;height:24px" aria-label="Copy paid amount"><i data-lucide="copy"></i></button></td><td>Contractual $37.50 · Copay $20.00</td><td class="num">$20.00</td><td><label class="check"><input type="checkbox" checked><span class="sr-only">Entered</span></label></td></tr>
+                <tr><td><div class="two-line"><b>Gomez, R.</b><span class="sub code">RBC-20533</span></div></td><td>Oct 7</td><td class="code">90837</td><td class="num">$138.40 <button type="button" class="icon-btn ghost" style="width:24px;height:24px" aria-label="Copy paid amount"><i data-lucide="copy"></i></button></td><td>Contractual $61.60</td><td class="num">$0.00</td><td><label class="check"><input type="checkbox"><span class="sr-only">Entered</span></label></td></tr>
+                <tr><td><div class="two-line"><b>Chen, W.</b><span class="sub code">RBC-20602</span></div></td><td>Oct 9</td><td class="code">90791</td><td class="num">$0.00 <button type="button" class="icon-btn ghost" style="width:24px;height:24px" aria-label="Copy paid amount"><i data-lucide="copy"></i></button></td><td>Deductible $168.20 · Contractual $81.80</td><td class="num">$168.20</td><td><label class="check"><input type="checkbox"><span class="sr-only">Entered</span></label></td></tr>
+                <tr><td><div class="two-line"><b>Shah, N.</b><span class="sub code">RBC-20377</span></div></td><td>Oct 10</td><td class="code">90837</td><td class="num">$118.40 <button type="button" class="icon-btn ghost" style="width:24px;height:24px" aria-label="Copy paid amount"><i data-lucide="copy"></i></button></td><td>Contractual $61.60 · Copay $20.00</td><td class="num">$20.00</td><td><label class="check"><input type="checkbox"><span class="sr-only">Entered</span></label></td></tr>
+              </tbody></table></div>
+            <div class="table-foot"><span>9 more claims · $2,512.30 paid</span><a href="#M-01">Show all</a></div>
+          </div>
+        </div>
+        <div class="card card-body row" style="align-items:flex-end">
+          <div class="field" style="flex:1 1 280px"><label for="m01id">SimplePractice payment ID</label><input id="m01id" class="input mono" placeholder="Paste the ID shown after saving"></div>
+          <button type="button" class="btn btn-primary">Mark as posted</button>
+          <button type="button" class="btn btn-secondary">I couldn't complete this</button>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ M-02 ============================ -->
+<section class="ref-view" id="M-02">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">M-02</span><h2>Couldn't complete</h2><div class="row"><span class="tag">Modal</span><span class="tag">MVP</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Record why a manual task could not be done and hand it to an admin.</dd>
+      <dt>Data</dt><dd>Reason list: PM would not accept a value, claim or charge not found in the PM, amounts differ from what the PM shows, no access in the PM, other; how many rows were entered.</dd>
+      <dt>Actions</dt><dd>Reason (required), which rows are affected, note; Escalate (assigns to the client's admin and notifies them).</dd>
+      <dt>States</dt><dd>Partly entered: asks which rows were entered so nothing is posted twice later.</dd>
+      <dt>Rules</dt><dd>The task stays open with status escalated; entered rows are recorded.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas overlay-stage" style="--w:1200px;--h:680px">
+    <div class="ghost-page"><div class="ghost-line" style="width:30%"></div><div class="ghost-block"></div><div class="ghost-block"></div></div>
+    <div class="scrim"></div>
+    <div class="center-stage"><div class="modal" role="dialog" aria-labelledby="m02t">
+      <div class="modal-head"><div><h2 id="m02t">I couldn't complete this</h2><p class="muted dense">Post Optum EFT 8841203 · 2 of 14 claims entered</p></div><button type="button" class="icon-btn ghost close" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="modal-body">
+        <div class="field"><label for="m02r">What happened</label><select id="m02r" class="select"><option>Claim or charge not found in the PM</option><option>PM would not accept a value</option><option>Amounts differ from what the PM shows</option><option>No access in the PM</option><option>Other</option></select></div>
+        <div class="field"><label for="m02w">Which claims</label><select id="m02w" class="select"><option>Chen, W. · Oct 9 · 90791</option></select></div>
+        <div class="field"><label for="m02n">Note</label><textarea id="m02n" class="textarea">No Oct 9 appointment for Chen in SimplePractice. May have been billed under a different date.</textarea></div>
+        <div class="callout">The 2 claims you entered stay recorded as entered. Priya Shah (admin) will get this task.</div>
+      </div>
+      <div class="modal-foot"><button type="button" class="btn btn-secondary">Cancel</button><button type="button" class="btn btn-primary">Escalate to admin</button></div>
+    </div></div>
+  </div></div>
+</section>
+
+<!-- ============================ M-03 ============================ -->
+<section class="ref-view" id="M-03">
+  <div class="ref-meta">
+    <div class="ref-title"><span class="ref-id">M-03</span><h2>Manual tasks list</h2><div class="row"><span class="tag">Page</span><span class="tag">MVP</span><span class="tag">Route /tasks</span></div></div>
+    <dl class="ref-spec">
+      <dt>Purpose</dt><dd>Show all open manual work and which integrations would remove the most of it.</dd>
+      <dt>Data</dt><dd>manual_tasks by client, operation and PM; estimated minutes per task type; counts and minutes for the last 30 days per operation and PM.</dd>
+      <dt>Actions</dt><dd>Row click opens M-01; filter by client, operation, assignee; "Request an integration" (I-05) from the summary card.</dd>
+      <dt>States</dt><dd>No open tasks: empty state with "All operations for your clients run through integrations" or the count completed this week.</dd>
+      <dt>Rules</dt><dd>Minutes are estimates and labeled as such.</dd>
+    </dl>
+  </div>
+  <div class="ref-frame"><div class="ref-canvas" style="--w:1440px">
+    <div class="app" data-nav="tasks" data-role="biller">
+      <main class="main">
+        <div class="page-head"><h1>Manual tasks</h1><span class="muted">4 open · about 45 minutes of work</span></div>
+        <div class="split">
+          <div class="split-main card flush"><div class="table-wrap"><table class="table nowrap">
+            <thead><tr><th>Task</th><th>Client</th><th>PM</th><th class="num">Amount</th><th>Assignee</th><th>Due</th></tr></thead>
+            <tbody>
+              <tr><td><div class="two-line"><b>Post Optum EFT 8841203</b><span class="sub">14 claims · about 10 min</span></div></td><td>Riverbend Counseling</td><td>SimplePractice</td><td class="num">$2,980.00</td><td><span class="row"><span class="avatar sm">DR</span>Dana</span></td><td><span class="due">Today</span></td></tr>
+              <tr><td><div class="two-line"><b>Post Aetna check AE20261024</b><span class="sub">6 claims · about 5 min</span></div></td><td>Riverbend Counseling</td><td>SimplePractice</td><td class="num">$1,066.20</td><td><span class="row"><span class="avatar sm">DR</span>Dana</span></td><td><span class="due">Tomorrow</span></td></tr>
+              <tr><td><div class="two-line"><b>Correct posting: reverse write-off</b><span class="sub">Hart, J. · line 2 · about 3 min</span></div></td><td>Willamette Ortho</td><td>Tebra</td><td class="num">$446.00</td><td><span class="row"><span class="avatar sm">ML</span>Marcus</span></td><td><span class="due soon">5 h</span></td></tr>
+              <tr><td><div class="two-line"><b>Enter charge correction: modifier 25</b><span class="sub">Nguyen, M. · about 2 min</span></div></td><td>Lakeside Family Med</td><td>Tebra</td><td class="num">$312.00</td><td><span class="row"><span class="avatar sm">DR</span>Dana</span></td><td><span class="due">21 h</span></td></tr>
+            </tbody></table></div></div>
+          <div class="card" style="width:380px;flex:none">
+            <div class="card-head"><h2>Where manual time goes</h2><span class="subtle">Last 30 days</span></div>
+            <div class="card-body stack">
+              <div class="bars">
+                <div class="bar-row"><span>Posting · SimplePractice</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="v">6.5 h</span></div>
+                <div class="bar-row"><span>Corrections · Tebra</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="v">2.5 h</span></div>
+                <div class="bar-row"><span>Posting fixes · Tebra</span><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div><span class="v">1 h</span></div>
+              </div>
+              <p class="subtle">Estimates. A SimplePractice posting integration would remove about two thirds of manual time.</p>
+              <button type="button" class="btn btn-secondary btn-sm"><i data-lucide="plug-zap"></i>Request an integration</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div></div>
+</section>
+
+</div>
+<script src="assets/vendor/lucide.min.js"></script>
+<script src="assets/shell.js"></script>
+</body>
+</html>
