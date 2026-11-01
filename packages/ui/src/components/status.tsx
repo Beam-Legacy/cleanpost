@@ -10,11 +10,14 @@ export const STATUS = {
   Closed: ['outline', CircleDashed],
   Voided: ['outline', CircleDashed],
   Paused: ['outline', CircleDashed],
+  Setup: ['outline', CircleDashed],
   Built: ['flight', Clock],
   Submitted: ['flight', Clock],
   Accepted: ['flight', Clock],
   Reversed: ['flight', Clock],
   Onboarding: ['flight', Clock],
+  Testing: ['flight', Clock],
+  Running: ['flight', Clock],
   Corrected: ['flight', RotateCcw],
   Ready: ['ready', Send],
   'Needs review': ['warn', TriangleAlert],
@@ -32,6 +35,7 @@ export const STATUS = {
   Balanced: ['good', CircleCheck],
   Healthy: ['good', CircleCheck],
   Live: ['good', CircleCheck],
+  Succeeded: ['good', CircleCheck],
 } as const satisfies Record<string, readonly [Tone, LucideIcon]>;
 
 export type Status = keyof typeof STATUS;

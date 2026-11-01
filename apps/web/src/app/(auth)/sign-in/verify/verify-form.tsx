@@ -41,7 +41,7 @@ export function VerifyForm() {
   }
 
   return (
-    <form className="stack" onSubmit={onSubmit} noValidate>
+    <form method="post" className="stack" onSubmit={onSubmit} noValidate>
       <p className="muted">
         {mode === 'totp'
           ? 'Open your authenticator app and enter the 6-digit code for Cleanpost.'

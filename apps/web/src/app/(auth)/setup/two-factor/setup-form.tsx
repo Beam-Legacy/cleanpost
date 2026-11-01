@@ -70,7 +70,7 @@ export function SetupForm({ canSkip }: { canSkip: boolean }) {
   if (step.kind === 'password') {
     return (
       <>
-        <form className="stack" onSubmit={start} noValidate>
+        <form method="post" className="stack" onSubmit={start} noValidate>
           <span className="overline">Step 1 of 2</span>
           {intro}
           <Field label="Your password" help="Confirm it's you before we create your setup key." error={error}>
@@ -100,7 +100,7 @@ export function SetupForm({ canSkip }: { canSkip: boolean }) {
   if (step.kind === 'scan') {
     return (
       <>
-        <form className="stack" onSubmit={confirm} noValidate>
+        <form method="post" className="stack" onSubmit={confirm} noValidate>
           <span className="overline">Step 1 of 2</span>
           {intro}
           <div className="row" style={{ alignItems: 'flex-start', gap: 24 }}>

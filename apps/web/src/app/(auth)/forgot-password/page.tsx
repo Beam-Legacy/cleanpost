@@ -26,7 +26,7 @@ export default function ForgotPasswordPage() {
           <Link href="/sign-in">Back to sign in</Link>
         </div>
       ) : (
-        <form className="stack" onSubmit={onSubmit} noValidate>
+        <form method="post" className="stack" onSubmit={onSubmit} noValidate>
           <p className="muted">Enter your work email and we&apos;ll send a link to set a new password.</p>
           <Field label="Work email">
             {(p) => <Input {...p} name="email" type="email" autoComplete="username" required />}

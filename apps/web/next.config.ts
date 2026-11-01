@@ -27,6 +27,7 @@ const config: NextConfig = {
   devIndicators: false,
   reactStrictMode: true,
   transpilePackages: [
+    '@cleanpost/adapters',
     '@cleanpost/auth',
     '@cleanpost/config',
     '@cleanpost/db',

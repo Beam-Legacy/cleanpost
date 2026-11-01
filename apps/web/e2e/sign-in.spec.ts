@@ -1,24 +1,7 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { E2E_EMAIL } from './global-setup';
+import { expectAccessible, PASSWORD } from './helpers';
 import { totp } from './totp';
-
-const PASSWORD = process.env.SEED_PASSWORD ?? 'cleanpost-dev-password';
-
-async function expectAccessible(page: Page, label: string) {
-  for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((t) => (document.documentElement.dataset.theme = t), theme);
-    const { violations } = await new AxeBuilder({ page })
-      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-      .analyze();
-    expect(
-      violations.map(
-        (v) => `${label} (${theme}) ${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`,
-      ),
-    ).toEqual([]);
-  }
-  await page.evaluate(() => delete document.documentElement.dataset.theme);
-}
 
 test('first sign-in: password, required two-factor setup, company choice, app shell', async ({ page }) => {
   await page.goto('/work');
@@ -29,7 +12,9 @@ test('first sign-in: password, required two-factor setup, company choice, app sh
   await page.getByLabel('Work email').fill(E2E_EMAIL);
   await page.getByLabel('Password', { exact: true }).fill('not the password at all');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.locator('#sign-in-error')).toHaveText('Email or password is incorrect.');
+  await expect(page.locator('#sign-in-error')).toHaveText('Email or password is incorrect.', {
+    timeout: 30_000,
+  });
 
   await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();

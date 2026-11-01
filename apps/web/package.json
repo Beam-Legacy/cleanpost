@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@better-auth/passkey": "1.7.14",
+    "@cleanpost/adapters": "workspace:*",
     "@cleanpost/auth": "workspace:*",
     "@cleanpost/config": "workspace:*",
     "@cleanpost/db": "workspace:*",

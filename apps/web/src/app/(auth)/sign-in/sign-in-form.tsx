@@ -40,7 +40,7 @@ export function SignInForm() {
   }
 
   return (
-    <form className="stack" onSubmit={onSubmit} noValidate>
+    <form method="post" className="stack" onSubmit={onSubmit} noValidate>
       <Field label="Work email">
         {(p) => <Input {...p} name="email" type="email" autoComplete="username" required />}
       </Field>

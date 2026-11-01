@@ -40,7 +40,7 @@ function ResetForm() {
     );
   }
   return (
-    <form className="stack" onSubmit={onSubmit} noValidate>
+    <form method="post" className="stack" onSubmit={onSubmit} noValidate>
       <Field label="New password" help="At least 12 characters. A short sentence works well.">
         {(p) => (
           <Input {...p} name="password" type="password" autoComplete="new-password" minLength={12} required />

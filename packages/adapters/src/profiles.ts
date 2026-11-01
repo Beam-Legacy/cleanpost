@@ -106,3 +106,10 @@ export function summaryLevel(levels: Partial<CapabilityMap>): string {
   const best = Math.max(...reads.map((o) => (typeof levels[o] === 'number' ? (levels[o] as number) : -1)));
   return best < 0 ? 'Manual' : LEVEL_LABEL[best as 0 | 1 | 2 | 3 | 4];
 }
+
+/** Default sync.pull interval by adapter (contract SyncPolicy); null means on demand only. */
+export function defaultSyncMinutes(adapterKey: string): number | null {
+  if (adapterKey === 'mock') return 15;
+  if (adapterKey === 'tebra') return 120;
+  return null;
+}
