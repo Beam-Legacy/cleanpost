@@ -28,7 +28,15 @@ export interface Connection {
   clientId: string;
   adapterKey: AdapterKey;
   credentialsSecretRef: string | null;
-  settings: Record<string, unknown>;
+  /** Connections in the same PM account (e.g. a Tebra billing-company account) share this, their credential and their rate limit. */
+  pmAccountRef: string | null;
+  settings: Record<string, unknown>;   // e.g. Tebra practice ID
+}
+
+/** How often to pull and when. Rate limits are enforced inside the adapter through the registry's shared limiter, keyed by pmAccountRef and PM endpoint. */
+export interface SyncPolicy {
+  defaultIntervalMinutes: number;      // sync.pull schedule unless the connection overrides it (mock 15, tebra 120)
+  preferOffHours: boolean;             // run backfills and large pulls outside the client's business hours
 }
 
 export interface Page<T> { items: T[]; nextCursor: string | null }
@@ -158,6 +166,7 @@ export interface PostingInstruction {
 
 export interface PmAdapter {
   key: AdapterKey;
+  syncPolicy: SyncPolicy;
   capabilities(conn: Connection): Promise<CapabilityMap>;
   healthCheck(conn: Connection): Promise<HealthResult>;
 

@@ -49,6 +49,11 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 | Data the designs use but the model lacked | Added: tenant profile and contacts (S-14), `tenant_agreements`, `exports`, `invoices`, `integration_requests`, `break_glass_grants`, `platform_banners`, `user_preferences`, `saved_views`, `notification_rules`, `clients.pm_batch_time`, `remit_claims.matched_by`. | 02 |
 | Operations with no manual fallback | Some operations cannot be done by hand in a useful way (holding a charge in a PM with no hold). Capability values are 0–4 or `unavailable`, matching I-02's "Not available in this PM". | 05, contract |
 
+## DEC-08 — Tebra findings shape the adapter contract (Nov 1, 2026)
+
+- **Decision:** Sync schedules and rate limits are per adapter, not one global default: the contract gains a `syncPolicy`. Several clients may share one PM account (Tebra billing-company accounts), so connections carry a `pm_account_ref` that groups shared credentials and rate limits. Where a PM requires an over-privileged API user (Tebra requires System Admin), the dedicated user rule still applies and the gap is recorded in the adapter README.
+- **Affects:** `02-data-model.md`, `05-adapters.md`, `15-integrations-reference.md`, `starter/packages/adapters/src/contract.ts`.
+
 ## Open questions
 
 | Question | Owner | Needed by |

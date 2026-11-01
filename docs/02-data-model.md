@@ -81,7 +81,7 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `connections` | client_id, adapter_key (`mock`,`manual`,`file`,`tebra`,...), level per operation jsonb (0–4 or `unavailable`), credentials_secret_ref, status (`setup`,`testing`,`healthy`,`degraded`,`failed`,`paused`), last_success_at | Credentials live in Secrets Manager |
+| `connections` | client_id, adapter_key (`mock`,`manual`,`file`,`tebra`,...), level per operation jsonb (0–4 or `unavailable`), credentials_secret_ref, pm_account_ref (connections in one PM account share it, their credential and their rate limit), sync_interval_minutes (null = adapter default), status (`setup`,`testing`,`healthy`,`degraded`,`failed`,`paused`), last_success_at | Credentials live in Secrets Manager |
 | `sync_runs` | connection_id, operation, started_at, finished_at, status, counts jsonb, error_code, error_detail (no PHI) | |
 | `external_refs` | connection_id, entity_type, entity_id, external_id | Maps PM IDs to canonical IDs |
 | `manual_tasks` | connection_id, operation, work_item_id, payload_ref, status | Tasks a biller completes in the PM by hand |
