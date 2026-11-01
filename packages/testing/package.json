@@ -1,0 +1,25 @@
+{
+  "name": "@cleanpost/testing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./vitest": "./src/vitest-preset.ts"
+  },
+  "bin": {
+    "cleanpost-scan-logs": "./src/scan-logs-cli.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "scan:logs": "tsx src/scan-logs-cli.ts"
+  },
+  "dependencies": {
+    "vitest": "^5.0.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}
