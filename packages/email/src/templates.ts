@@ -110,3 +110,24 @@ export function newSignInEmail(i: NewSignInEmailInput): EmailContent {
     reason: "Security alerts can't be turned off.",
   });
 }
+
+export interface AccountLockedEmailInput {
+  until: Date;
+  timeZone: string;
+  resetUrl: string;
+}
+
+/** A-08: sent when repeated failed sign-ins lock the account (E-03 style). */
+export function accountLockedEmail(i: AccountLockedEmailInput): EmailContent {
+  return renderEmail({
+    subject: 'Your Cleanpost account is locked for 15 minutes',
+    preview: 'Too many incorrect passwords.',
+    heading: 'Account locked for 15 minutes',
+    paragraphs: [
+      `Someone entered an incorrect password for this account 5 times. Sign-in is paused until ${formatTime(i.until, i.timeZone)}.`,
+    ],
+    notes: ["If this wasn't you, reset your password now."],
+    cta: { label: 'Reset password', url: i.resetUrl },
+    reason: "Security alerts can't be turned off.",
+  });
+}

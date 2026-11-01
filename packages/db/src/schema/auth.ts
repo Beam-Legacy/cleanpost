@@ -4,6 +4,7 @@
  * Column names follow better-auth's core schema plus the two-factor and passkey plugins;
  * packages/auth has a test that checks them against better-auth's own schema.
  */
+import { sql } from 'drizzle-orm';
 import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { id, timestamps } from './_columns';
 
@@ -14,8 +15,16 @@ export const users = pgTable('users', {
   emailVerified: boolean('email_verified').notNull().default(false),
   image: text('image'),
   twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
-  /** active | locked | deactivated */
+  /** active | deactivated (an admin's lock). Temporary lockouts use lockedUntil. */
   status: text('status').notNull().default('active'),
+  /** A-08: consecutive failed password attempts; reset on success. */
+  failedSignInCount: integer('failed_sign_in_count').notNull().default(0),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+  /** Hashes of devices this user signed in from, newest first (E-03 new sign-in alerts). */
+  knownDevices: text('known_devices')
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
   ...timestamps,
 });
 
