@@ -57,6 +57,13 @@
       "when": 1793527076442,
       "tag": "0007_full_model_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793529953390,
+      "tag": "0008_sync_engine",
+      "breakpoints": true
     }
   ]
 }

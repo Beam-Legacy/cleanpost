@@ -1,6 +1,17 @@
 /** PM connections and sync (docs/05-adapters.md). Credentials live in the secrets manager; only references here. */
 import { sql } from 'drizzle-orm';
-import { check, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import {
+  check,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core';
 import { clientId, id, tenantId, timestamps } from './_columns';
 import { clients } from './organization';
 
@@ -21,6 +32,8 @@ export const connections = pgTable(
     /** setup | testing | healthy | degraded | failed | paused */
     status: text('status').notNull().default('setup'),
     lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+    /** Sync cycles in a row in which every operation failed (3 -> failed, docs/03-state-machines.md). */
+    consecutiveFailedCycles: integer('consecutive_failed_cycles').notNull().default(0),
     nextRunAt: timestamp('next_run_at', { withTimezone: true }),
     credentialsRotatedAt: timestamp('credentials_rotated_at', { withTimezone: true }),
     ...timestamps,
@@ -95,3 +108,21 @@ export const manualTasks = pgTable('manual_tasks', {
   pmReference: text('pm_reference'),
   ...timestamps,
 });
+
+/**
+ * Token buckets for PM rate limits (docs/05-adapters.md), shared by every worker: one row per PM
+ * account (pm_account_ref, or the connection when it has none) and PM endpoint.
+ */
+export const rateLimitBuckets = pgTable(
+  'rate_limit_buckets',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    key: text('key').notNull(),
+    endpoint: text('endpoint').notNull(),
+    tokens: doublePrecision('tokens').notNull(),
+    refilledAt: timestamp('refilled_at', { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps,
+  },
+  (t) => [unique('rate_limit_buckets_key').on(t.tenantId, t.key, t.endpoint)],
+);

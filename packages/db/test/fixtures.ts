@@ -188,6 +188,9 @@ export async function insertTenantFixture(db: Database, f: TenantFixture, label:
     .insert(s.notifications)
     .values({ ...t, userId: f.user, type: 'sla_breach', summary: 'An item is overdue' });
   await db.insert(s.syncRuns).values({ ...tc, connectionId: connection!.id, operation: 'pullCharges' });
+  await db
+    .insert(s.rateLimitBuckets)
+    .values({ ...t, key: `account-${label}`, endpoint: 'GetCharges', tokens: 1 });
   await db.insert(s.externalRefs).values({
     ...tc,
     connectionId: connection!.id,

@@ -336,6 +336,40 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
 
+  packages/sync:
+    dependencies:
+      '@cleanpost/adapters':
+        specifier: workspace:*
+        version: link:../adapters
+      '@cleanpost/db':
+        specifier: workspace:*
+        version: link:../db
+      '@cleanpost/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@cleanpost/log':
+        specifier: workspace:*
+        version: link:../log
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
+    devDependencies:
+      '@cleanpost/pm-mock':
+        specifier: workspace:*
+        version: link:../../apps/pm-mock
+      '@cleanpost/seed':
+        specifier: workspace:*
+        version: link:../seed
+      '@cleanpost/testing':
+        specifier: workspace:*
+        version: link:../testing
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
+
   packages/testing:
     dependencies:
       vitest:

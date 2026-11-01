@@ -69,6 +69,7 @@ const TENANT_TABLES: Record<string, 'tenant_id' | 'id'> = {
       'notifications',
       'connections',
       'sync_runs',
+      'rate_limit_buckets',
       'external_refs',
       'manual_tasks',
       'tenant_agreements',
@@ -291,6 +292,36 @@ describe('rules', () => {
       return { globals: r.rows[0]!.n, updated: u.rowCount };
     });
     expect(seen).toEqual({ globals: 1, updated: 0 });
+  });
+});
+
+describe('sync scheduler', () => {
+  it('lists due-able connections across tenants with schedule fields only', async () => {
+    await admin.db.execute(
+      sql`update connections set status = 'healthy' where tenant_id in (${A.tenant}, ${B.tenant})`,
+    );
+    const res = await app.pool.query<Record<string, unknown>>('select * from app.sync_candidates()');
+    expect(new Set(res.rows.map((r) => r.tenant_id))).toEqual(new Set([A.tenant, B.tenant]));
+    expect(Object.keys(res.rows[0]!).sort()).toEqual(
+      [
+        'adapter_key',
+        'connection_id',
+        'last_success_at',
+        'next_run_at',
+        'status',
+        'sync_interval_minutes',
+        'tenant_id',
+      ].sort(),
+    );
+    // Still no direct cross-tenant read of the table itself.
+    const direct = await app.pool.query<{ n: number }>('select count(*)::int as n from connections');
+    expect(direct.rows[0]!.n).toBe(0);
+  });
+
+  it('skips paused, failed and setup connections', async () => {
+    await admin.db.execute(sql`update connections set status = 'paused' where tenant_id = ${B.tenant}`);
+    const res = await app.pool.query<{ tenant_id: string }>('select tenant_id from app.sync_candidates()');
+    expect(res.rows.map((r) => r.tenant_id)).toEqual([A.tenant]);
   });
 });
 

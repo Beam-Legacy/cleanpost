@@ -63,10 +63,15 @@ export async function recordAudit(tx: Tx, event: AuditEvent): Promise<void> {
 
 /**
  * Runs a PHI read or write and records it in the same transaction (CLAUDE.md rule 7). If the audit
- * insert fails, the transaction fails and nothing is returned or changed.
+ * insert fails, the transaction fails and nothing is returned or changed. Pass a function to build
+ * the event from the result, e.g. to name a record the write just created.
  */
-export async function withAudit<T>(tx: Tx, event: AuditEvent, fn: () => Promise<T>): Promise<T> {
+export async function withAudit<T>(
+  tx: Tx,
+  event: AuditEvent | ((result: T) => AuditEvent),
+  fn: () => Promise<T>,
+): Promise<T> {
   const result = await fn();
-  await recordAudit(tx, event);
+  await recordAudit(tx, typeof event === 'function' ? event(result) : event);
   return result;
 }

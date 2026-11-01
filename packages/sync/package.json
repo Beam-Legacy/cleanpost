@@ -1,0 +1,28 @@
+{
+  "name": "@cleanpost/sync",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cleanpost/adapters": "workspace:*",
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "drizzle-orm": "^0.45.4"
+  },
+  "devDependencies": {
+    "@cleanpost/pm-mock": "workspace:*",
+    "@cleanpost/seed": "workspace:*",
+    "@cleanpost/testing": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1"
+  }
+}
