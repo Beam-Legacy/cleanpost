@@ -25,4 +25,4 @@ Reason: Tebra's API guide (April 2026) and public WSDL. See `docs/05-adapters.md
 | D-02 | money.html | History "Denied in Cigna EFT 7730551 · Oct 21 · read from Tebra" | "Oct 21 · from uploaded 835" |
 | WEB-05 | website.html | Tebra note "Official API. Holding charges before submission is not available." | "Official API. Charges wait in Tebra's encounter review until Cleanpost releases them; remittance files (835) are uploaded." |
 
-Not changed, pending the Tebra test: W-20 and R-04 still show Tebra adjustment codes (CONTR, PTRESP) on posted lines. If the test shows Tebra's API returns amounts only, update both.
+Not changed, pending the Tebra test: W-20 and R-04 show Tebra adjustment codes (CONTR, PTRESP) on posted lines. Tebra's schema does return a contractual adjustment reason per line (Nov 1, 2026), so the designs are probably right; confirm what that reason holds before relying on it.

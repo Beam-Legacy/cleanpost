@@ -4,11 +4,20 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/contract-suite.ts"
   },
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run",
+    "test:adapters": "vitest run test/contract"
+  },
+  "dependencies": {
+    "@cleanpost/domain": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cleanpost/testing": "workspace:*"
   }
 }

@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./policy": "./src/policy/index.ts"
+    "./policy": "./src/policy/index.ts",
+    "./state": "./src/state/index.ts"
   },
   "scripts": {
     "lint": "eslint .",

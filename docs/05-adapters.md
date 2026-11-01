@@ -43,7 +43,7 @@ interface PmAdapter {
 - Every operation returns `OpResult = { ok: true, externalRef? } | { ok: false, retryable: boolean, code: AdapterErrorCode, manualTask?: ManualTaskSpec }`.
 - Unsupported operations return `{ ok: false, retryable: false, code: 'UNSUPPORTED', manualTask }` so the platform turns them into manual tasks automatically.
 - Pull operations are cursor-paged and idempotent. Records carry the PM's external IDs; the hub maps them through `external_refs`.
-- Mapping from `Ext*` types to canonical records lives in each adapter's `map.ts` and is unit-tested with recorded fixtures.
+- Each adapter's `map.ts` turns the PM's own payloads into `Ext*` records, unit-tested with fixtures (recorded ones once a live account exists). `packages/adapters/src/schemas.ts` validates every `Ext*` record at the boundary (Zod); sync then maps `Ext*` to canonical rows in one shared place.
 
 ## Adapters to build now
 
@@ -75,7 +75,7 @@ From Tebra's API guide (April 2026) and its public WSDL. Confirm each row in the
 | `markChargeBilled` | None | `unavailable` | Modes B and C need Tebra's electronic claim submission turned off for the practice |
 | `pullClaimsAndStatus` | `GetCharges` (status and billing dates) | 4, coarse | Statuses: Pending, Ready, Completed, Error – Rejection, Error – Denial, Error – No Response. Confirm what Tebra sends as CLM01 (`claims.pcn_source = pm`) |
 | `pullRemittances` | None | 3 (835 file upload) | Tebra's API has no ERA access. Confirm billers can download raw 835 files |
-| `pullPostings` | `GetPayments`, `GetTransactions`, charge balances from `GetCharges` | 4, partial | If adjustments carry no codes, the posting match compares amounts per line and flags codes as unavailable |
+| `pullPostings` | `GetCharges`: per charge line and insurance order, allowed, payment, contractual adjustment with reason, other adjustment with reason, deductible, coinsurance, copay, payment reference and posting date (from the WSDL schema, Nov 1, 2026) | 4 | Line-level posting match looks possible; confirm what the adjustment reason holds (CARC or Tebra text) in the Tebra test |
 | `postPayment` | `CreatePayment` makes a payment header only | 0 | Posting worksheet (only relevant in Mode B) |
 
 ## Sync policy and rate limits

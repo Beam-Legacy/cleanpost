@@ -127,7 +127,18 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
 
-  packages/adapters: {}
+  packages/adapters:
+    dependencies:
+      '@cleanpost/domain':
+        specifier: workspace:*
+        version: link:../domain
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@cleanpost/testing':
+        specifier: workspace:*
+        version: link:../testing
 
   packages/auth:
     dependencies:
