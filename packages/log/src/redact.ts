@@ -81,12 +81,21 @@ export function redactDeep(value: unknown, seen = new WeakSet<object>()): unknow
 export function serializeError(err: Error): Record<string, unknown> {
   const e = err as Error & { code?: unknown; safeMessage?: unknown };
   const fromDriver =
-    'detail' in e || 'params' in e || 'severity' in e || 'query' in e || e.constructor.name.includes('Query');
+    'detail' in e ||
+    'params' in e ||
+    'severity' in e ||
+    'query' in e ||
+    /Query|Database/.test(e.constructor.name) ||
+    e.message.includes('\n');
   return {
-    type: e.constructor.name,
+    type: e.name && e.name !== 'Error' ? e.name : e.constructor.name,
     code: typeof e.code === 'string' ? e.code : undefined,
     message: typeof e.safeMessage === 'string' ? e.safeMessage : fromDriver ? REDACTED : e.message,
-    stack: e.stack?.split('\n').slice(1).join('\n'),
+    // Only stack frames: the first lines of `stack` repeat the message, which can hold query parameters.
+    stack: e.stack
+      ?.split('\n')
+      .filter((line) => /^\s+at /.test(line))
+      .join('\n'),
     cause: e.cause instanceof Error ? serializeError(e.cause) : undefined,
   };
 }

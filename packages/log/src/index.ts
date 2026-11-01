@@ -1,5 +1,5 @@
 import pino, { type DestinationStream, type Logger, type LoggerOptions } from 'pino';
-import { isRedactedKey, redactDeep } from './redact';
+import { isRedactedKey, redactDeep, serializeError } from './redact';
 
 export { REDACTED, REDACTED_KEYS, isRedactedKey, redactDeep, serializeError } from './redact';
 export type { Logger } from 'pino';
@@ -27,6 +27,11 @@ export function createLogger({ name, level, destination }: CreateLoggerOptions):
       level: (label) => ({ level: label }),
       // Every merging object goes through deep redaction before serialisation.
       log: (obj) => redactDeep(obj) as Record<string, unknown>,
+    },
+    // Replace pino's default error serializer, which copies message, stack and every property.
+    serializers: {
+      err: (v: unknown) => (v instanceof Error ? serializeError(v) : v),
+      error: (v: unknown) => (v instanceof Error ? serializeError(v) : v),
     },
   };
   return pino(options, destination ?? destinationFromEnv());
