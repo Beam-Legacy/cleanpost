@@ -9,6 +9,7 @@ cleanpost/
     worker/         pg-boss job runner: syncs, scrubbing, submission, tracking, posting, reports
     pm-mock/        Reference PM system (own Postgres schema, REST API, simple UI for testing)
     payer-sim/      Payer simulator: accepts 837 JSON, returns 277CA and 835 on a schedule
+    website/        Static marketing site built from the WEB- designs (no PHI, no app code; off the pilot path)
   packages/
     domain/         Pure business logic: claim builder, rules, matching, state machines, money
     db/             Drizzle schema, migrations, RLS policies, tenant-scoped client
@@ -16,6 +17,7 @@ cleanpost/
     stedi/          Typed Stedi client (eligibility, claims, status, ERA, enrollment, webhooks)
     x12/            837/835/277 parsers and serializers for file-based adapters and golden tests
     ai/             Bedrock client, prompt templates, structured-output schemas, redaction guard
+    email/          Transactional email templates (E-01 to E-07) and sender; emails never contain PHI
     ui/             Shared components built on shadcn/ui with Cleanpost tokens
     log/            pino logger with PHI redaction
     config/         Env schema (Zod), feature flags
@@ -47,7 +49,7 @@ All asynchronous work is a pg-boss job. Payloads carry IDs only.
 
 | Job | Trigger | Does |
 | --- | --- | --- |
-| `sync.pull` | Schedule per connection (default every 15 min), manual | Calls adapter pull operations, upserts canonical records, records a SyncRun |
+| `sync.pull` | Schedule per connection (default from the adapter's `syncPolicy`: mock 15 min, Tebra 2 hours), manual | Calls adapter pull operations, upserts canonical records, records a SyncRun |
 | `eligibility.check` | New or changed coverage; 3 days before a scheduled claim release | Stedi 270, stores 271 summary |
 | `claim.build` | New charges complete for an encounter | Builds claim version from canonical records |
 | `claim.scrub` | After build, after any edit | Runs rules and AI review, sets confidence, routes |
@@ -69,8 +71,8 @@ Retry policy: exponential backoff, max 5 attempts; after that the job creates a 
 
 | Env | Data | Host | BAA |
 | --- | --- | --- | --- |
-| local | Synthetic only | Docker | n/a |
-| preview | Synthetic only | Any low-cost host | Not required |
+| local | Synthetic only | Docker (Postgres, Mailpit for email) | n/a |
+| preview | Synthetic only | Railway | Not required |
 | staging | Synthetic plus de-identified golden files | AWS | Yes |
 | production | Real PHI | AWS (ECS Fargate, RDS Postgres, S3 with SSE-KMS, Secrets Manager) | Yes, signed before any PHI |
 

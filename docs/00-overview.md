@@ -38,14 +38,17 @@ In:
 - Eligibility (270/271) via Stedi
 - Insurance card capture and extraction
 - Rules engine, claim builder, scrubber, LLM explanation, confidence scoring, auto-release
-- Submission: Mode A via adapter, Modes B and C via Stedi
+- Submission: Mode A via adapter for the pilot; Modes B and C via Stedi after the pilot (`docs/17-decisions.md` DEC-01)
 - Claim tracking: 999, 277CA, 276/277, timely-filing watch
-- Remittance ingestion (Stedi webhook, PM read, file upload), matching, adjustment mapping, posting, reconciliation
+- Remittance ingestion (PM read and file upload; Stedi webhook with Modes B and C), matching, adjustment mapping, verification and posting, reconciliation
 - Denials categorization with suggested fix and corrected-claim builder
 - One work queue across clients
 - Reports per client and per tenant; usage metering
 - Client onboarding wizard with mode selection and go-live checklist
 - Platform operator console (integration health, jobs) without PHI
+- Transactional emails (E-01 to E-07) and PDFs (F-01 to F-03), with no PHI in any email
+
+Built alongside, off the pilot path: the marketing website, a static site (`apps/website`, DEC-05).
 
 Out of MVP (later):
 - AI coding from clinical notes
@@ -85,3 +88,6 @@ Out of MVP (later):
 | 14-api | Internal API and webhooks |
 | 15-integrations-reference | Stedi endpoints, X12 reference, code sets |
 | 16-milestones | Build order with acceptance criteria |
+| 17-decisions | Decisions that changed the spec, and open questions |
+
+The designs for every view, email, PDF and website page are in `ui/` (open `ui/index.html`).

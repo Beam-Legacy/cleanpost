@@ -7,13 +7,13 @@ The full cycle must run end to end on synthetic data before any real connector e
 - **Patients**: generated with Synthea (open-source synthetic patient generator) or Faker with a fixed seed. Names drawn from a known synthetic list so the log scanner can detect leaks.
 - **Coverage**: mix of commercial, Medicare, Medicaid; 10% inactive; 8% with secondary coverage; 3% with mismatched payer.
 - **Encounters and charges**: generator per specialty profile (`profiles/<specialty>.json`) with code mix, modifier frequency, diagnoses and charge amounts. First profile: the pilot specialty Julia picks. Include deliberate defects at known rates (missing modifier 5%, invalid pointer 1%, NCCI conflict 2%, duplicate 0.5%) so scrub accuracy can be measured.
-- **Tenants**: "Northwind Billing" (3 clients: one per mode A, B, C), "Harbor RCM" (1 client, manual adapter) for isolation tests.
+- **Tenants**: "Northwind Billing" with the clients from the `ui/` synthetic world (`ui/CONVENTIONS.md`), each backed by pm-mock with the matching PM profile (Tebra profile for Lakeside and Willamette, generic profile for Cascade, manual adapter for Riverbend). Until Modes B and C are built (M7), every Northwind client runs in Mode A. "Harbor RCM" (1 client, manual adapter) for isolation tests.
 
 `pnpm seed` loads these into Cleanpost and pm-mock.
 
 ## Payer simulator (`apps/payer-sim`)
 
-Accepts claims (Stedi-shaped JSON from Cleanpost in Modes B/C, and from pm-mock in Mode A). Behaviour per payer profile:
+Accepts claims (from pm-mock in Mode A; Stedi-shaped JSON from Cleanpost in Modes B/C once M7 is built). Behaviour per payer profile:
 - 277CA within 1–30 minutes (simulated clock); rejects structural errors (configurable list).
 - Adjudicates after a simulated 7–20 days: paid in full, contractual write-off (CO-45), patient responsibility (PR-1/2/3), denials with realistic CARC/RARC by defect type (missing modifier → CO-4, no auth → CO-197, inactive coverage → CO-27, duplicate → CO-18, timely → CO-29).
 - Batches adjudicated claims into 835s per payment with PLB interest occasionally, and sometimes a reversal and correction pair.
@@ -37,9 +37,9 @@ Stedi's own sandbox is used to verify request shapes and 277CA handling; it does
 
 ## Cycle test (the MVP's definition of working)
 
-One command, `pnpm test:cycle`, seeds a tenant with three clients (Modes A, B, C), generates 500 encounters, runs the full loop with the simulated clock advanced 45 days, and asserts:
+One command, `pnpm test:cycle`, seeds Northwind Billing, generates 500 encounters, runs the full loop with the simulated clock advanced 45 days, and asserts the list below. Before M7 it covers Mode A clients only (pm-mock generic profile, pm-mock Tebra profile with 835s uploaded as files, and the manual adapter); from M7 it adds one client each in Modes B and C.
 - every claim reaches a terminal or expected state;
 - scrub catches ≥ 95% of the seeded defects;
-- every 835 balances and every line is posted (B) or verified (A/C), or has exactly one open work item explaining why;
+- every 835 passes the 835 balance check and every line is verified (A, C) or posted (B), or has exactly one open work item explaining why;
 - no PHI appears in logs or job payloads;
 - no cross-tenant reads.

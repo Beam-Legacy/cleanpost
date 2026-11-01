@@ -12,9 +12,10 @@ Specification kit for building Cleanpost with Claude Code. Copy this folder into
 ## Before the first session
 
 1. Create a GitHub repo and copy these files in.
-2. Create a Stedi sandbox account (free) and keep the test API key ready.
-3. Julia writes `rules/seed/<specialty>.md`: top 10 payers, common denial reasons and fixes, modifier rules, payer quirks. Claude Code converts it to rule JSON in M2.
-4. Pick the pilot specialty so the synthetic charge profile matches it.
+2. Create a Stedi sandbox account (free); the test API key is needed by M2 (eligibility).
+3. Ask for Tebra test access (see `docs/17-decisions.md` DEC-02); the Tebra test runs alongside M1–M5.
+4. Julia writes `rules/seed/<specialty>.md`: top 10 payers, common denial reasons and fixes, modifier rules, payer quirks. Claude Code converts it to rule JSON in M2.
+5. Pick the pilot specialty so the synthetic charge profile matches it.
 
 ## First prompt for Claude Code (after the spec fixes)
 

@@ -2,6 +2,8 @@
 
 Mode is set per client (`clients.default_mode`) with optional per-payer override (`client_payer_settings.mode_override`). Everything before release (pull, eligibility, build, scrub, review) is identical across modes. The modes differ in how claims leave, how remits arrive, and who posts.
 
+**Build order:** Mode A is built first and runs the pilot. Modes B and C are built after the pilot (M7), unless the Tebra test picks Mode C for the pilot (`docs/17-decisions.md` DEC-01, DEC-02).
+
 ## Shared front half (all modes)
 
 1. `sync.pull` brings new patients, coverage, encounters and charges into the canonical model.
@@ -23,8 +25,9 @@ PM auto-posts ERA ──pullPostings──► Cleanpost verifies posted amounts 
 Details:
 - Prefer `holdCharge` on pull so nothing goes out unscrubbed. If the PM cannot hold, Cleanpost scrubs after the fact and flags problems before the PM's next batch (setting: PM batch time per client).
 - Corrections are written back to the PM with `pushChargeCorrection`, never only in Cleanpost, so the PM stays the system of record.
-- Remits are read from the PM (or uploaded as 835 files). Cleanpost does not post in Mode A; it verifies the PM's auto-posting and creates exceptions for unposted lines, wrong adjustments and denials.
-- Requires: `pullCharges`, `pullClaimsAndStatus`, `pullRemittances`, `pushChargeCorrection`; `holdCharge`/`releaseCharge` preferred.
+- Remits are read from the PM (or uploaded as 835 files when the PM cannot provide them, as with Tebra). Cleanpost does not post in Mode A; it verifies the PM's auto-posting and creates exceptions for unposted lines, wrong adjustments and denials. If the PM does not auto-post a remittance (or the practice posts by hand), Cleanpost creates a manual posting task with a worksheet (M-01, F-02) instead of an exception.
+- Requires: `pullCharges`, `pullClaimsAndStatus`, `pullRemittances`, `pushChargeCorrection`; `holdCharge`/`releaseCharge` preferred. Any of these may run at level 0 or 3 (manual task or file upload).
+- Tebra: hold and release map to its encounter review (an encounter waits in Review until Cleanpost approves it); corrections are manual tasks; 835s come by file upload. See `docs/05-adapters.md`.
 
 ## Mode B — Platform submits and receives
 
@@ -56,7 +59,7 @@ Details:
 - Same `markChargeBilled` requirement as Mode B.
 - Matching uses the patient control number Cleanpost assigned, which the payer returns in CLP01 regardless of which clearinghouse receives the 835.
 
-## Choosing a mode (shown in onboarding, see `docs/09-ui-screens.md` S-07)
+## Choosing a mode (shown in onboarding, see O-03 and O-07 in `ui/clients.html`)
 
 | Question | If yes |
 | --- | --- |
