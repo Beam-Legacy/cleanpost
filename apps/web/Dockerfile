@@ -1,7 +1,8 @@
 # Web app image for preview (Railway) and later environments. Build context: repository root.
 FROM node:22-bookworm-slim AS base
-ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1 CI=1
-RUN corepack enable
+ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1 CI=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+# pnpm is fetched once at build time, never when the container starts.
+RUN corepack enable && corepack prepare pnpm@10.28.0 --activate
 WORKDIR /repo
 
 FROM base AS build
