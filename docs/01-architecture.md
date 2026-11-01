@@ -72,7 +72,7 @@ Retry policy: exponential backoff, max 5 attempts; after that the job creates a 
 | Env | Data | Host | BAA |
 | --- | --- | --- | --- |
 | local | Synthetic only | Docker (Postgres, Mailpit for email) | n/a |
-| preview | Synthetic only | Railway | Not required |
+| preview | Synthetic only | Railway project `cleanpost-preview`: Postgres 16 and `web` (Dockerfile `apps/web/Dockerfile`, pre-deploy `pnpm release:preview`, health check `/api/health`), `CLEANPOST_ENV=preview`, `SMTP_HOST=log` | Not required |
 | staging | Synthetic plus de-identified golden files | AWS | Yes |
 | production | Real PHI | AWS (ECS Fargate, RDS Postgres, S3 with SSE-KMS, Secrets Manager) | Yes, signed before any PHI |
 

@@ -13,5 +13,5 @@ FROM base AS run
 ENV NODE_ENV=production
 COPY --from=build /repo /repo
 EXPOSE 3000
-# Pre-deploy (railway.json) creates the app's database login, migrates and seeds synthetic data.
+# Railway runs `pnpm release:preview` before each deploy: app database login, migrations, synthetic seed.
 CMD ["pnpm", "--filter", "@cleanpost/web", "start"]
