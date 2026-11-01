@@ -1,0 +1,47 @@
+{
+  "name": "@cleanpost/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "NEXT_TELEMETRY_DISABLED=1 next dev -p 3000",
+    "build": "NEXT_TELEMETRY_DISABLED=1 next build",
+    "start": "NEXT_TELEMETRY_DISABLED=1 next start -p 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@better-auth/passkey": "1.7.14",
+    "@cleanpost/auth": "workspace:*",
+    "@cleanpost/config": "workspace:*",
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
+    "@cleanpost/email": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "@cleanpost/ui": "workspace:*",
+    "better-auth": "1.7.14",
+    "drizzle-orm": "^0.45.4",
+    "lucide-react": "^1.66.0",
+    "next": "16.4.3",
+    "qrcode": "^1.5.4",
+    "radix-ui": "^1.8.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "server-only": "0.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@cleanpost/testing": "workspace:*",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/pg": "^8.23.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "pg": "^8.23.1",
+    "tailwindcss": "^4.3.3"
+  }
+}

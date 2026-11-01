@@ -1,0 +1,33 @@
+import { z } from 'zod';
+import { parseEnv } from '@cleanpost/config';
+import { createSystemDatabase } from '@cleanpost/db/system';
+import { createLogger } from '@cleanpost/log';
+import { seed, SEED_USERS } from './seed';
+
+const log = createLogger({ name: 'seed' });
+const env = parseEnv(
+  z.object({
+    NODE_ENV: z.string().default('development'),
+    DATABASE_ADMIN_URL: z.string().min(1),
+    SEED_PASSWORD: z.string().min(12).default('cleanpost-dev-password'),
+  }),
+);
+if (env.NODE_ENV === 'production') {
+  log.error('refusing to seed synthetic data in production');
+  process.exit(1);
+}
+
+const handle = createSystemDatabase(env.DATABASE_ADMIN_URL);
+seed(handle.db, env.SEED_PASSWORD)
+  .then(({ created }) => {
+    log.info({ createdUsers: created.length }, 'seed complete');
+    process.stdout.write(
+      `Seeded synthetic data. Sign in as any of: ${SEED_USERS.map((u) => u.email).join(', ')}\n` +
+        'Password: the SEED_PASSWORD value (default in packages/seed/src/cli.ts). Each user sets up two-factor on first sign-in.\n',
+    );
+  })
+  .catch((err: unknown) => {
+    log.error({ err }, 'seed failed');
+    process.exitCode = 1;
+  })
+  .finally(() => handle.close());

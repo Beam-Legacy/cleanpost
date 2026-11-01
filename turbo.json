@@ -28,5 +28,5 @@
       "persistent": true
     }
   },
-  "globalPassThroughEnv": ["PLAYWRIGHT_BROWSERS_PATH", "CI", "HOME"]
+  "globalPassThroughEnv": ["CI", "HOME", "NEXT_TELEMETRY_DISABLED", "PLAYWRIGHT_BROWSERS_PATH"]
 }

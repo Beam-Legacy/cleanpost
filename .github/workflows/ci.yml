@@ -28,6 +28,13 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://cleanpost_web:cleanpost_web@localhost:5432/cleanpost_test
       TEST_DATABASE_ADMIN_URL: postgres://cleanpost:cleanpost@localhost:5432/cleanpost_test
+      DATABASE_URL: postgres://cleanpost_web:cleanpost_web@localhost:5432/cleanpost
+      DATABASE_ADMIN_URL: postgres://cleanpost:cleanpost@localhost:5432/cleanpost
+      APP_URL: http://localhost:3000
+      SMTP_HOST: localhost
+      SMTP_PORT: '1025'
+      EMAIL_FROM: Cleanpost <no-reply@cleanpost.local>
+      NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -47,3 +54,10 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm --filter @cleanpost/ui build-storybook --quiet
+      - name: End-to-end (sign-in, two-factor, company, shell; axe in both themes)
+        run: |
+          export BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
+          pnpm db:migrate
+          pnpm seed
+          pnpm --filter @cleanpost/web build
+          pnpm --filter @cleanpost/web test:e2e

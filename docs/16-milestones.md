@@ -14,7 +14,7 @@ Output: a confirmed Tebra capability table in `docs/05-adapters.md`, the pilot m
 
 ## M0 — Foundation (weeks 1–2)
 
-Build: monorepo, CI (lint, typecheck, test, axe), Postgres with migrations and RLS, better-auth with MFA, roles and client scope, audit module, logger with redaction, app shell and states (G-01, G-02, G-03 skeleton, G-05, G-08, G-09, G-10, G-11, G-20 to G-25), sign-in and account (A-01 to A-09), auth emails (E-01 invite, E-02 password reset, E-03 new sign-in alert) through a local mail catcher, design tokens and base components in Storybook. Preview deploy to Railway (synthetic data only).
+Build: monorepo, CI (lint, typecheck, test, axe), Postgres with migrations and RLS, better-auth with MFA, roles and client scope, audit module, logger with redaction, app shell and states (G-01, G-02, G-03 skeleton, G-05, G-08, G-09, G-10, G-11, G-20 to G-25), sign-in and account (A-01 to A-05, A-07 to A-09; A-06 moves to M5 with S-02), auth emails (E-01 invite, E-02 password reset, E-03 new sign-in alert) through a local mail catcher, design tokens and base components in Storybook. Preview deploy to Railway (synthetic data only).
 Accept:
 - Cross-tenant read test fails as expected (blocked) for every table
 - Log scanner finds no synthetic names in a full test run
@@ -57,7 +57,7 @@ Accept:
 
 ## M5 — Onboarding, settings, hardening (weeks 16–18)
 
-Build: onboarding wizard with capability-driven mode recommendation and go-live checklist (O-01 to O-11, E-06); client overview and settings (CL-02 to CL-09, CL-11); settings (S-01 to S-08, S-10 to S-14, F-03; S-11 shows usage only until invoicing in M7); operator console (OP-01 to OP-04); I-04, I-05; help, banners and first-week checklist (G-07, G-13, G-14); team view (W-02); session and export controls; runbooks (incident, backup restore); production infrastructure on AWS under BAA.
+Build: onboarding wizard with capability-driven mode recommendation and go-live checklist (O-01 to O-11, E-06); invites (S-02, A-06); client overview and settings (CL-02 to CL-09, CL-11); settings (S-01 to S-08, S-10 to S-14, F-03; S-11 shows usage only until invoicing in M7); operator console (OP-01 to OP-04); I-04, I-05; help, banners and first-week checklist (G-07, G-13, G-14); team view (W-02); session and export controls; runbooks (incident, backup restore); production infrastructure on AWS under BAA.
 Accept:
 - Flows 1 and 6 pass end to end
 - Restore-from-backup drill completed

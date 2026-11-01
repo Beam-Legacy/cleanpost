@@ -1,3 +1,4 @@
+'use client';
 import { Slot } from 'radix-ui';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { cx } from '../cx';

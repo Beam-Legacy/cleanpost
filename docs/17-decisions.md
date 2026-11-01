@@ -54,6 +54,19 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** Sync schedules and rate limits are per adapter, not one global default: the contract gains a `syncPolicy`. Several clients may share one PM account (Tebra billing-company accounts), so connections carry a `pm_account_ref` that groups shared credentials and rate limits. Where a PM requires an over-privileged API user (Tebra requires System Admin), the dedicated user rule still applies and the gap is recorded in the adapter README.
 - **Affects:** `02-data-model.md`, `05-adapters.md`, `15-integrations-reference.md`, `starter/packages/adapters/src/contract.ts`.
 
+## DEC-09 — M0 implementation choices (Nov 1, 2026)
+
+| Topic | Choice | Why |
+| --- | --- | --- |
+| TypeScript | 6.0 (not 7.0) | typescript-eslint supports up to 6.0; revisit when it supports the native compiler. |
+| Component styles | `packages/ui` copies `ui/assets/tokens.css` and `components.css` unchanged; React components emit those classes on Radix primitives; `app.css` holds runtime additions | The design export stays the single source of visual truth and can be re-copied after design changes. |
+| Fonts | Self-hosted at build time with `next/font` | Loading Google Fonts in users' browsers would send their IP addresses to Google. |
+| Telemetry | Off for better-auth, Next.js and Storybook | No usage data leaves our infrastructure. |
+| Test databases | One per package (`cleanpost_test_<package>`), rebuilt from migrations before each run | Turbo runs package suites in parallel. |
+| Second factor setup (A-03) | Asks for the password again before showing the QR code | better-auth requires it to enable TOTP; the design shows no password field. |
+| Lockout (A-08) | 5 wrong passwords lock sign-in for 15 minutes; the user is emailed | The design gives no duration; 15 minutes is a common default. |
+| Deferred from M0 | A-06 Accept invite moves to M5 with S-02 Invite user; strict nonce-based CSP lands with the first PHI screens (M2); Railway preview deploy waits for an account decision | Invites need the invite-creation flow; CSP is easier to tune against real screens. |
+
 ## Open questions
 
 | Question | Owner | Needed by |

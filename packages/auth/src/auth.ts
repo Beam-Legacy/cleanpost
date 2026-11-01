@@ -124,6 +124,10 @@ export function createAuth(config: AuthConfig) {
     secret: config.secret,
     trustedOrigins: [appUrl.origin],
     telemetry: { enabled: false },
+    // better-auth's own messages go through the redacting logger, never straight to the console.
+    logger: {
+      log: (level, message) => log[level]({ source: 'better-auth' }, message),
+    },
     rateLimit: {
       enabled: true,
       window: 60,

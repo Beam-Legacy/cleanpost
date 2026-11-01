@@ -17,7 +17,7 @@
     "db:up": "docker compose up -d postgres mailpit",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @cleanpost/db run migrate",
-    "seed": "pnpm --filter @cleanpost/db run seed",
+    "seed": "pnpm --filter @cleanpost/seed run seed",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "scan:logs": "pnpm --filter @cleanpost/testing run scan:logs"

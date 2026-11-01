@@ -1,13 +1,7 @@
+'use client';
 import { CircleX } from 'lucide-react';
 import { Switch as S } from 'radix-ui';
-import {
-  useId,
-  type InputHTMLAttributes,
-  type ReactElement,
-  type ReactNode,
-  type SelectHTMLAttributes,
-  type TextareaHTMLAttributes,
-} from 'react';
+import { useId, type ComponentProps, type InputHTMLAttributes, type ReactElement, type ReactNode } from 'react';
 import { cx } from '../cx';
 
 export interface FieldControlProps {
@@ -49,17 +43,17 @@ export function Field({ label, help, error, children }: FieldProps) {
   );
 }
 
-export function Input({ className, mono, ...props }: InputHTMLAttributes<HTMLInputElement> & { mono?: boolean }) {
+export function Input({ className, mono, ...props }: ComponentProps<'input'> & { mono?: boolean }) {
   return (
     <input className={cx('input', mono && 'mono', props['aria-invalid'] && 'invalid', className)} {...props} />
   );
 }
 
-export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className, ...props }: ComponentProps<'select'>) {
   return <select className={cx('select', className)} {...props} />;
 }
 
-export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({ className, ...props }: ComponentProps<'textarea'>) {
   return <textarea className={cx('textarea', className)} {...props} />;
 }
 

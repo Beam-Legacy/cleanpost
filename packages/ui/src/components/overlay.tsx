@@ -1,3 +1,4 @@
+'use client';
 import { X } from 'lucide-react';
 import { AlertDialog, Dialog, DropdownMenu, Popover as P } from 'radix-ui';
 import type { ReactElement, ReactNode } from 'react';

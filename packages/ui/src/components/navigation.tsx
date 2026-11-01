@@ -1,3 +1,4 @@
+'use client';
 import { Check } from 'lucide-react';
 import { Tabs as T } from 'radix-ui';
 import type { ReactNode } from 'react';

@@ -1,3 +1,4 @@
+'use client';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { cx } from '../cx';
 
