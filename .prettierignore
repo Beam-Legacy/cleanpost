@@ -1,0 +1,6 @@
+ui/
+docs/
+pnpm-lock.yaml
+**/drizzle/meta/
+**/.next/
+**/storybook-static/

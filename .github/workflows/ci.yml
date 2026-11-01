@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cleanpost
+          POSTGRES_PASSWORD: cleanpost
+          POSTGRES_DB: cleanpost
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cleanpost"
+          --health-interval 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://cleanpost_web:cleanpost_web@localhost:5432/cleanpost_test
+      TEST_DATABASE_ADMIN_URL: postgres://cleanpost:cleanpost@localhost:5432/cleanpost_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Create database roles and test database
+        run: psql -h localhost -U cleanpost -d cleanpost -f docker/postgres/init.sql
+        env:
+          PGPASSWORD: cleanpost
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test

@@ -1,6 +1,6 @@
 # 05 — PM adapters
 
-Every PM connection is an adapter implementing one contract (`packages/adapters/src/contract.ts`, starter copy in `starter/`). Core code calls the contract through the registry; it never knows which PM it is talking to.
+Every PM connection is an adapter implementing one contract (`packages/adapters/src/contract.ts`). Core code calls the contract through the registry; it never knows which PM it is talking to.
 
 ## Integration levels
 

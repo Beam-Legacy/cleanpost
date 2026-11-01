@@ -6,7 +6,7 @@ Specification kit for building Cleanpost with Claude Code. Copy this folder into
 
 - `CLAUDE.md` — rules and conventions Claude Code follows on every task
 - `docs/` — the full specification (start with `docs/00-overview.md`)
-- `starter/packages/adapters/src/contract.ts` — the adapter contract as TypeScript, to move into `packages/adapters/src/` during M0
+- `packages/adapters/src/contract.ts` — the adapter contract (moved from `starter/` in M0)
 - `ui/` — the full UI reference: 170 designs (app, emails, PDFs, website), each with its spec. Open `ui/index.html`; read `ui/README.md` before building any screen
 
 ## Before the first session
