@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { IBM_Plex_Mono, Public_Sans, Schibsted_Grotesk } from 'next/font/google';
 import { cookies } from 'next/headers';
 import type { ReactNode } from 'react';
+import { Banner } from '@cleanpost/ui';
 import './globals.css';
 
 const publicSans = Public_Sans({
@@ -34,7 +35,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       data-density={density}
       className={`${publicSans.variable} ${schibsted.variable} ${plexMono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {process.env.CLEANPOST_ENV === 'preview' && (
+          <Banner tone="warn" edge>
+            Preview · synthetic data only. Never enter real patient information here.
+          </Banner>
+        )}
+        {children}
+      </body>
     </html>
   );
 }

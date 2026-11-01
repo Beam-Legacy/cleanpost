@@ -12,6 +12,7 @@ export interface Mailer {
 }
 
 export function createSmtpMailer(env = parseEnv(emailEnvSchema)): Mailer {
+  if (env.SMTP_HOST === 'log') return logOnlyMailer();
   const transport = nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
@@ -51,6 +52,15 @@ export function memoryMailer(): Mailer & { sent: SentEmail[] } {
     sent,
     async send(to, template, content) {
       sent.push({ to, template, content });
+    },
+  };
+}
+
+/** For environments without a mail server (preview): records that an email would have gone out, nothing else. */
+export function logOnlyMailer(): Mailer {
+  return {
+    async send(_to, template) {
+      log.info({ template }, 'email not sent (SMTP_HOST=log)');
     },
   };
 }

@@ -7,12 +7,13 @@ import { seed, SEED_USERS } from './seed';
 const log = createLogger({ name: 'seed' });
 const env = parseEnv(
   z.object({
-    NODE_ENV: z.string().default('development'),
+    /** Deployment environment: local | preview | staging | production. Synthetic seeding is refused in production. */
+    CLEANPOST_ENV: z.enum(['local', 'preview', 'staging', 'production']).default('local'),
     DATABASE_ADMIN_URL: z.string().min(1),
     SEED_PASSWORD: z.string().min(12).default('cleanpost-dev-password'),
   }),
 );
-if (env.NODE_ENV === 'production') {
+if (env.CLEANPOST_ENV === 'production') {
   log.error('refusing to seed synthetic data in production');
   process.exit(1);
 }

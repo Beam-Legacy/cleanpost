@@ -2,12 +2,13 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
   "globalEnv": [
-    "NODE_ENV",
-    "DATABASE_URL",
+    "CLEANPOST_ENV",
     "DATABASE_ADMIN_URL",
+    "DATABASE_URL",
     "LOG_LEVEL",
-    "TEST_DATABASE_URL",
-    "TEST_DATABASE_ADMIN_URL"
+    "NODE_ENV",
+    "TEST_DATABASE_ADMIN_URL",
+    "TEST_DATABASE_URL"
   ],
   "tasks": {
     "build": {

@@ -1,0 +1,13 @@
+**/node_modules
+**/.next
+**/.turbo
+**/.test-logs
+**/test-results
+**/playwright-report
+**/storybook-static
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+!.env.example
+.local

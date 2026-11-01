@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "generate": "drizzle-kit generate",
-    "migrate": "tsx src/migrate-cli.ts"
+    "migrate": "tsx src/migrate-cli.ts",
+    "bootstrap": "tsx src/bootstrap-cli.ts"
   },
   "dependencies": {
     "@cleanpost/config": "workspace:*",
