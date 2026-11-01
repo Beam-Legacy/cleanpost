@@ -1,20 +1,25 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type ViteUserConfig } from 'vitest/config';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
-/** Where every test process writes its logs; `pnpm test` scans this folder for PHI afterwards. */
-export const TEST_LOG_DIR = join(repoRoot, '.local', 'test-logs');
+/**
+ * Each package writes its test logs to <package>/.test-logs/. Turbo caches that folder as a test
+ * output, so a cached run still leaves its logs behind for the PHI scan after `pnpm test`.
+ */
+export const TEST_LOG_DIRNAME = '.test-logs';
 
 /**
  * Shared Vitest config for every package. Routes @cleanpost/log output to a per-package file so the
  * PHI scanner can check a full test run (M0 acceptance: no synthetic names in logs).
  */
 export function cleanpostVitestConfig(packageName: string, overrides: ViteUserConfig = {}) {
-  mkdirSync(TEST_LOG_DIR, { recursive: true });
-  const logFile = join(TEST_LOG_DIR, `${packageName.replace(/[^a-z0-9-]/gi, '_')}.log`);
+  const dir = join(process.cwd(), TEST_LOG_DIRNAME);
+  mkdirSync(dir, { recursive: true });
+  const logFile = join(dir, `${packageName.replace(/[^a-z0-9-]/gi, '_')}.log`);
+  writeFileSync(logFile, ''); // start each run empty
   return defineConfig({
     ...overrides,
     test: {

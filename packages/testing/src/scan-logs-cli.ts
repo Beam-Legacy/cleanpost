@@ -4,16 +4,25 @@
  * Run after the test suite: `pnpm test` calls it through the root script.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { scanForPhi } from './phi-scan';
-import { TEST_LOG_DIR } from './vitest-preset';
+import { REPO_ROOT, TEST_LOG_DIRNAME } from './vitest-preset';
 
-const files = existsSync(TEST_LOG_DIR) ? readdirSync(TEST_LOG_DIR).filter((f) => f.endsWith('.log')) : [];
+const files: string[] = [];
+for (const group of ['apps', 'packages']) {
+  const groupDir = join(REPO_ROOT, group);
+  if (!existsSync(groupDir)) continue;
+  for (const pkg of readdirSync(groupDir)) {
+    const dir = join(groupDir, pkg, TEST_LOG_DIRNAME);
+    if (!existsSync(dir)) continue;
+    for (const f of readdirSync(dir)) if (f.endsWith('.log')) files.push(join(dir, f));
+  }
+}
 let total = 0;
 for (const file of files) {
-  const findings = scanForPhi(readFileSync(join(TEST_LOG_DIR, file), 'utf8'));
+  const findings = scanForPhi(readFileSync(file, 'utf8'));
   for (const f of findings) {
-    process.stderr.write(`${file}:${f.line} ${f.kind} "${f.match}"\n`);
+    process.stderr.write(`${relative(REPO_ROOT, file)}:${f.line} ${f.kind} "${f.match}"\n`);
   }
   total += findings.length;
 }

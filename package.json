@@ -20,8 +20,7 @@
     "seed": "pnpm --filter @cleanpost/db run seed",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "scan:logs": "pnpm --filter @cleanpost/testing run scan:logs",
-    "pretest": "node -e \"require('fs').rmSync('.local/test-logs',{recursive:true,force:true})\""
+    "scan:logs": "pnpm --filter @cleanpost/testing run scan:logs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -10,7 +10,7 @@
     "lint": {},
     "typecheck": {},
     "test": {
-      "outputs": []
+      "outputs": [".test-logs/**"]
     },
     "test:adapters": {},
     "test:e2e": {
