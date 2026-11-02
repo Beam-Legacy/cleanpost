@@ -11,6 +11,7 @@ export type WorkItemType =
   | 'rejection'
   | 'no_response'
   | 'denial'
+  | 'write_off_approval'
   | 'underpayment'
   | 'remit_unmatched'
   | 'out_of_balance'
@@ -30,6 +31,7 @@ export const WORK_TYPE_LABEL: Record<WorkItemType, string> = {
   rejection: 'Rejection',
   no_response: 'No response',
   denial: 'Denial',
+  write_off_approval: 'Write-off approval',
   underpayment: 'Underpayment',
   remit_unmatched: 'Unmatched payment',
   out_of_balance: 'Out of balance',
@@ -45,7 +47,7 @@ export const WORK_TYPE_LABEL: Record<WorkItemType, string> = {
 export const WORK_TYPE_GROUPS = [
   { key: 'review', label: 'Claim review', types: ['claim_review', 'claim_blocked'] },
   { key: 'rejections', label: 'Rejections', types: ['rejection'] },
-  { key: 'denials', label: 'Denials', types: ['denial', 'underpayment'] },
+  { key: 'denials', label: 'Denials', types: ['denial', 'write_off_approval', 'underpayment'] },
   {
     key: 'posting',
     label: 'Posting',
@@ -62,7 +64,10 @@ export const typesOfGroup = (key: string): readonly WorkItemType[] | null =>
   WORK_TYPE_GROUPS.find((g) => g.key === key)?.types ?? null;
 
 /** Items only admins see (docs/08: "4h (admin)"). */
-export const ADMIN_ONLY_TYPES: readonly WorkItemType[] = ['sync_failure', 'system'];
+export const ADMIN_ONLY_TYPES: readonly WorkItemType[] = ['sync_failure', 'system', 'write_off_approval'];
+
+/** Items closed only by their own action (Approve or Decline), never by W-07 Resolve. */
+export const DECIDED_TYPES: readonly WorkItemType[] = ['write_off_approval'];
 
 const COMMON = ['Fixed in the PM', 'Duplicate item', 'Not ours to work'];
 
@@ -75,6 +80,7 @@ export const RESOLUTION_REASONS: Record<WorkItemType, readonly string[]> = {
   rejection: ['Resubmitted from the PM', 'Voided', 'Payer reprocessed', 'Other'],
   no_response: ['Payer confirmed receipt', 'Resubmitted', 'Other'],
   denial: ['Corrected and resubmitted', 'Written off', 'Appealed', 'Other'],
+  write_off_approval: ['Approved', 'Declined', 'No longer needed', 'Other'],
   underpayment: ['Accepted', 'Disputed', 'Other'],
   remit_unmatched: ['Linked by hand', 'Before go-live', 'Not ours', 'Other'],
   out_of_balance: ['Corrected 835 requested', 'Difference accepted', 'Other'],

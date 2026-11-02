@@ -13,6 +13,7 @@ One queue per tenant across all clients. Billers see items for clients they are 
 | `rejection` | 999 or 277CA reject | 1 | 24h | Fix and resubmit |
 | `no_response` | No 277CA or 835 after N days | 3 | 72h | Run status check, resubmit, contact payer |
 | `denial` | Denied or partially denied line | by category: auth/eligibility 1, coding 2, other 3 | 48h | Accept suggested correction, edit, write off (reason), appeal (phase 2: draft) |
+| `write_off_approval` | A biller asks to write off more than the tenant's approval limit (D-03) | 2 | 24h (admin) | Approve (writes it off) or decline with a note; never W-07 Resolve |
 | `underpayment` (phase 2) | Paid below fee schedule | 3 | 5d | Dispute, accept |
 | `remit_unmatched` | Claim or line unmatched | 2 | 24h | Link to claim, mark not ours |
 | `out_of_balance` | 835 balance check fails (`docs/07-remittance-posting.md`) | 1 | 24h | Investigate, request corrected 835, accept difference (admin, with reason) |

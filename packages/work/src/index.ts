@@ -19,7 +19,14 @@ export type WorkActionResult =
   | { ok: true }
   | {
       ok: false;
-      reason: 'not_found' | 'invalid_transition' | 'past' | 'too_far' | 'unknown_reason' | 'note_required';
+      reason:
+        | 'not_found'
+        | 'invalid_transition'
+        | 'past'
+        | 'too_far'
+        | 'unknown_reason'
+        | 'note_required'
+        | 'decided_elsewhere';
     };
 
 interface Ctx {
@@ -97,6 +104,9 @@ export async function resolveItem(
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
     const item = await locked(tx, itemId);
     if (!item) return { ok: false, reason: 'not_found' };
+    // An approval closes only by its decision (Approve or Decline), which does the write-off.
+    if (work.DECIDED_TYPES.includes(item.type as work.WorkItemType))
+      return { ok: false, reason: 'decided_elsewhere' };
     const check = work.checkResolution(item.type, input.reason, input.note ?? null);
     if (!check.ok) return { ok: false, reason: check.error };
     const note = input.note?.trim();
@@ -124,6 +134,8 @@ export async function reopenItem(db: Database, ctx: Ctx, itemId: string): Promis
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
     const item = await locked(tx, itemId);
     if (!item) return { ok: false, reason: 'not_found' };
+    if (work.DECIDED_TYPES.includes(item.type as work.WorkItemType))
+      return { ok: false, reason: 'decided_elsewhere' };
     return move(
       tx,
       item,

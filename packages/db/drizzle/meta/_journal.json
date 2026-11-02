@@ -85,6 +85,13 @@
       "when": 1793610351708,
       "tag": "0011_work_item_remit_claim",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793614918832,
+      "tag": "0012_write_off_requests",
+      "breakpoints": true
     }
   ]
 }

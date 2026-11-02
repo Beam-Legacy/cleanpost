@@ -197,7 +197,12 @@ export function WorkQueue({
       } else if ((key === 's' || key === 'S') && detail && can.resolve) {
         e.preventDefault();
         setSnoozeOpen(true);
-      } else if ((key === 'r' || key === 'R') && detail && can.resolve) {
+      } else if (
+        (key === 'r' || key === 'R') &&
+        detail &&
+        can.resolve &&
+        !work.DECIDED_TYPES.includes(detail.item.type as work.WorkItemType)
+      ) {
         e.preventDefault();
         setResolveOpen(true);
       } else if (key === '?') {

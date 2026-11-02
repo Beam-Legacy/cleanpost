@@ -132,6 +132,14 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** C-13 voids claims that were never sent (draft to ready): status Voided with the reason, open items closed. A claim the payer has needs a void claim (frequency 8); in Mode A the PM sends it, and Cleanpost adds that path with corrections in M4. The dialog tells the biller to reject the encounter in the PM too, so the PM never bills it.
 - **Also:** notes (C-16) are claim events of type `note`, shown on the timeline to users with access to the client; the audit row records the length, not the text. G-12 reveals write `phi.revealed` or `phi.copied` with the field name.
 
+## DEC-16 — Write-off approval, amounts and the corrected-claim deadline (Nov 2, 2026)
+
+- **Decision:** D-03 "Request approval" is a `write_off_requests` row plus a `write_off_approval` work item for admins (priority 2, 24 h). The admin approves in the queue, which does the write-off as the admin with the biller recorded (`requestedBy` on the claim event and audit), or declines with a note; the biller gets a notification either way. The tenant's limit is `tenants.settings.writeOffApprovalLimitCents` (default $500) until S-04 exposes it.
+- **Decision:** the write-off amount defaults to the denied amount, capped at the claim's balance. The claim balance from the 835 is patient responsibility plus anything denied, so writing off the whole balance would also write off what the patient owes on paid lines.
+- **Decision:** D-02's "Corrected claim by" is the client's filing limit for the payer (`client_payer_settings.timely_filing_days`, default 90) counted from the denying payment's date. Payers state their own corrected-claim and appeal windows; this is a planning date, labelled with how it was worked out, until payer rules carry those windows.
+- **Also:** D-03 bulk is admin-only and one client at a time (each client's PM has its own write-off codes); each denial's denied amount, one reason and code for all, each claim in its own transaction. The PM write-off codes offered are the client's adjustment mappings with action `write_off`, plus "Another code". A write-off chosen while a suggested correction existed is recorded as `suggestion: not_taken` in the audit; building the correction with the fix is recorded as `fixed` on `claim.correction_built`.
+- **Docs:** `docs/09-ui-screens.md` does not say how an approval over the limit is stored or decided; this fills that gap and does not change any screen.
+
 ## Open questions
 
 | Question | Owner | Needed by |

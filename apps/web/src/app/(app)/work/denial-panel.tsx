@@ -2,36 +2,35 @@
 /**
  * W-16 Panel: denial. Per denied line: the category, the code explained, what to do and why (rules,
  * labeled as a suggestion), then Build correction (C-09 opens with the fix applied) or Write off
- * (C-14). A correction already on its way shows instead of the actions.
+ * (D-03, shared with D-02). A correction already on its way shows instead of the actions.
  */
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { remit } from '@cleanpost/domain';
-import { Button, Modal, useToast } from '@cleanpost/ui';
+import { Button, useToast } from '@cleanpost/ui';
 import { CodeChip } from '@/components/code-chip';
-import { formatMoney } from '@/lib/format';
+import { WriteOffDialog } from '@/components/write-off-dialog';
+import { formatMoney, formatWhen } from '@/lib/format';
 import type { WorkDetail } from '@/lib/queries/work';
-import { buildCorrectionFromItem, writeOffAction } from './actions';
-
-const REASONS = [
-  'Not worth pursuing',
-  'Timely filing missed',
-  'Patient not covered and not billable',
-  'Practice instruction',
-  'Other',
-] as const;
+import { buildCorrectionFromItem } from './actions';
 
 export function DenialPanel({
   itemId,
   claimId,
   denial,
   canCorrect,
+  canOverLimit,
+  label,
 }: {
   itemId: string;
   claimId: string;
   denial: NonNullable<WorkDetail['denial']>;
   canCorrect: boolean;
+  /** Admins write off above the tenant's approval limit; billers request approval. */
+  canOverLimit: boolean;
+  /** One line about the denial for the write-off dialog. */
+  label: string;
 }) {
   const [pending, start] = useTransition();
   const [writeOff, setWriteOff] = useState(false);
@@ -109,109 +108,40 @@ export function DenialPanel({
           <Button
             variant={first?.advice.primary === 'write_off' ? 'primary' : 'secondary'}
             size="sm"
-            disabled={pending || denial.balanceCents <= 0}
+            disabled={pending || denial.balanceCents <= 0 || Boolean(denial.pendingRequest)}
             onClick={() => setWriteOff(true)}
           >
             Write off
           </Button>
         )}
       </div>
+      {denial.pendingRequest && (
+        <div className="callout dense" role="status">
+          A write-off of {formatMoney(denial.pendingRequest.amountCents)} is waiting for an admin (asked by{' '}
+          {denial.pendingRequest.requestedByName ?? 'a biller'}, {formatWhen(denial.pendingRequest.createdAt)}
+          ).
+        </div>
+      )}
       {writeOff && (
         <WriteOffDialog
-          claimId={claimId}
-          balanceCents={denial.balanceCents}
+          target={{
+            kind: 'one',
+            claimId,
+            itemId,
+            label: [first ? remit.DENIAL_KIND_LABEL[first.advice.kind] : 'Denial', label]
+              .filter(Boolean)
+              .join(' · '),
+            deniedCents: denial.deniedCents,
+            balanceCents: denial.balanceCents,
+            suggestionNotTaken: Boolean(first?.advice.primary === 'correct' && first.advice.suggestion),
+          }}
+          pmName={denial.writeOff.pmName}
+          pmCodes={denial.writeOff.pmCodes}
+          limitCents={denial.writeOff.limitCents}
+          canOverLimit={canOverLimit}
           onClose={() => setWriteOff(false)}
         />
       )}
     </div>
-  );
-}
-
-/** C-14 Write off balance: amount (up to the balance), reason, note, the PM's adjustment code. */
-function WriteOffDialog({
-  claimId,
-  balanceCents,
-  onClose,
-}: {
-  claimId: string;
-  balanceCents: number;
-  onClose: () => void;
-}) {
-  const [amount, setAmount] = useState((balanceCents / 100).toFixed(2));
-  const [reason, setReason] = useState<string>(REASONS[0]);
-  const [note, setNote] = useState('');
-  const [pmCode, setPmCode] = useState('WO');
-  const [pending, start] = useTransition();
-  const toast = useToast();
-  const router = useRouter();
-  const cents = Math.round(Number.parseFloat(amount) * 100);
-  return (
-    <Modal
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title="Write off balance"
-      description="Writes the amount off in the PM (a task for a person in Mode A). This cannot be undone here."
-      size="sm"
-      footer={
-        <>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button
-            variant="danger"
-            disabled={pending || !Number.isFinite(cents) || cents <= 0 || cents > balanceCents}
-            onClick={() =>
-              start(async () => {
-                const res = await writeOffAction(claimId, { amountCents: cents, reason, note, pmCode });
-                toast({ message: res.message, ...(res.ok ? {} : { tone: 'bad' as const }) });
-                if (res.ok) {
-                  onClose();
-                  router.refresh();
-                }
-              })
-            }
-          >
-            Write off {Number.isFinite(cents) && cents > 0 ? formatMoney(cents) : ''}
-          </Button>
-        </>
-      }
-    >
-      <div className="stack-sm">
-        <label className="field">
-          <span className="label">Amount (open balance {formatMoney(balanceCents)})</span>
-          <input
-            className="input"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-          />
-        </label>
-        <label className="field">
-          <span className="label">Reason</span>
-          <select className="select" value={reason} onChange={(e) => setReason(e.target.value)}>
-            {REASONS.map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span className="label">Note (needed for “Other” and over $100)</span>
-          <textarea
-            className="input"
-            rows={2}
-            maxLength={500}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </label>
-        <label className="field">
-          <span className="label">PM adjustment code</span>
-          <input
-            className="input"
-            value={pmCode}
-            maxLength={20}
-            onChange={(e) => setPmCode(e.target.value)}
-          />
-        </label>
-      </div>
-    </Modal>
   );
 }

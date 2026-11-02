@@ -18,3 +18,14 @@ describe('work item state machine', () => {
     expect(state.nextWorkItemState('in_progress', 'snooze').ok).toBe(false);
   });
 });
+
+describe('write-off request (D-03)', () => {
+  it('is decided once: approved, declined or cancelled', () => {
+    expect(state.nextWriteOffRequestState('pending', 'approve')).toEqual({ ok: true, value: 'approved' });
+    expect(state.nextWriteOffRequestState('pending', 'decline')).toEqual({ ok: true, value: 'declined' });
+    expect(state.nextWriteOffRequestState('pending', 'cancel')).toEqual({ ok: true, value: 'cancelled' });
+    for (const from of ['approved', 'declined', 'cancelled'] as const)
+      for (const ev of ['approve', 'decline', 'cancel'] as const)
+        expect(state.nextWriteOffRequestState(from, ev).ok).toBe(false);
+  });
+});

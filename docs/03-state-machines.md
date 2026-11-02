@@ -63,6 +63,19 @@ any ──auto-resolve (underlying record fixed)──► resolved (actor = auto
 resolved ──reopen──► open
 ```
 
+## Write-off request (D-03)
+
+```
+pending ──approve (admin)──► approved      (the write-off is done in the same transaction, as the admin)
+pending ──decline (admin)──► declined      (the denial stays open; the biller is notified)
+pending ──cancel──► cancelled              (the denial was answered first: corrected, paid or written off)
+```
+
+Rules:
+- A biller may write off up to the tenant's approval limit (`tenants.settings.writeOffApprovalLimitCents`, default $500); above it the write-off becomes a request, carried in the queue by a `write_off_approval` work item that only Approve or Decline closes (never W-07 Resolve or Undo).
+- One pending request per claim. The decision is recorded before the write-off runs, so a full write-off does not cancel the request it carries out; the claim's other pending requests are cancelled.
+- The default amount is the denied amount, capped at the claim balance (the balance also holds what the patient owes on other lines). A partial write-off that covers the denied amount closes the denial item and leaves the patient's share open.
+
 ## Connection and sync
 
 Connection: `setup → testing → healthy ⇄ degraded → failed → (fix) testing`, `paused` by admin.

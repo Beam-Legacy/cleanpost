@@ -224,3 +224,29 @@ export function adviseDenial(claim: ClaimPayload, line: DeniedLine, ncci: NcciPa
       };
   }
 }
+
+/** D-03 default: a biller writes off up to this alone; above it an admin approves (tenant setting). */
+export const WRITE_OFF_APPROVAL_LIMIT_CENTS = 50_000;
+
+/** The tenant's approval limit from `tenants.settings.writeOffApprovalLimitCents`, or the default. */
+export function writeOffApprovalLimit(settings: unknown): number {
+  const v = (settings as { writeOffApprovalLimitCents?: unknown } | null)?.writeOffApprovalLimitCents;
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : WRITE_OFF_APPROVAL_LIMIT_CENTS;
+}
+
+/**
+ * D-03 default amount: the denied amount, never more than what is still open. The claim balance also
+ * holds what the patient owes on other lines, which a denial write-off must not touch.
+ */
+export const writeOffDefaultCents = (deniedCents: number, balanceCents: number) =>
+  Math.max(0, Math.min(deniedCents, balanceCents));
+
+/**
+ * D-02 deadline for a corrected claim: the client's filing limit for the payer, counted from the
+ * date of the payment that denied it. Payers state their own rules; this is the planning date.
+ */
+export function correctionDeadline(paymentDate: string, filingDays: number): string {
+  const d = new Date(`${paymentDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + filingDays);
+  return d.toISOString().slice(0, 10);
+}

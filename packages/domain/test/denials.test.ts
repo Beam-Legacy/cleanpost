@@ -79,3 +79,24 @@ describe('denial advice', () => {
     expect(remit.denialKind('999')).toBe('other');
   });
 });
+
+describe('write-off amounts and deadlines (D-02, D-03)', () => {
+  it('defaults to the denied amount, never more than what is open', () => {
+    expect(remit.writeOffDefaultCents(15_000, 17_000)).toBe(15_000);
+    expect(remit.writeOffDefaultCents(15_000, 9_000)).toBe(9_000);
+    expect(remit.writeOffDefaultCents(15_000, 0)).toBe(0);
+  });
+
+  it('reads the approval limit from the tenant settings, else $500', () => {
+    expect(remit.writeOffApprovalLimit({})).toBe(50_000);
+    expect(remit.writeOffApprovalLimit(null)).toBe(50_000);
+    expect(remit.writeOffApprovalLimit({ writeOffApprovalLimitCents: 25_000 })).toBe(25_000);
+    expect(remit.writeOffApprovalLimit({ writeOffApprovalLimitCents: '9' })).toBe(50_000);
+    expect(remit.writeOffApprovalLimit({ writeOffApprovalLimitCents: -1 })).toBe(50_000);
+  });
+
+  it('counts the corrected-claim deadline from the denying payment', () => {
+    expect(remit.correctionDeadline('2026-10-21', 90)).toBe('2027-01-19');
+    expect(remit.correctionDeadline('2026-02-27', 2)).toBe('2026-03-01');
+  });
+});

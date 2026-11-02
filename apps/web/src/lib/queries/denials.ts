@@ -1,11 +1,15 @@
 import 'server-only';
-import { and, desc, eq, gte, inArray, ne, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, ne, sql, type SQL } from 'drizzle-orm';
 import {
+  claimEvents,
   claims,
+  clientPayerSettings,
   clients,
   encounters,
   patients,
   payers,
+  remittances,
+  users,
   withAudit,
   withTenant,
   workItems,
@@ -13,13 +17,15 @@ import {
 import { policy, remit } from '@cleanpost/domain';
 import { getDb } from '../server';
 import type { ActiveContext } from '../session';
-import { patientLabel } from './work';
+import { getWorkDetail, patientLabel, type WorkDetail } from './work';
+import { writeOffOptions, type WriteOffOptions } from './write-off';
 
 const NONE = '00000000-0000-0000-0000-000000000000';
 
 export interface DenialRow {
   itemId: string;
   claimId: string | null;
+  clientId: string | null;
   patient: string | null;
   dateOfService: string | null;
   clientName: string | null;
@@ -27,6 +33,8 @@ export interface DenialRow {
   carc: string;
   kind: remit.DenialKind;
   amountCents: number;
+  /** What a bulk write-off (D-03) takes: the denied amount, capped at the claim's balance. */
+  writeOffCents: number;
   createdAt: Date;
   assigned: boolean;
 }
@@ -61,6 +69,7 @@ export async function listDenials(
           .select({
             itemId: workItems.id,
             claimId: workItems.claimId,
+            clientId: workItems.clientId,
             lastName: patients.lastName,
             firstName: patients.firstName,
             dos: encounters.dateOfService,
@@ -68,6 +77,7 @@ export async function listDenials(
             payerName: payers.name,
             carc: workItems.reasonCode,
             amountCents: workItems.amountCents,
+            balanceCents: claims.balanceCents,
             createdAt: workItems.createdAt,
             assigneeId: workItems.assigneeId,
           })
@@ -84,6 +94,7 @@ export async function listDenials(
     const all = rows.map((r): DenialRow => ({
       itemId: r.itemId,
       claimId: r.claimId,
+      clientId: r.clientId,
       patient:
         r.lastName && r.firstName ? patientLabel({ lastName: r.lastName, firstName: r.firstName }) : null,
       dateOfService: r.dos,
@@ -92,6 +103,7 @@ export async function listDenials(
       carc: r.carc,
       kind: remit.denialKind(r.carc),
       amountCents: Number(r.amountCents ?? 0),
+      writeOffCents: remit.writeOffDefaultCents(Number(r.amountCents ?? 0), Number(r.balanceCents ?? 0)),
       createdAt: r.createdAt,
       assigned: Boolean(r.assigneeId),
     }));
@@ -133,5 +145,108 @@ export async function listDenials(
         writtenOff: { count: of('Written off')?.n ?? 0, cents: Number(of('Written off')?.cents ?? 0) },
       },
     };
+  });
+}
+
+export interface DenialDrawer {
+  detail: WorkDetail;
+  /** The claim's events, oldest first (D-02 History). */
+  history: { type: string; actor: string; payload: Record<string, unknown>; occurredAt: Date }[];
+  /** Where the denial came from: the 835's source and date. */
+  source: { kind: string; paymentDate: string; payerName: string; traceNumber: string } | null;
+  /** Corrected claim by: the client's filing limit for the payer from the denial date. */
+  deadline: { date: string; filingDays: number } | null;
+  /** Denials of the same code from the same payer for this client (D-02 "similar denials"). */
+  similar: { total: number; corrected: number; writtenOff: number; open: number };
+  assigneeName: string | null;
+  pmName: string;
+}
+
+/** D-02 Denial detail: the W-16 detail plus history, deadline and similar denials. A PHI read. */
+export async function getDenialDrawer(ctx: ActiveContext, itemId: string): Promise<DenialDrawer | null> {
+  const detail = await getWorkDetail(ctx, itemId);
+  if (!detail || detail.item.type !== 'denial' || !detail.claim) return null;
+  const item = detail.item;
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const [claim] = await tx.select().from(claims).where(eq(claims.id, detail.claim!.id));
+    const history = await tx
+      .select({
+        type: claimEvents.type,
+        actor: claimEvents.actor,
+        payload: claimEvents.payload,
+        occurredAt: claimEvents.occurredAt,
+      })
+      .from(claimEvents)
+      .where(eq(claimEvents.claimId, detail.claim!.id))
+      .orderBy(asc(claimEvents.occurredAt));
+    const [r] = item.remittanceId
+      ? await tx
+          .select({
+            kind: remittances.source,
+            paymentDate: remittances.paymentDate,
+            payerName: remittances.payerName,
+            traceNumber: remittances.traceNumber,
+          })
+          .from(remittances)
+          .where(eq(remittances.id, item.remittanceId))
+      : [];
+    const [cps] =
+      claim?.payerId && item.clientId
+        ? await tx
+            .select({ days: clientPayerSettings.timelyFilingDays })
+            .from(clientPayerSettings)
+            .where(
+              and(
+                eq(clientPayerSettings.clientId, item.clientId),
+                eq(clientPayerSettings.payerId, claim.payerId),
+              ),
+            )
+        : [];
+    const filingDays = cps?.days ?? 90;
+    const others =
+      claim?.payerId && item.clientId
+        ? await tx
+            .select({ status: workItems.status, resolution: workItems.resolution })
+            .from(workItems)
+            .innerJoin(claims, eq(claims.id, workItems.claimId))
+            .where(
+              and(
+                eq(workItems.type, 'denial'),
+                eq(workItems.clientId, item.clientId),
+                eq(workItems.reasonCode, item.reasonCode),
+                eq(claims.payerId, claim.payerId),
+                ne(workItems.id, item.id),
+              ),
+            )
+        : [];
+    const [assignee] = item.assigneeId
+      ? await tx.select({ name: users.name }).from(users).where(eq(users.id, item.assigneeId))
+      : [];
+    return {
+      detail,
+      history: history.map((h) => ({ ...h, payload: (h.payload ?? {}) as Record<string, unknown> })),
+      source: r ?? null,
+      deadline: r ? { date: remit.correctionDeadline(r.paymentDate, filingDays), filingDays } : null,
+      similar: {
+        total: others.length,
+        corrected: others.filter((o) => o.resolution?.startsWith('Corrected')).length,
+        writtenOff: others.filter((o) => o.resolution?.startsWith('Written off')).length,
+        open: others.filter((o) => o.status !== 'resolved').length,
+      },
+      assigneeName: assignee?.name ?? null,
+      pmName: detail.connection?.pmName ?? 'the PM',
+    };
+  });
+}
+
+/** D-03 bulk: each client's write-off options (PM name, codes, limit). */
+export async function writeOffOptionsFor(
+  ctx: ActiveContext,
+  clientIds: string[],
+): Promise<Record<string, WriteOffOptions>> {
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const out: Record<string, WriteOffOptions> = {};
+    for (const id of new Set(clientIds)) out[id] = await writeOffOptions(tx, ctx.tenantId, id);
+    return out;
   });
 }

@@ -2,20 +2,21 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CircleCheck } from 'lucide-react';
 import { z } from 'zod';
-import { remit } from '@cleanpost/domain';
+import { policy, remit } from '@cleanpost/domain';
 import { EmptyState } from '@cleanpost/ui';
-import { CodeChip } from '@/components/code-chip';
 import { PageHead } from '@/components/page';
-import { formatCount, formatDate, formatMoney, formatWhen } from '@/lib/format';
-import { listDenials } from '@/lib/queries/denials';
+import { formatCount, formatMoney } from '@/lib/format';
+import { getDenialDrawer, listDenials, writeOffOptionsFor } from '@/lib/queries/denials';
 import { requireActiveContext } from '@/lib/session';
+import { DenialDrawer } from './denial-drawer';
+import { DenialsTable } from './denials-table';
 
 export const metadata: Metadata = { title: 'Denials' };
 
 const Id = z.uuid();
 const KINDS = Object.keys(remit.DENIAL_KIND_LABEL) as remit.DenialKind[];
 
-/** D-01 Denials: open balance at risk by category, and the denials to work (row opens W-16). */
+/** D-01 Denials: open balance at risk by category, and the denials to work (a row opens D-02). */
 export default async function DenialsPage({
   searchParams,
 }: {
@@ -28,11 +29,22 @@ export default async function DenialsPage({
     kind,
     clientId: Id.safeParse(sp.client).success ? sp.client! : null,
   });
-  const href = (k: string | null) => {
+  const link = (over: Record<string, string | null>) => {
     const p = new URLSearchParams();
-    for (const [key, v] of Object.entries({ ...sp, kind: k })) if (v) p.set(key, v);
+    for (const [key, v] of Object.entries({ ...sp, ...over })) if (v) p.set(key, v);
     return `/denials${p.size ? `?${p}` : ''}`;
   };
+  const href = (k: string | null) => link({ kind: k, denial: null });
+  const open = Id.safeParse(sp.denial).success ? sp.denial! : null;
+  const drawer = open ? await getDenialDrawer(ctx, open) : null;
+  const canBulk = policy.authorize(ctx.actor, 'denial.write_off', { clientId: null }).allowed;
+  const options = canBulk
+    ? await writeOffOptionsFor(
+        ctx,
+        data.rows.flatMap((r) => (r.clientId ? [r.clientId] : [])),
+      )
+    : {};
+  const clientOf = drawer?.detail.item.clientId ?? null;
 
   return (
     <>
@@ -64,58 +76,31 @@ export default async function DenialsPage({
                 href={href(k.kind)}
               >
                 {remit.DENIAL_KIND_LABEL[k.kind]} <span className="n">{formatCount(k.count)}</span>{' '}
-                <span className="muted">{formatMoney(k.cents).replace(/\.\d\d$/, '')}</span>
+                <span className={kind === k.kind ? undefined : 'muted'}>
+                  {formatMoney(k.cents).replace(/\.\d\d$/, '')}
+                </span>
               </Link>
             ))}
           </div>
-          <div className="card flush">
-            <div className="table-wrap">
-              <table className="table nowrap" aria-label="Open denials">
-                <thead>
-                  <tr>
-                    <th>Patient</th>
-                    <th>DOS</th>
-                    <th>Client</th>
-                    <th>Payer</th>
-                    <th>Category</th>
-                    <th>Code</th>
-                    <th className="num">At risk</th>
-                    <th>Denied</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.rows.map((r) => (
-                    <tr key={r.itemId}>
-                      <td>
-                        <Link href={`/work?item=${r.itemId}`}>{r.patient ?? 'Claim'}</Link>
-                      </td>
-                      <td>{formatDate(r.dateOfService).replace(/, \d{4}$/, '')}</td>
-                      <td>{r.clientName ?? '—'}</td>
-                      <td>
-                        <span className="truncate" style={{ maxWidth: 180 }}>
-                          {r.payerName ?? '—'}
-                        </span>
-                      </td>
-                      <td>{remit.DENIAL_KIND_LABEL[r.kind]}</td>
-                      <td>
-                        <CodeChip code={`CO-${r.carc}`} bad />
-                      </td>
-                      <td className="num">{formatMoney(r.amountCents)}</td>
-                      <td>{formatWhen(r.createdAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="table-foot">
-              <span>
-                Showing {formatCount(data.rows.length)} of {formatCount(data.totals.count)}
-              </span>
-              <span className="spacer" />
-              <span>Amounts are the open balance at risk, not billed charges.</span>
-            </div>
-          </div>
+          <DenialsTable
+            rows={data.rows}
+            hrefs={Object.fromEntries(data.rows.map((r) => [r.itemId, link({ denial: r.itemId })]))}
+            total={data.totals.count}
+            canBulk={canBulk}
+            options={options}
+          />
         </>
+      )}
+      {drawer && (
+        <DenialDrawer
+          data={drawer}
+          closeHref={link({ denial: null })}
+          can={{
+            correct: policy.authorize(ctx.actor, 'claim.edit', { clientId: clientOf }).allowed,
+            overLimit: policy.authorize(ctx.actor, 'denial.write_off', { clientId: clientOf }).allowed,
+            assign: policy.authorize(ctx.actor, 'work.resolve', { clientId: clientOf }).allowed,
+          }}
+        />
       )}
     </>
   );

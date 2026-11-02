@@ -12,10 +12,13 @@ import {
   claimVersions,
   externalRefs,
   manualTasks,
+  notifications,
   remitClaims,
   remittances,
+  tenants,
   withTenant,
   workItems,
+  writeOffRequests,
 } from '@cleanpost/db';
 import type { ClaimPayload } from '@cleanpost/domain';
 import { pmSchema } from '@cleanpost/pm-mock';
@@ -27,9 +30,12 @@ import {
   approveClaim,
   buildClaimsForClient,
   buildCorrection,
+  decideWriteOff,
   releaseClaim,
+  requestWriteOff,
   scrubVersion,
   writeOffClaim,
+  writeOffDenials,
 } from '../src';
 import {
   admin,
@@ -48,6 +54,7 @@ import {
 const willamette = () => client('Willamette');
 const deps = { db: app.db, registry, log };
 let user = '';
+let biller = '';
 
 async function sync() {
   const conn = await connectionOf('Willamette');
@@ -112,7 +119,7 @@ async function acceptedClaim() {
 /** The payer's denial as ingestion leaves it: the 835 claim with its number, the claim denied, one item. */
 async function deny(claimId: string, payerClaimNumber: string) {
   const c = await claimRow(claimId);
-  await withTenant(app.db, { tenantId: NORTHWIND }, async (tx) => {
+  return withTenant(app.db, { tenantId: NORTHWIND }, async (tx) => {
     const [r] = await tx
       .insert(remittances)
       .values({
@@ -141,19 +148,56 @@ async function deny(claimId: string, payerClaimNumber: string) {
       matchedBy: 'pcn',
     });
     await applyClaimEvent(tx, c, 'deny', { actor: 'automation:test', versionId: c.currentVersionId });
-    await tx.insert(workItems).values({
-      tenantId: NORTHWIND,
-      clientId: c.clientId,
-      type: 'denial',
-      priority: 2,
-      dueAt: new Date(Date.now() + 48 * 3_600_000),
-      claimId,
-      remittanceId: r!.id,
-      reasonCode: '4',
-      summary: 'Denied: CO-4',
-      amountCents: c.totalChargeCents,
-    });
+    const [item] = await tx
+      .insert(workItems)
+      .values({
+        tenantId: NORTHWIND,
+        clientId: c.clientId,
+        type: 'denial',
+        priority: 2,
+        dueAt: new Date(Date.now() + 48 * 3_600_000),
+        claimId,
+        remittanceId: r!.id,
+        reasonCode: '4',
+        summary: 'Denied: CO-4',
+        amountCents: c.totalChargeCents,
+      })
+      .returning();
+    return item!.id;
   });
+}
+
+/**
+ * For write-off tests, which need no PM round trip: a Willamette claim the scrub passed, billed by
+ * the PM, accepted and denied. Takes "ready" claims, never the ones in review release.test needs.
+ */
+async function deniedClaim(payerClaimNumber: string) {
+  const pick = async () =>
+    (
+      await admin.db
+        .select()
+        .from(claims)
+        .where(and(eq(claims.clientId, willamette().id), eq(claims.status, 'ready')))
+        .limit(1)
+    )[0];
+  let c = await pick();
+  if (!c) {
+    const built = await admin.db
+      .select()
+      .from(claims)
+      .where(and(eq(claims.clientId, willamette().id), eq(claims.status, 'built')))
+      .limit(20);
+    for (const b of built) {
+      await scrubVersion({ db: app.db, log }, { tenantId: NORTHWIND, claimVersionId: b.currentVersionId! });
+      if ((c = await pick())) break;
+    }
+  }
+  if (!c) throw new Error('no Willamette claim ready');
+  await withTenant(app.db, { tenantId: NORTHWIND }, async (tx) => {
+    await applyClaimEvent(tx, c, 'billed_outside', { actor: 'automation:test' });
+    await applyClaimEvent(tx, { ...c, status: 'submitted' }, 'accept', { actor: 'automation:test' });
+  });
+  return { claimId: c.id, denialItemId: await deny(c.id, payerClaimNumber) };
 }
 
 const openDenials = (claimId: string) =>
@@ -168,6 +212,7 @@ beforeAll(async () => {
   await syncedWorld();
   await seedReference(admin.db);
   user = await userIdOf('julia@northwind.test');
+  biller = await userIdOf('marcus@northwind.test');
   await buildClaimsForClient(app.db, { tenantId: NORTHWIND, clientId: willamette().id });
 }, 240_000);
 
@@ -198,7 +243,7 @@ describe('Flow 5: denial to corrected claim (Mode A, Tebra)', () => {
       { tenantId: NORTHWIND, userId: user, claimId },
       {
         fix: {
-          fix: { op: 'addModifier', lineMatch: { codeIn: [line.code] }, modifier: '25' },
+          fix: { op: 'addModifier', lineMatch: { codeIn: [line.code] }, modifier },
           lineNumbers: [line.lineNumber],
         },
       },
@@ -281,13 +326,12 @@ describe('Flow 5: denial to corrected claim (Mode A, Tebra)', () => {
 
 describe('write-off (C-14, D-03)', () => {
   it('closes the balance with a reason, closes the denial, and leaves a task to post it in Tebra', async () => {
-    const { claimId } = await acceptedClaim();
-    await deny(claimId, 'CIG-2026-0002');
+    const { claimId } = await deniedClaim('CIG-2026-0002');
     const c = await claimRow(claimId);
     const call = (amountCents: number, note: string | null = null) =>
       writeOffClaim(
         app.db,
-        { tenantId: NORTHWIND, userId: user, claimId },
+        { tenantId: NORTHWIND, userId: user, claimId, overLimit: 'allowed' },
         { amountCents, reason: 'Not worth pursuing', note, pmCode: 'wo' },
       );
     expect(await call(c.balanceCents + 1)).toEqual({ status: 'refused', reason: 'amount' });
@@ -301,5 +345,186 @@ describe('write-off (C-14, D-03)', () => {
       .from(manualTasks)
       .where(eq(manualTasks.workItemId, (res as { workItemId: string }).workItemId));
     expect(task!.instructions.join('\n')).toContain('with code WO');
+  });
+
+  /** The tenant's approval limit, lowered for a test so any synthetic claim is over it. */
+  async function withLimit<T>(cents: number, run: () => Promise<T>): Promise<T> {
+    const [t] = await admin.db.select().from(tenants).where(eq(tenants.id, NORTHWIND));
+    const settings = (t!.settings ?? {}) as Record<string, unknown>;
+    await admin.db
+      .update(tenants)
+      .set({ settings: { ...settings, writeOffApprovalLimitCents: cents } })
+      .where(eq(tenants.id, NORTHWIND));
+    try {
+      return await run();
+    } finally {
+      await admin.db.update(tenants).set({ settings }).where(eq(tenants.id, NORTHWIND));
+    }
+  }
+
+  const requestOf = async (id: string) =>
+    (await admin.db.select().from(writeOffRequests).where(eq(writeOffRequests.id, id)))[0]!;
+  const itemOf = async (id: string) =>
+    (await admin.db.select().from(workItems).where(eq(workItems.id, id)))[0]!;
+
+  it('over the approval limit, a biller asks; an admin approves and the write-off is done as the admin', async () => {
+    await withLimit(1_000, async () => {
+      const { claimId, denialItemId } = await deniedClaim('CIG-2026-0003');
+      const c = await claimRow(claimId);
+      const input = {
+        amountCents: c.balanceCents,
+        reason: 'Practice instruction' as const,
+        note: 'The practice asked to write it off',
+        pmCode: 'adm',
+        denialItemId,
+      };
+      expect(await writeOffClaim(app.db, { tenantId: NORTHWIND, userId: biller, claimId }, input)).toEqual({
+        status: 'refused',
+        reason: 'over_limit',
+      });
+
+      const req = await requestWriteOff(app.db, { tenantId: NORTHWIND, userId: biller, claimId }, input);
+      expect(req.status).toBe('requested');
+      const { requestId, approvalItemId } = req as { requestId: string; approvalItemId: string };
+      expect(await itemOf(approvalItemId)).toMatchObject({
+        type: 'write_off_approval',
+        status: 'open',
+        amountCents: c.balanceCents,
+      });
+      expect(await requestWriteOff(app.db, { tenantId: NORTHWIND, userId: biller, claimId }, input)).toEqual({
+        status: 'refused',
+        reason: 'already_requested',
+      });
+      // Nothing is written off while it waits.
+      expect((await claimRow(claimId)).status).toBe('denied');
+
+      const decided = await decideWriteOff(
+        app.db,
+        { tenantId: NORTHWIND, userId: user, requestId },
+        'approve',
+        null,
+      );
+      expect(decided.status).toBe('approved');
+      expect(await claimRow(claimId)).toMatchObject({ status: 'closed', balanceCents: 0 });
+      expect(await requestOf(requestId)).toMatchObject({ status: 'approved', decidedBy: `user:${user}` });
+      expect(await itemOf(approvalItemId)).toMatchObject({ status: 'resolved', resolution: 'Approved' });
+      expect(await itemOf(denialItemId)).toMatchObject({ status: 'resolved', resolution: 'Written off' });
+      const [ev] = await admin.db
+        .select()
+        .from(claimEvents)
+        .where(and(eq(claimEvents.claimId, claimId), eq(claimEvents.type, 'closed')));
+      expect(ev).toMatchObject({ actor: `user:${user}` });
+      expect(ev!.payload).toMatchObject({ requestedBy: `user:${biller}`, requestId });
+      const notes = await admin.db
+        .select()
+        .from(notifications)
+        .where(and(eq(notifications.userId, biller), eq(notifications.entityId, claimId)));
+      expect(notes.map((n) => n.type)).toEqual(['write_off_approved']);
+      // Decided once.
+      expect(
+        await decideWriteOff(app.db, { tenantId: NORTHWIND, userId: user, requestId }, 'decline', null),
+      ).toEqual({ status: 'refused', reason: 'not_pending' });
+    });
+  });
+
+  it('a declined request leaves the denial open; a direct write-off cancels a request it makes moot', async () => {
+    await withLimit(1_000, async () => {
+      const { claimId, denialItemId } = await deniedClaim('CIG-2026-0004');
+      const c = await claimRow(claimId);
+      const input = {
+        amountCents: c.balanceCents,
+        reason: 'Not worth pursuing' as const,
+        note: 'Small balance',
+        pmCode: 'wo',
+        denialItemId,
+      };
+      const first = (await requestWriteOff(
+        app.db,
+        { tenantId: NORTHWIND, userId: biller, claimId },
+        input,
+      )) as {
+        requestId: string;
+        approvalItemId: string;
+      };
+      expect(
+        await decideWriteOff(
+          app.db,
+          { tenantId: NORTHWIND, userId: user, requestId: first.requestId },
+          'decline',
+          'Correct it instead',
+        ),
+      ).toEqual({ status: 'declined' });
+      expect(await requestOf(first.requestId)).toMatchObject({
+        status: 'declined',
+        decisionNote: 'Correct it instead',
+      });
+      expect(await itemOf(first.approvalItemId)).toMatchObject({
+        status: 'resolved',
+        resolution: 'Declined',
+      });
+      expect(await itemOf(denialItemId)).toMatchObject({ status: 'open' });
+      expect((await claimRow(claimId)).status).toBe('denied');
+
+      // Asked again, then an admin writes it off directly: the waiting request is no longer needed.
+      const second = (await requestWriteOff(
+        app.db,
+        { tenantId: NORTHWIND, userId: biller, claimId },
+        input,
+      )) as {
+        requestId: string;
+        approvalItemId: string;
+      };
+      expect(
+        await writeOffClaim(
+          app.db,
+          { tenantId: NORTHWIND, userId: user, claimId, overLimit: 'allowed' },
+          input,
+        ),
+      ).toMatchObject({ status: 'written_off' });
+      expect(await requestOf(second.requestId)).toMatchObject({ status: 'cancelled' });
+      expect(await itemOf(second.approvalItemId)).toMatchObject({
+        status: 'resolved',
+        resolution: 'No longer needed',
+      });
+    });
+  });
+
+  it('writes off the denied amount only: what the patient owes on other lines stays open', async () => {
+    const { claimId, denialItemId } = await deniedClaim('CIG-2026-0005');
+    const c = await claimRow(claimId);
+    const patientOwes = 2_000;
+    await admin.db
+      .update(workItems)
+      .set({ amountCents: c.balanceCents - patientOwes })
+      .where(eq(workItems.id, denialItemId));
+    const res = await writeOffClaim(
+      app.db,
+      { tenantId: NORTHWIND, userId: user, claimId, overLimit: 'allowed' },
+      {
+        amountCents: c.balanceCents - patientOwes,
+        reason: 'Not worth pursuing',
+        note: 'Denied office visit',
+        pmCode: 'wo',
+        denialItemId,
+      },
+    );
+    expect(res).toMatchObject({ status: 'written_off' });
+    expect(await claimRow(claimId)).toMatchObject({ status: 'denied', balanceCents: patientOwes });
+    expect(await itemOf(denialItemId)).toMatchObject({ status: 'resolved', resolution: 'Written off' });
+  });
+
+  it('bulk (admin) writes off each denial with one reason and code, and reports what it could not', async () => {
+    const a = await deniedClaim('CIG-2026-0006');
+    const b = await deniedClaim('CIG-2026-0007');
+    const [ia, ib] = [a.denialItemId, b.denialItemId];
+    const total = (await claimRow(a.claimId)).balanceCents + (await claimRow(b.claimId)).balanceCents;
+    const res = await writeOffDenials(app.db, { tenantId: NORTHWIND, userId: user }, [ia, ib, ia], {
+      reason: 'Timely filing missed',
+      note: 'Past the filing limit',
+      pmCode: 'tfwo',
+    });
+    expect(res).toEqual({ writtenOff: 2, cents: total, refused: [{ itemId: ia, reason: 'not_open' }] });
+    expect((await claimRow(a.claimId)).status).toBe('closed');
+    expect((await claimRow(b.claimId)).status).toBe('closed');
   });
 });

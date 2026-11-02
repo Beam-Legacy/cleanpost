@@ -10,14 +10,25 @@ import { z } from 'zod';
 import {
   approveClaim,
   buildCorrection,
+  decideWriteOff,
   editClaim,
+  requestWriteOff,
   scrubVersion,
   unapproveClaim,
   WRITE_OFF_REASONS,
   writeOffClaim,
+  writeOffDenials,
 } from '@cleanpost/claims';
-import { claims, claimVersions, savedViews, scrubResults, withTenant, workItems } from '@cleanpost/db';
-import { policy, type policy as P } from '@cleanpost/domain';
+import {
+  claims,
+  claimVersions,
+  savedViews,
+  scrubResults,
+  withTenant,
+  workItems,
+  writeOffRequests,
+} from '@cleanpost/db';
+import { formatCents, policy, type policy as P } from '@cleanpost/domain';
 import { cancelClaimRelease, sendClaimCorrect, sendClaimRelease, sendClaimScrub } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import {
@@ -278,7 +289,9 @@ export async function resolve(
           ? 'Add a note for "Other".'
           : res.reason === 'unknown_reason'
             ? 'Pick a reason from the list.'
-            : 'This item cannot be resolved now.',
+            : res.reason === 'decided_elsewhere'
+              ? 'Approve or decline the write-off instead.'
+              : 'This item cannot be resolved now.',
     };
   return { ok: true, done: true, message: 'Resolved.', undo: { kind: 'resolve', itemId: id } };
 }
@@ -598,51 +611,164 @@ export async function buildCorrectionFromItem(
   };
 }
 
-/** The write-off limit a biller may approve alone (D-03 default); above it an admin decides. */
-const BILLER_WRITE_OFF_LIMIT_CENTS = 50_000;
+const WRITE_OFF_REFUSED: Record<string, string> = {
+  not_found: 'Claim not found.',
+  not_open: 'This claim has no open balance to write off.',
+  amount: 'The amount cannot be more than the open balance.',
+  note_required: 'Add a note (needed for "Other" and for amounts over $100).',
+  over_limit: 'This is over your approval limit: request approval instead.',
+  already_requested: 'A write-off for this claim is already waiting for an admin.',
+  not_pending: 'This request has already been decided.',
+};
 
-/** C-14 / D-03 Write off a claim's open balance with a reason; Mode A leaves a task for the PM. */
-export async function writeOffAction(
-  claimId: string,
-  input: { amountCents: number; reason: string; note: string; pmCode: string },
-): Promise<WorkActionResult> {
-  const ctx = await requireActiveContext();
+const writeOffSchema = z.object({
+  amountCents: z.number().int().positive(),
+  reason: z.enum(WRITE_OFF_REASONS),
+  note: z.string().max(500),
+  pmCode: z
+    .string()
+    .trim()
+    .min(1)
+    .max(20)
+    .regex(/^[A-Za-z0-9_.-]+$/),
+  itemId: Id.nullable().optional(),
+  /** The denial had a suggested correction the person chose not to take (recorded, D-02). */
+  suggestionNotTaken: z.boolean().optional(),
+});
+
+type WriteOffForm = z.input<typeof writeOffSchema>;
+
+/** Validates the D-03 form against the claim and the denial item it came from. */
+async function writeOffInput(ctx: ActiveContext, claimId: string, input: WriteOffForm) {
   const id = Id.parse(claimId);
-  const data = z
-    .object({
-      amountCents: z.number().int().positive(),
-      reason: z.enum(WRITE_OFF_REASONS),
-      note: z.string().max(500),
-      pmCode: z
-        .string()
-        .trim()
-        .min(1)
-        .max(20)
-        .regex(/^[A-Za-z0-9_.-]+$/),
-    })
-    .safeParse(input);
-  if (!data.success) return { ok: false, message: 'Choose a reason and the PM adjustment code.' };
-  const action = data.data.amountCents > BILLER_WRITE_OFF_LIMIT_CENTS ? 'denial.write_off' : 'work.resolve';
-  const { claim } = await scoped(ctx, 'work.resolve', { claimId: id });
-  if (!policy.authorize(ctx.actor, action, { clientId: claim?.clientId ?? null }).allowed)
-    return { ok: false, message: 'Write-offs over $500 need an admin.' };
+  const data = writeOffSchema.safeParse(input);
+  if (!data.success) return { error: 'Choose a reason and the PM write-off code.' } as const;
+  const { claim } = await scoped(ctx, 'work.resolve', {
+    claimId: id,
+    ...(data.data.itemId ? { itemId: data.data.itemId } : {}),
+  });
+  return {
+    id,
+    claim,
+    input: {
+      amountCents: data.data.amountCents,
+      reason: data.data.reason,
+      note: data.data.note.trim() || null,
+      pmCode: data.data.pmCode,
+      denialItemId: data.data.itemId ?? null,
+      suggestionNotTaken: Boolean(data.data.suggestionNotTaken),
+    },
+  } as const;
+}
+
+function revalidateWriteOff(claimId: string) {
+  revalidatePath('/work');
+  revalidatePath('/denials');
+  revalidatePath(`/claims/${claimId}`);
+}
+
+/**
+ * C-14 / D-03 Write off a claim's open balance (by default the denied amount) with a reason; Mode A
+ * leaves a task to post it in the PM. Over the tenant's approval limit only an admin may.
+ */
+export async function writeOffAction(claimId: string, form: WriteOffForm): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const v = await writeOffInput(ctx, claimId, form);
+  if (v.error) return { ok: false, message: v.error };
+  const overLimit = policy.authorize(ctx.actor, 'denial.write_off', { clientId: v.claim?.clientId ?? null })
+    .allowed
+    ? 'allowed'
+    : 'refused';
   const res = await writeOffClaim(
     getDb(),
-    { tenantId: ctx.tenantId, userId: ctx.user.id, claimId: id },
-    { ...data.data, note: data.data.note.trim() || null },
+    { tenantId: ctx.tenantId, userId: ctx.user.id, claimId: v.id, overLimit },
+    v.input,
   );
-  revalidatePath('/work');
-  revalidatePath(`/claims/${id}`);
-  revalidatePath('/denials');
+  revalidateWriteOff(v.id);
   if (res.status !== 'written_off')
-    return {
-      ok: false,
-      message:
-        res.reason === 'amount'
-          ? 'The amount cannot be more than the open balance.'
-          : res.reason === 'note_required'
-            ? 'Add a note (needed for "Other" and for amounts over $100).'
-            : 'This claim has no open balance to write off.',
-    };
-  return { ok: true, done: true, message: 'Written off. A task posts the adjustment in the PM.' };
+    return { ok: false, message: WRITE_OFF_REFUSED[res.reason] ?? 'Not written off.' };
+  return {
+    ok: true,
+    done: true,
+    message: res.workItemId ? 'Written off. A task posts the adjustment in the PM.' : 'Written off.',
+  };
+}
+
+/** D-03 Request approval: a biller's write-off over the limit goes to the admins' queue. */
+export async function requestWriteOffAction(claimId: string, form: WriteOffForm): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const v = await writeOffInput(ctx, claimId, form);
+  if (v.error) return { ok: false, message: v.error };
+  const res = await requestWriteOff(
+    getDb(),
+    { tenantId: ctx.tenantId, userId: ctx.user.id, claimId: v.id },
+    v.input,
+  );
+  revalidateWriteOff(v.id);
+  if (res.status !== 'requested')
+    return { ok: false, message: WRITE_OFF_REFUSED[res.reason] ?? 'The request was not sent.' };
+  return { ok: true, message: 'Sent to an admin for approval. You will be notified of the decision.' };
+}
+
+/** W-01 approval panel: an admin approves (the write-off is done now) or declines with a note. */
+export async function decideWriteOffAction(
+  itemId: string,
+  decision: 'approve' | 'decline',
+  note: string,
+): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(itemId);
+  const data = z
+    .object({ decision: z.enum(['approve', 'decline']), note: z.string().max(500) })
+    .parse({ decision, note });
+  const { item } = await scoped(ctx, 'denial.write_off', { itemId: id });
+  if (item?.type !== 'write_off_approval') return { ok: false, message: 'This is not a write-off request.' };
+  const [req] = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    tx
+      .select({ id: writeOffRequests.id })
+      .from(writeOffRequests)
+      .where(eq(writeOffRequests.approvalItemId, id)),
+  );
+  if (!req) return { ok: false, message: 'The request was not found.' };
+  const res = await decideWriteOff(
+    getDb(),
+    { tenantId: ctx.tenantId, userId: ctx.user.id, requestId: req.id },
+    data.decision,
+    data.note.trim() || null,
+  );
+  if (item.claimId) revalidateWriteOff(item.claimId);
+  if (res.status === 'refused')
+    return { ok: false, message: WRITE_OFF_REFUSED[res.reason] ?? 'Nothing was decided.' };
+  return {
+    ok: true,
+    done: true,
+    message:
+      res.status === 'approved'
+        ? res.workItemId
+          ? 'Approved and written off. A task posts the adjustment in the PM.'
+          : 'Approved and written off.'
+        : 'Declined. The biller has been told.',
+  };
+}
+
+/** D-03 bulk (admin): the denied amount of each selected denial, one reason and PM code for all. */
+export async function bulkWriteOffAction(
+  itemIds: string[],
+  form: { reason: string; note: string; pmCode: string },
+): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const ids = Ids.parse(itemIds);
+  const data = writeOffSchema.pick({ reason: true, note: true, pmCode: true }).safeParse(form);
+  if (!data.success) return { ok: false, message: 'Choose a reason and the PM write-off code.' };
+  for (const itemId of ids) await scoped(ctx, 'denial.write_off', { itemId });
+  const res = await writeOffDenials(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, ids, {
+    ...data.data,
+    note: data.data.note.trim() || null,
+  });
+  revalidatePath('/work');
+  revalidatePath('/denials');
+  const done = `${res.writtenOff} of ${ids.length} written off (${formatCents(res.cents)}).`;
+  if (!res.refused.length) return { ok: true, done: true, message: done };
+  const why = [...new Set(res.refused.map((r) => WRITE_OFF_REFUSED[r.reason] ?? r.reason))].join(' ');
+  return { ok: res.writtenOff > 0, message: `${done} Not written off: ${why}` };
 }

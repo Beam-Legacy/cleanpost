@@ -1,7 +1,8 @@
 'use client';
 /**
- * W-01 side panel, by item type: W-10 claim review, W-11 claim blocked, W-12 rejection, W-21
- * manual task, W-23 connection problem, and a plain panel for types whose screens come later.
+ * W-01 side panel, by item type: W-10 claim review, W-11 claim blocked, W-12 rejection, W-16
+ * denial, W-17 to W-19 payments, W-21 manual task, W-23 connection problem, the write-off approval
+ * (D-03), and a plain panel for types whose screens come later.
  * Codes only, never CPT descriptions (CLAUDE.md rule 11). AI text is labelled "Suggested".
  */
 import Link from 'next/link';
@@ -21,6 +22,7 @@ import {
 import { CLAIM_STATUS } from '@/lib/claim-display';
 import { formatDate, formatMoney } from '@/lib/format';
 import type { WorkDetail } from '@/lib/queries/work';
+import { ApprovalPanel } from './approval-panel';
 import { LinkPayment } from './link-payment';
 import { DenialPanel } from './denial-panel';
 import { MappingForm } from './mapping-form';
@@ -322,7 +324,14 @@ export function WorkPanel({
               {formatMoney(d.remittance.amountCents)} · {formatDate(d.remittance.paymentDate)}
             </div>
             {d.item.type === 'denial' && d.denial && d.claim && (
-              <DenialPanel itemId={d.item.id} claimId={d.claim.id} denial={d.denial} canCorrect={can.edit} />
+              <DenialPanel
+                itemId={d.item.id}
+                claimId={d.claim.id}
+                denial={d.denial}
+                canCorrect={can.edit}
+                canOverLimit={can.admin}
+                label={[d.claim.patient, d.claim.payerName, d.claim.pcn].filter(Boolean).join(' · ')}
+              />
             )}
             <div>
               <Link className="btn btn-secondary btn-sm" href={`/remittances/${d.remittance.id}`}>
@@ -343,10 +352,26 @@ export function WorkPanel({
           </div>
         )}
 
+        {d.item.type === 'write_off_approval' && d.writeOffRequest && (
+          <ApprovalPanel
+            itemId={d.item.id}
+            request={d.writeOffRequest}
+            balanceCents={c?.balanceCents ?? null}
+            canDecide={can.admin}
+            onDone={onClose}
+          />
+        )}
+
         {!d.remittance &&
-          !['claim_review', 'claim_blocked', 'rejection', 'manual_task', 'sync_failure', 'system'].includes(
-            d.item.type,
-          ) && <div>{d.item.summary}</div>}
+          ![
+            'claim_review',
+            'claim_blocked',
+            'rejection',
+            'manual_task',
+            'sync_failure',
+            'system',
+            'write_off_approval',
+          ].includes(d.item.type) && <div>{d.item.summary}</div>}
 
         <div className="why">
           <CircleHelp aria-hidden />
@@ -377,9 +402,11 @@ export function WorkPanel({
             <Button disabled={pending} onClick={onSnooze}>
               Snooze <Kbd>S</Kbd>
             </Button>
-            <Button disabled={pending} onClick={onResolve}>
-              Resolve <Kbd>R</Kbd>
-            </Button>
+            {!work.DECIDED_TYPES.includes(d.item.type as work.WorkItemType) && (
+              <Button disabled={pending} onClick={onResolve}>
+                Resolve <Kbd>R</Kbd>
+              </Button>
+            )}
             <Button variant="ghost" disabled={pending} onClick={onAssign}>
               {d.item.assigneeId ? 'Reassign' : 'Assign'}
             </Button>

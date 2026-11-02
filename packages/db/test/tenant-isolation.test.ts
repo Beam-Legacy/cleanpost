@@ -65,6 +65,7 @@ const TENANT_TABLES: Record<string, 'tenant_id' | 'id'> = {
       'pm_postings',
       'work_items',
       'corrections',
+      'write_off_requests',
       'rules',
       'saved_views',
       'notification_rules',

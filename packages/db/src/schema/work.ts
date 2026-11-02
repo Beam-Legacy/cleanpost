@@ -52,6 +52,45 @@ export const workItems = pgTable(
   ],
 );
 
+/**
+ * D-03: a write-off over the tenant's approval limit, asked for by a biller and decided by an admin
+ * (packages/domain/src/state/write-off-request.ts). The approval item carries it in the queue.
+ */
+export const writeOffRequests = pgTable(
+  'write_off_requests',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    clientId: uuid('client_id')
+      .notNull()
+      .references(() => clients.id),
+    claimId: uuid('claim_id').notNull(),
+    denialItemId: uuid('denial_item_id').references(() => workItems.id),
+    approvalItemId: uuid('approval_item_id').references(() => workItems.id),
+    amountCents: integer('amount_cents').notNull(),
+    reason: text('reason').notNull(),
+    note: text('note'),
+    pmCode: text('pm_code').notNull(),
+    requestedBy: uuid('requested_by')
+      .notNull()
+      .references(() => users.id),
+    /** pending | approved | declined | cancelled */
+    status: text('status').notNull().default('pending'),
+    decidedBy: text('decided_by'),
+    decisionNote: text('decision_note'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index('write_off_requests_claim_idx').on(t.claimId, t.status),
+    check('write_off_requests_amount_check', sql`${t.amountCents} > 0`),
+    check(
+      'write_off_requests_status_check',
+      sql`${t.status} in ('pending', 'approved', 'declined', 'cancelled')`,
+    ),
+  ],
+);
+
 export const corrections = pgTable('corrections', {
   id: id(),
   tenantId: tenantId(),

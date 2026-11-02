@@ -1,5 +1,20 @@
 import 'server-only';
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lte,
+  ne,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import {
   claimEvents,
   claims,
@@ -31,6 +46,13 @@ import { payerClaimNumber } from '@cleanpost/claims';
 import { linkCandidates } from '@cleanpost/remit';
 import { wakeDueItems } from '@cleanpost/work';
 import { pacificDay } from '../format';
+import {
+  pendingWriteOff,
+  requestOfApproval,
+  writeOffOptions,
+  type WriteOffOptions,
+  type WriteOffRequestView,
+} from './write-off';
 import { getDb } from '../server';
 import type { ActiveContext } from '../session';
 
@@ -96,7 +118,7 @@ function scopeWhere(ctx: ActiveContext): SQL[] {
   const scope = policy.clientFilter(ctx.actor);
   const where: SQL[] = [];
   if (scope !== 'all') where.push(inArray(workItems.clientId, scope.length ? [...scope] : [NONE]));
-  if (ctx.actor.role !== 'admin') where.push(sql`${workItems.type} not in ('sync_failure', 'system')`);
+  if (ctx.actor.role !== 'admin') where.push(notInArray(workItems.type, [...work.ADMIN_ONLY_TYPES]));
   return where;
 }
 
@@ -337,7 +359,14 @@ export interface WorkDetail {
     /** A corrected claim is already on its way: show its status instead of the actions. */
     inFlight: boolean;
     balanceCents: number;
+    /** What the payer denied and is still at risk (the write-off default, D-03). */
+    deniedCents: number;
+    writeOff: WriteOffOptions;
+    /** A write-off over the limit waiting for an admin. */
+    pendingRequest: WriteOffRequestView | null;
   } | null;
+  /** W-01 panel for a write_off_approval item: the request and what the dialog would have offered. */
+  writeOffRequest: (WriteOffRequestView & { pmName: string; limitCents: number }) | null;
   /** W-17: claims this unmatched payment could be, best first. */
   linkCandidates:
     | {
@@ -557,7 +586,18 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
       payerClaimNumber: await payerClaimNumber(tx, item.claimId),
       inFlight: cv?.frequencyCode === '7' && claim.status !== 'denied',
       balanceCents: claim.balanceCents,
+      deniedCents: Number(
+        item.amountCents ?? denied.filter(isDenial).reduce((t, d) => t + Number(d.amountCents), 0),
+      ),
+      writeOff: await writeOffOptions(tx, ctx.tenantId, item.clientId!),
+      pendingRequest: await pendingWriteOff(tx, item.claimId),
     };
+  }
+  let writeOffRequest: WorkDetail['writeOffRequest'] = null;
+  if (item.type === 'write_off_approval' && item.clientId) {
+    const r = await requestOfApproval(tx, item.id);
+    const o = await writeOffOptions(tx, ctx.tenantId, item.clientId);
+    if (r) writeOffRequest = { ...r, pmName: o.pmName, limitCents: o.limitCents };
   }
   let candidates: WorkDetail['linkCandidates'] = null;
   if (item.type === 'remit_unmatched' && item.status !== 'resolved') {
@@ -591,6 +631,7 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
     threshold: client?.autoReleaseThreshold ?? 90,
     remittance,
     denial,
+    writeOffRequest,
     linkCandidates: candidates,
     claim,
     scrub,

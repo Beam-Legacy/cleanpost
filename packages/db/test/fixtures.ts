@@ -183,6 +183,16 @@ export async function insertTenantFixture(db: Database, f: TenantFixture, label:
   await db
     .insert(s.corrections)
     .values({ ...t, clientId, workItemId: workItem!.id, fieldPath: 'lines[0].modifiers', userId: f.user });
+  await db.insert(s.writeOffRequests).values({
+    ...t,
+    clientId,
+    claimId: claim!.id,
+    denialItemId: workItem!.id,
+    amountCents: 60_000,
+    reason: 'Not worth pursuing',
+    pmCode: 'WO',
+    requestedBy: f.user,
+  });
   await db.insert(s.rules).values({
     ...t,
     scope: 'tenant',

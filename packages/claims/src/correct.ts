@@ -1,19 +1,18 @@
 /**
- * Denial to corrected claim (Flow 5; C-09, W-16, D-02) and write-off (C-14, D-03).
+ * Denial to corrected claim (Flow 5; C-09, W-16, D-02).
  *
  * A corrected claim replaces an adjudicated one (CLAUDE.md rule 4): a new version with frequency 7
  * and the payer's claim control number as the original reference, scrubbed like any other version.
  * In Mode A the PM sends it: none of the PMs Cleanpost reaches today take a replacement claim
  * through their API, so release prepares a task to resubmit it from the PM, and the claim moves on
  * when the PM shows it sent again. The denial item closes itself when the corrected claim is
- * accepted. A write-off closes the balance with a reason, and a task posts the adjustment in the PM.
+ * accepted. Write-off (C-14, D-03) is in write-off.ts.
  */
-import { and, desc, eq, inArray, isNotNull, ne } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, ne } from 'drizzle-orm';
 import {
   claimEvents,
   claims,
   claimVersions,
-  connections,
   corrections,
   manualTasks,
   recordAudit,
@@ -24,15 +23,8 @@ import {
   type Tx,
   withTenant,
 } from '@cleanpost/db';
-import {
-  applyFix,
-  diffPayload,
-  formatCents,
-  state,
-  type ClaimPayload,
-  type SuggestedFix,
-} from '@cleanpost/domain';
-import { applyClaimEvent, recordClaimEvent } from './events';
+import { applyFix, diffPayload, state, type ClaimPayload, type SuggestedFix } from '@cleanpost/domain';
+import { applyClaimEvent } from './events';
 import { insertVersion } from './versions';
 
 export type CorrectionRefusal =
@@ -238,172 +230,6 @@ export async function resubmissionTask(
 }
 
 export const RESUBMIT_OPERATION = 'resubmitCorrected';
-
-/** Open items a corrected claim answers: they close when it is accepted or paid. */
-export async function resolveAnsweredDenials(
-  tx: Tx,
-  claim: { id: string; clientId: string; currentVersionId: string | null },
-  why: 'Corrected claim accepted' | 'Written off',
-  actor: AuditActor,
-  now: Date,
-): Promise<number> {
-  if (why === 'Corrected claim accepted') {
-    const [v] = claim.currentVersionId
-      ? await tx
-          .select({ f: claimVersions.frequencyCode })
-          .from(claimVersions)
-          .where(eq(claimVersions.id, claim.currentVersionId))
-      : [];
-    if (v?.f !== '7') return 0;
-  }
-  const open = await tx
-    .select()
-    .from(workItems)
-    .where(
-      and(
-        eq(workItems.claimId, claim.id),
-        inArray(workItems.type, why === 'Written off' ? ['denial', 'underpayment'] : ['denial']),
-        ne(workItems.status, 'resolved'),
-      ),
-    );
-  for (const item of open) {
-    const next = state.nextWorkItemState(item.status as state.WorkItemState, 'auto_resolve');
-    if (!next.ok) continue;
-    await tx
-      .update(workItems)
-      .set({ status: next.value, resolvedBy: actor, resolvedAt: now, resolution: why, updatedAt: now })
-      .where(eq(workItems.id, item.id));
-    await recordAudit(tx, {
-      actor,
-      action: 'work_item.auto_resolve',
-      entityType: 'work_item',
-      entityId: item.id,
-      clientId: claim.clientId,
-      metadata: { type: item.type, reason: why },
-    });
-  }
-  return open.length;
-}
-
-export const WRITE_OFF_REASONS = [
-  'Not worth pursuing',
-  'Timely filing missed',
-  'Patient not covered and not billable',
-  'Practice instruction',
-  'Other',
-] as const;
-
-export type WriteOffOutcome =
-  | { status: 'written_off'; amountCents: number; workItemId: string | null }
-  | { status: 'refused'; reason: 'not_found' | 'not_open' | 'amount' | 'note_required' };
-
-/**
- * C-14 / D-03 Write off: closes the claim's open balance (or part of it) with a reason the billing
- * company can report. In Mode A a task posts the adjustment in the PM with the given code.
- */
-export async function writeOffClaim(
-  db: Database,
-  ctx: { tenantId: string; userId: string; claimId: string },
-  input: {
-    amountCents: number;
-    reason: (typeof WRITE_OFF_REASONS)[number];
-    note: string | null;
-    pmCode: string;
-  },
-  now = new Date(),
-): Promise<WriteOffOutcome> {
-  const actor: AuditActor = `user:${ctx.userId}`;
-  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
-    const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId)).for('update');
-    if (!claim) return { status: 'refused', reason: 'not_found' };
-    const event: state.ClaimEvent = claim.status === 'denied' ? 'write_off' : 'close';
-    if (
-      !['denied', 'partially_paid'].includes(claim.status) ||
-      !state.nextClaimState(claim.status as state.ClaimState, event).ok
-    )
-      return { status: 'refused', reason: 'not_open' };
-    const balance = Number(claim.balanceCents);
-    if (!Number.isInteger(input.amountCents) || input.amountCents <= 0 || input.amountCents > balance)
-      return { status: 'refused', reason: 'amount' };
-    if ((input.reason === 'Other' || input.amountCents > 10_000) && !input.note?.trim())
-      return { status: 'refused', reason: 'note_required' };
-    const left = balance - input.amountCents;
-    await tx.update(claims).set({ balanceCents: left, updatedAt: now }).where(eq(claims.id, claim.id));
-    // A partial write-off leaves the claim open with the rest; a full one closes it.
-    if (left === 0)
-      await applyClaimEvent(tx, claim, event, {
-        actor,
-        versionId: claim.currentVersionId,
-        payload: { writeOffCents: input.amountCents, reason: input.reason },
-        now,
-      });
-    else
-      await recordClaimEvent(tx, claim, 'written_off', {
-        actor,
-        versionId: claim.currentVersionId,
-        payload: { writeOffCents: input.amountCents, reason: input.reason, left },
-        now,
-      });
-    await recordAudit(tx, {
-      actor,
-      action: 'claim.written_off',
-      entityType: 'claim',
-      entityId: claim.id,
-      clientId: claim.clientId,
-      metadata: { amountCents: input.amountCents, reason: input.reason, full: left === 0 },
-    });
-    if (left === 0) await resolveAnsweredDenials(tx, claim, 'Written off', actor, now);
-
-    // Mode A: the PM holds the balance; a person posts the adjustment there.
-    const [conn] = await tx
-      .select({ id: connections.id, settings: connections.settings })
-      .from(connections)
-      .where(eq(connections.clientId, claim.clientId))
-      .limit(1);
-    let workItemId: string | null = null;
-    if (claim.mode === 'A' && conn) {
-      const pmName = ((conn.settings ?? {}) as { pmName?: string }).pmName ?? 'the PM';
-      const title = `Write off ${formatCents(input.amountCents)} in ${pmName}`;
-      const [item] = await tx
-        .insert(workItems)
-        .values({
-          tenantId: claim.tenantId,
-          clientId: claim.clientId,
-          type: 'manual_task',
-          priority: 3,
-          dueAt: new Date(now.getTime() + 48 * 3_600_000),
-          claimId: claim.id,
-          encounterId: claim.encounterId,
-          connectionId: conn.id,
-          reasonCode: WRITE_OFF_OPERATION,
-          summary: `${title} (${input.reason.toLowerCase()}).`,
-          amountCents: input.amountCents,
-        })
-        .returning({ id: workItems.id });
-      workItemId = item!.id;
-      await tx.insert(manualTasks).values({
-        tenantId: claim.tenantId,
-        clientId: claim.clientId,
-        connectionId: conn.id,
-        operation: WRITE_OFF_OPERATION,
-        workItemId,
-        title,
-        instructions: [
-          `In ${pmName}, open the claim with control number ${claim.patientControlNumber ?? '(see the claim)'}.`,
-          `Post an adjustment of ${formatCents(input.amountCents)} with code ${input.pmCode.toUpperCase()} (${input.reason.toLowerCase()}).`,
-          left > 0
-            ? `${formatCents(left)} stays open on the claim.`
-            : 'The claim balance should then be zero.',
-          'Do not bill the patient for a contractual write-off.',
-        ],
-        payloadRef: claim.id,
-      });
-    }
-    return { status: 'written_off', amountCents: input.amountCents, workItemId };
-  });
-}
-
-export const WRITE_OFF_OPERATION = 'writeOff';
 
 /** The claim already has a corrected version on its way (D-02 shows its status instead). */
 export async function correctionInFlight(tx: Tx, claimId: string): Promise<boolean> {

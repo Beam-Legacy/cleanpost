@@ -18,7 +18,7 @@ import {
 } from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
 import { applyClaimEvent } from './events';
-import { resolveAnsweredDenials } from './correct';
+import { resolveAnsweredDenials } from './answered';
 import { markReleased } from './release';
 
 export interface StatusContext {
