@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { remit } from '@cleanpost/domain';
-import { parse835, toCents, X12Error } from '../src';
+import { fromCents, parse835, toCents, write835, X12Error } from '../src';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'testing', 'golden', '835');
 const read = (name: string) => parse835(readFileSync(join(DIR, name), 'utf8'));
@@ -110,5 +110,28 @@ describe('golden 835s', () => {
 
   it('refuses something that is not an 835', () => {
     expect(() => parse835('hello')).toThrow(X12Error);
+  });
+});
+
+describe('write835', () => {
+  const files = readdirSync(DIR).filter((f) => f.endsWith('.edi'));
+  it.each(files)('%s reads back the same after writing', (name) => {
+    const r = read(name);
+    const text = write835(r, {
+      senderId: 'SIMPAYER',
+      receiverId: 'CLEANPOST',
+      control: 42,
+      at: new Date('2026-11-01T12:00:00Z'),
+    });
+    expect(parse835(text)).toEqual(r);
+  });
+
+  it('formats cents without floats', () => {
+    expect([fromCents(12_000), fromCents(-215), fromCents(7), fromCents(0)]).toEqual([
+      '120.00',
+      '-2.15',
+      '0.07',
+      '0.00',
+    ]);
   });
 });
