@@ -16,7 +16,11 @@
       "action": {
         "finding": "Add modifier 25 to the E/M line: it is billed with a minor procedure the same day.",
         "field": "lines",
-        "suggestedFix": { "op": "addModifier", "lineMatch": { "codeInGroup": "em_office", "modifierNotIn": ["25", "57"] }, "modifier": "25" }
+        "suggestedFix": {
+          "op": "addModifier",
+          "lineMatch": { "codeInGroup": "em_office", "modifierNotIn": ["25", "57"] },
+          "modifier": "25"
+        }
       }
     },
     {
@@ -34,7 +38,11 @@
       "action": {
         "finding": "Add modifier 25 to the problem-oriented E/M: it is billed with a preventive visit the same day.",
         "field": "lines",
-        "suggestedFix": { "op": "addModifier", "lineMatch": { "codeInGroup": "em_office", "modifierNotIn": ["25"] }, "modifier": "25" }
+        "suggestedFix": {
+          "op": "addModifier",
+          "lineMatch": { "codeInGroup": "em_office", "modifierNotIn": ["25"] },
+          "modifier": "25"
+        }
       }
     },
     {
@@ -44,7 +52,9 @@
       "kind": "validate",
       "severity": "warn",
       "weight": 15,
-      "condition": { "anyLine": { "codeInGroup": "lateral_procedures", "modifierNotIn": ["RT", "LT", "50"] } },
+      "condition": {
+        "anyLine": { "codeInGroup": "lateral_procedures", "modifierNotIn": ["RT", "LT", "50"] }
+      },
       "action": { "finding": "Add RT, LT or 50 to show which side was treated.", "field": "lines" }
     }
   ]
