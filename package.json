@@ -14,6 +14,7 @@
     "test": "turbo run test && pnpm scan:logs",
     "test:e2e": "turbo run test:e2e",
     "test:adapters": "turbo run test:adapters",
+    "test:cycle": "pnpm --filter @cleanpost/worker test:cycle",
     "db:up": "docker compose up -d postgres mailpit",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @cleanpost/db run migrate && pnpm --filter @cleanpost/jobs run install-schema",

@@ -81,3 +81,14 @@ test('R-04 shows the 835 check and the comparison with the PM', async () => {
   await expect(page.getByRole('heading', { name: /compared with what .* posted/ })).toBeVisible();
   await expectAccessible(page, 'R-04');
 });
+
+test('W-17 shows the claims an unmatched payment could be, and sets it aside', async () => {
+  await page.goto('/work?type=posting');
+  const row = page.getByRole('row').filter({ hasText: 'Unmatched payment' }).first();
+  await expect(row).toBeVisible();
+  await row.locator('td:nth-child(3) b').click();
+  await expect(page.getByText('Claims it could be')).toBeVisible();
+  await expectAccessible(page, 'W-17');
+  await page.getByRole('button', { name: 'Mark as before go-live' }).click();
+  await expect(page.getByText('Set aside: before go-live.')).toBeVisible({ timeout: 15_000 });
+});

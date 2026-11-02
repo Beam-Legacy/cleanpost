@@ -53,6 +53,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Cycle test (the Mode A loop over 45 simulated days, docs/12-testing.md)
+        run: pnpm test:cycle
       - run: pnpm --filter @cleanpost/ui build-storybook --quiet
       - name: End-to-end (sign-in, shell, clients, work queue; axe in both themes)
         run: |

@@ -69,8 +69,9 @@ export function expectedPosting(line: ServiceLinePayment, lookup: MappingLookup)
   const add = (code: string, cents: number) =>
     out.adjustments.set(code, (out.adjustments.get(code) ?? 0) + cents);
   for (const a of line.adjustments) {
-    if (a.group === 'PR') out.patientRespCents += a.amountCents;
     const m = lookup(a.group, a.carc);
+    // Patient responsibility: PR, plus anything mapped as a transfer to the patient.
+    if (a.group === 'PR' || m?.action === 'transfer_to_patient') out.patientRespCents += a.amountCents;
     if (m) {
       if (m.action !== 'info_only') add(m.pmAdjustmentCode, a.amountCents);
       continue;

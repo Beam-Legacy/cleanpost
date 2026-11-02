@@ -22,6 +22,8 @@ import { CLAIM_STATUS } from '@/lib/claim-display';
 import { formatDate, formatMoney } from '@/lib/format';
 import { CARC_LABEL } from '@/lib/remit-display';
 import type { WorkDetail } from '@/lib/queries/work';
+import { LinkPayment } from './link-payment';
+import { MappingForm } from './mapping-form';
 import type { Permissions } from './work-queue';
 
 const STEP_LABEL: Record<string, string> = {
@@ -334,6 +336,17 @@ export function WorkPanel({
                 Open remittance
               </Link>
             </div>
+            {d.item.type === 'remit_unmatched' && d.linkCandidates && can.resolve && (
+              <LinkPayment itemId={d.item.id} candidates={d.linkCandidates} />
+            )}
+            {d.item.type === 'mapping_needed' && d.item.status !== 'resolved' && can.admin && (
+              <MappingForm
+                itemId={d.item.id}
+                pair={d.item.reasonCode}
+                pmName={d.connection?.pmName ?? 'the PM'}
+                clientName={d.clientName}
+              />
+            )}
           </div>
         )}
 

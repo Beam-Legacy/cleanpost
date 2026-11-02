@@ -168,6 +168,82 @@ async function applyPayment(
   return outcome.event;
 }
 
+/**
+ * A payment matched to a claim (by ingestion, or by a person linking it, W-17): link the 835 claim
+ * and its lines, move the claim, and open one denial item when anything was denied.
+ */
+export async function applyMatch(
+  tx: Tx,
+  v: {
+    tenantId: string;
+    clientId: string;
+    remittanceId: string;
+    traceNumber: string;
+    remitClaimId: string;
+    lineIds: string[];
+    payment: remit.ClaimPayment;
+    claim: typeof claims.$inferSelect;
+    by: 'pcn' | 'payer_claim_number' | 'heuristic' | 'manual';
+    actor: AuditActor;
+    now: Date;
+  },
+): Promise<{ denied: boolean }> {
+  const c = v.payment;
+  await tx
+    .update(remitClaims)
+    .set({ claimId: v.claim.id, matchStatus: 'matched', matchedBy: v.by, updatedAt: v.now })
+    .where(eq(remitClaims.id, v.remitClaimId));
+  const lines = v.claim.currentVersionId
+    ? await tx.select().from(claimLines).where(eq(claimLines.claimVersionId, v.claim.currentVersionId))
+    : [];
+  const lineMatches = matchLines(lines, c.lines);
+  for (let i = 0; i < v.lineIds.length; i++)
+    if (lineMatches[i])
+      await tx
+        .update(remitLines)
+        .set({ claimLineId: lineMatches[i] })
+        .where(eq(remitLines.id, v.lineIds[i]!));
+
+  const outcome = remit.paymentOutcome(c);
+  await applyPayment(tx, v.claim, c, outcome, {
+    remittanceId: v.remittanceId,
+    traceNumber: v.traceNumber,
+    actor: v.actor,
+    now: v.now,
+  });
+  if (!outcome.denials.length) return { denied: false };
+  const worst = outcome.denials.reduce<remit.DenialCategory>(
+    (w, d) => (remit.DENIAL_PRIORITY[d.category] < remit.DENIAL_PRIORITY[w] ? d.category : w),
+    'other',
+  );
+  const codes = [...new Set(outcome.denials.map((d) => `${d.group}-${d.carc}`))].join(', ');
+  const open = await tx
+    .select({ id: workItems.id })
+    .from(workItems)
+    .where(
+      and(eq(workItems.claimId, v.claim.id), eq(workItems.type, 'denial'), ne(workItems.status, 'resolved')),
+    );
+  if (!open.length)
+    await createWorkItem(
+      tx,
+      {
+        tenantId: v.tenantId,
+        clientId: v.clientId,
+        type: 'denial',
+        priority: remit.DENIAL_PRIORITY[worst],
+        hours: 48,
+        reasonCode: outcome.denials[0]!.carc,
+        summary: `${c.statusCode === '4' || c.paidCents === 0 ? 'Denied' : 'Partly denied'}: ${codes}`,
+        amountCents: outcome.denials.reduce((t, d) => t + d.amountCents, 0),
+        claimId: v.claim.id,
+        remittanceId: v.remittanceId,
+        now: v.now,
+      },
+      v.actor,
+    );
+  return { denied: true };
+}
+
 export interface IngestContext {
   tenantId: string;
   clientId: string;
@@ -350,6 +426,7 @@ export async function ingestInTx(
           summary: `Payment for control number ${c.patientControlNumber} matches no claim.`,
           amountCents: c.paidCents,
           remittanceId,
+          remitClaimId: s.id,
           now,
         },
         actor,
@@ -357,64 +434,20 @@ export async function ingestInTx(
       continue;
     }
     matched++;
-    await tx
-      .update(remitClaims)
-      .set({ claimId: m.claim.id, matchStatus: 'matched', matchedBy: m.by, updatedAt: now })
-      .where(eq(remitClaims.id, s.id));
-    const lines = m.claim.currentVersionId
-      ? await tx.select().from(claimLines).where(eq(claimLines.claimVersionId, m.claim.currentVersionId))
-      : [];
-    const lineMatches = matchLines(lines, c.lines);
-    for (let i = 0; i < s.lineIds.length; i++)
-      if (lineMatches[i])
-        await tx
-          .update(remitLines)
-          .set({ claimLineId: lineMatches[i] })
-          .where(eq(remitLines.id, s.lineIds[i]!));
-
-    const outcome = remit.paymentOutcome(c);
-    await applyPayment(tx, m.claim, c, outcome, {
+    const res = await applyMatch(tx, {
+      tenantId: ctx.tenantId,
+      clientId: ctx.clientId,
       remittanceId,
       traceNumber: r.payment.traceNumber,
+      remitClaimId: s.id,
+      lineIds: s.lineIds,
+      payment: c,
+      claim: m.claim,
+      by: m.by,
       actor,
       now,
     });
-    if (outcome.denials.length) {
-      denied++;
-      const worst = outcome.denials.reduce<remit.DenialCategory>(
-        (w, d) => (remit.DENIAL_PRIORITY[d.category] < remit.DENIAL_PRIORITY[w] ? d.category : w),
-        'other',
-      );
-      const codes = [...new Set(outcome.denials.map((d) => `${d.group}-${d.carc}`))].join(', ');
-      const open = await tx
-        .select({ id: workItems.id })
-        .from(workItems)
-        .where(
-          and(
-            eq(workItems.claimId, m.claim.id),
-            eq(workItems.type, 'denial'),
-            ne(workItems.status, 'resolved'),
-          ),
-        );
-      if (!open.length)
-        await createWorkItem(
-          tx,
-          {
-            tenantId: ctx.tenantId,
-            clientId: ctx.clientId,
-            type: 'denial',
-            priority: remit.DENIAL_PRIORITY[worst],
-            hours: 48,
-            reasonCode: outcome.denials[0]!.carc,
-            summary: `${c.statusCode === '4' || c.paidCents === 0 ? 'Denied' : 'Partly denied'}: ${codes}`,
-            amountCents: outcome.denials.reduce((t, d) => t + d.amountCents, 0),
-            claimId: m.claim.id,
-            remittanceId,
-            now,
-          },
-          actor,
-        );
-    }
+    if (res.denied) denied++;
   }
   await tx
     .update(remitClaims)

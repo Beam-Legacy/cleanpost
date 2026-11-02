@@ -6,6 +6,7 @@ import {
   claimVersions,
   clients,
   connections,
+  encounters,
   manualTasks,
   memberships,
   patients,
@@ -23,6 +24,7 @@ import {
   type Tx,
 } from '@cleanpost/db';
 import { policy, work, type ClaimPayload, type Finding } from '@cleanpost/domain';
+import { linkCandidates } from '@cleanpost/remit';
 import { wakeDueItems } from '@cleanpost/work';
 import { pacificDay } from '../format';
 import { getDb } from '../server';
@@ -317,6 +319,18 @@ export interface WorkDetail {
   } | null;
   connection: { id: string; status: string; pmName: string } | null;
   manualTask: { title: string; instructions: string[]; status: string } | null;
+  /** W-17: claims this unmatched payment could be, best first. */
+  linkCandidates:
+    | {
+        claimId: string;
+        patient: string | null;
+        dateOfService: string | null;
+        status: string;
+        patientControlNumber: string | null;
+        totalChargeCents: number;
+        codesMatch: boolean;
+      }[]
+    | null;
   /** W-16 to W-20: the payment the item is about, and for a denial the denied lines' codes. */
   remittance: {
     id: string;
@@ -450,11 +464,38 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
       };
     }
   }
+  let candidates: WorkDetail['linkCandidates'] = null;
+  if (item.type === 'remit_unmatched' && item.status !== 'resolved') {
+    const found = await linkCandidates(tx, item.id);
+    const people = found.length
+      ? await tx
+          .select({
+            id: claims.id,
+            lastName: patients.lastName,
+            firstName: patients.firstName,
+            dos: encounters.dateOfService,
+          })
+          .from(claims)
+          .innerJoin(patients, eq(patients.id, claims.patientId))
+          .innerJoin(encounters, eq(encounters.id, claims.encounterId))
+          .where(
+            inArray(
+              claims.id,
+              found.map((f) => f.claimId),
+            ),
+          )
+      : [];
+    candidates = found.map((f) => {
+      const p = people.find((x) => x.id === f.claimId);
+      return { ...f, patient: p ? patientLabel(p) : null, dateOfService: p?.dos ?? null };
+    });
+  }
   return {
     item,
     clientName: client?.name ?? null,
     threshold: client?.autoReleaseThreshold ?? 90,
     remittance,
+    linkCandidates: candidates,
     claim,
     scrub,
     connection: conn

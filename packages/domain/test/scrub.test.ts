@@ -215,6 +215,23 @@ describe('scrub steps', () => {
     expect(ids(runScrubSteps(ended).findings)).toContain('eligibility.terminated');
   });
 
+  it('blocks a member the payer does not know, but only warns when the payer could not answer', () => {
+    const p = payload([{ code: '99213' }]);
+    const checkedAt = new Date('2026-10-26T00:00:00Z');
+    const notFound = runScrubSteps(
+      input(p, { eligibility: { status: 'error', checkedAt, errorCodes: ['75'] } }),
+    );
+    expect(ids(notFound.findings)).toContain('eligibility.member_not_found');
+    expect(notFound.findings.find((f) => f.ruleId === 'eligibility.member_not_found')!.severity).toBe(
+      'block',
+    );
+    const noAnswer = runScrubSteps(
+      input(p, { eligibility: { status: 'error', checkedAt, errorCodes: ['42'] } }),
+    );
+    expect(ids(noAnswer.findings)).toContain('eligibility.unconfirmed');
+    expect(ids(noAnswer.findings)).not.toContain('eligibility.member_not_found');
+  });
+
   it('applies client rules only to their client and route rules as routes', () => {
     const clientRule: RuleDef = {
       ...seedRules[0]!,

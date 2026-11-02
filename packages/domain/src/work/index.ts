@@ -76,7 +76,7 @@ export const RESOLUTION_REASONS: Record<WorkItemType, readonly string[]> = {
   no_response: ['Payer confirmed receipt', 'Resubmitted', 'Other'],
   denial: ['Corrected and resubmitted', 'Written off', 'Appealed', 'Other'],
   underpayment: ['Accepted', 'Disputed', 'Other'],
-  remit_unmatched: ['Linked by hand', 'Not ours', 'Other'],
+  remit_unmatched: ['Linked by hand', 'Before go-live', 'Not ours', 'Other'],
   out_of_balance: ['Corrected 835 requested', 'Difference accepted', 'Other'],
   mapping_needed: ['Mapped', 'Other'],
   posting_exception: ['Corrected in the PM', 'Accepted as posted', 'Other'],

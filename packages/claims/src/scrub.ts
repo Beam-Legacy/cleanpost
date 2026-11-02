@@ -253,6 +253,7 @@ async function load(
             checkedAt: elig.requestedAt,
             otherPayerName:
               ((elig.summary ?? {}) as { otherPayerName?: string | null }).otherPayerName ?? null,
+            errorCodes: ((elig.summary ?? {}) as { errorCodes?: string[] }).errorCodes ?? [],
           }
         : null,
       reference: codeCount > 0 ? { icd10, procedures } : { icd10: null, procedures: null },

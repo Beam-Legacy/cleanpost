@@ -12,6 +12,13 @@ import { claims, claimVersions, savedViews, scrubResults, withTenant, workItems 
 import { policy, type policy as P } from '@cleanpost/domain';
 import { cancelClaimRelease, sendClaimCorrect, sendClaimRelease } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
+import {
+  linkPayment,
+  mappingInputSchema,
+  saveMapping,
+  SET_ASIDE_REASONS,
+  setAsidePayment,
+} from '@cleanpost/remit';
 import { assignItem, reopenItem, resolveItem, snoozeItem, wakeItem } from '@cleanpost/work';
 import { listAssignees, viewQuery, type Assignee } from '@/lib/queries/work';
 import { getBoss } from '@/lib/jobs';
@@ -415,4 +422,70 @@ export async function deleteView(viewId: string): Promise<WorkActionResult> {
   );
   revalidatePath('/work');
   return { ok: true, message: 'View removed.' };
+}
+
+/** W-19: map an 835 adjustment code to the PM's code (admins); closes the item and checks again. */
+export async function mapAdjustmentCode(
+  itemId: string,
+  input: { pmAdjustmentCode: string; action: string; scope: string },
+): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(itemId);
+  const { item } = await scoped(ctx, 'mappings.manage', { itemId: id });
+  if (!item || item.type !== 'mapping_needed' || !item.clientId)
+    return { ok: false, message: 'This item is not a mapping request.' };
+  const [groupCode, carc] = item.reasonCode.split('-');
+  const parsed = mappingInputSchema.safeParse({ ...input, clientId: item.clientId, groupCode, carc });
+  if (!parsed.success)
+    return { ok: false, message: 'Enter the PM code (letters and numbers) and choose what it does.' };
+  const res = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    saveMapping(tx, { tenantId: ctx.tenantId, userId: ctx.user.id }, parsed.data),
+  );
+  revalidatePath('/work');
+  revalidatePath('/remittances');
+  if (!res.ok) return { ok: false, message: 'This client has no PM connection to map codes for.' };
+  log.info({ itemId: id, itemsClosed: res.itemsClosed }, 'adjustment code mapped');
+  return {
+    ok: true,
+    done: true,
+    message: `Mapped ${item.reasonCode} to ${parsed.data.pmAdjustmentCode.toUpperCase()}; postings checked again.`,
+  };
+}
+
+const LINK_REFUSED: Record<string, string> = {
+  not_found: 'This payment is no longer waiting to be linked.',
+  not_unmatched: 'This payment was already linked or set aside.',
+  claim_not_found: 'That claim is not one of this client’s.',
+};
+
+/** W-17: link an unmatched payment to the claim it pays; the posting match runs once all are linked. */
+export async function linkUnmatchedPayment(itemId: string, claimId: string): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(itemId);
+  const claim = Id.parse(claimId);
+  await scoped(ctx, 'payment.post', { itemId: id });
+  await scoped(ctx, 'payment.post', { claimId: claim });
+  const res = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    linkPayment(tx, { tenantId: ctx.tenantId, userId: ctx.user.id }, { itemId: id, claimId: claim }),
+  );
+  revalidatePath('/work');
+  revalidatePath('/remittances');
+  if (!res.ok) return { ok: false, message: LINK_REFUSED[res.reason] ?? 'The payment could not be linked.' };
+  return { ok: true, done: true, message: 'Payment linked to the claim.' };
+}
+
+/** W-17: set an unmatched payment aside (billed before go-live, or not this client's). */
+export async function setAsideUnmatchedPayment(itemId: string, reason: string): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(itemId);
+  const why = z.enum(SET_ASIDE_REASONS).parse(reason);
+  await scoped(ctx, 'payment.post', { itemId: id });
+  const res = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    setAsidePayment(tx, { tenantId: ctx.tenantId, userId: ctx.user.id }, { itemId: id, reason: why }),
+  );
+  revalidatePath('/work');
+  revalidatePath('/remittances');
+  if (!res.ok)
+    return { ok: false, message: LINK_REFUSED[res.reason] ?? 'The payment could not be set aside.' };
+  return { ok: true, done: true, message: `Set aside: ${why.toLowerCase()}.` };
 }

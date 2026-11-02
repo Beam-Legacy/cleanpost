@@ -12,6 +12,7 @@ export interface NewWorkItem {
   amountCents: number | null;
   claimId?: string | null;
   remittanceId: string;
+  remitClaimId?: string | null;
   now: Date;
 }
 
@@ -26,6 +27,7 @@ export async function createWorkItem(tx: Tx, v: NewWorkItem, actor: AuditActor) 
       dueAt: new Date(v.now.getTime() + v.hours * 3_600_000),
       claimId: v.claimId ?? null,
       remittanceId: v.remittanceId,
+      remitClaimId: v.remitClaimId ?? null,
       reasonCode: v.reasonCode,
       summary: v.summary,
       amountCents: v.amountCents,

@@ -9,7 +9,7 @@ Deterministic rules decide. The LLM reads, explains, extracts and suggests, alwa
 Runs on every claim version. Steps run in order; each produces findings `{ ruleId, severity: 'block' | 'warn' | 'info', field, message, suggestedFix? }`.
 
 1. **Structural** — required fields for 837P/837I present and well-formed: NPIs (Luhn check with 80840 prefix), tax ID, subscriber, payer ID, dates, at least one diagnosis, pointers valid, POS valid, units > 0, charges > 0.
-2. **Eligibility** — coverage active on date of service; payer on claim matches the active coverage; COB order consistent.
+2. **Eligibility** — coverage active on date of service; payer on claim matches the active coverage; COB order consistent. The payer not knowing the member (271 AAA 72 or 75) blocks, since the claim would be rejected at the front end; a check the payer could not answer (other AAA codes) is a warning.
 3. **Code validity** — ICD-10 valid on the date of service and billable (not a header code); CPT/HCPCS valid; modifiers valid; NDC format when required.
 4. **NCCI** — procedure-to-procedure edits with modifier indicators; medically unlikely edits on units.
 5. **Payer rules** — rules scoped to the payer (e.g. modifier requirements, prior auth required for listed codes, rendering vs billing NPI requirements, taxonomy required).

@@ -15,6 +15,7 @@ import {
   remitClaims,
   remitLines,
   remittances,
+  users,
   withTenant,
   workItems,
 } from '@cleanpost/db';
@@ -23,7 +24,15 @@ import type { remit } from '@cleanpost/domain';
 import { createLogger } from '@cleanpost/log';
 import { seed } from '@cleanpost/seed';
 import { CLIENTS, NORTHWIND } from '@cleanpost/seed/world';
-import { ingestRemittance, storePmPostings, verifyInTx } from '../src';
+import {
+  ingestRemittance,
+  linkCandidates,
+  linkPayment,
+  saveMapping,
+  setAsidePayment,
+  storePmPostings,
+  verifyInTx,
+} from '../src';
 
 const urls = testDatabaseUrls();
 const admin = createDatabase(urls.adminUrl, { max: 2 });
@@ -313,5 +322,92 @@ describe('posting match', () => {
         ),
       );
     expect(mapping).toHaveLength(1);
+  });
+
+  it('maps the code for every client on the PM, closes the item and checks the lines again (W-19)', async () => {
+    const [julia] = await admin.db.select().from(users).where(eq(users.email, 'julia@northwind.test'));
+    const res = await withTenant(app.db, { tenantId: NORTHWIND }, (tx) =>
+      saveMapping(
+        tx,
+        { tenantId: NORTHWIND, userId: julia!.id },
+        {
+          clientId: client.id,
+          groupCode: 'OA',
+          carc: '23',
+          pmAdjustmentCode: 'copay',
+          action: 'transfer_to_patient',
+          scope: 'pm_type',
+        },
+      ),
+    );
+    expect(res).toMatchObject({ ok: true, pmType: 'mock', itemsClosed: 1 });
+    const [item] = await admin.db
+      .select()
+      .from(workItems)
+      .where(
+        and(
+          eq(workItems.clientId, client.id),
+          eq(workItems.type, 'mapping_needed'),
+          eq(workItems.reasonCode, 'OA-23'),
+        ),
+      );
+    expect(item).toMatchObject({ status: 'resolved', resolution: 'Mapped' });
+    const remits = await admin.db
+      .select({ id: remittances.id, status: remittances.status })
+      .from(remittances)
+      .where(inArray(remittances.traceNumber, ['TRC-VER-5', 'TRC-VER-6']));
+    expect(remits.map((r) => r.status)).toEqual(['reconciled', 'reconciled']);
+    for (const r of remits) expect(await lineStatuses(r.id)).toEqual(['verified']);
+  });
+
+  it('links an unmatched payment to the claim a person picks, then checks the posting (W-17)', async () => {
+    const claimId = await sentClaim('VER-7', [{ code: '99214', chargeCents: 16_500 }]);
+    // The payer echoed a control number Cleanpost does not know (a typo in the PM, say).
+    const paid: Line = {
+      ...PAID,
+      code: '99214',
+      charge: 16_500,
+      paid: 10_500,
+      adj: [{ group: 'CO', carc: '45', amountCents: 3_500 }, PAID.adj[1]!],
+    };
+    const id = await ingest(era('VER-7X', 'TRC-VER-7', [paid]));
+    expect(await remitStatus(id)).toBe('partially_matched');
+    const [item] = await itemsFor(id, 'remit_unmatched');
+    expect(item!.remitClaimId).not.toBeNull();
+    const candidates = await withTenant(app.db, { tenantId: NORTHWIND }, (tx) =>
+      linkCandidates(tx, item!.id),
+    );
+    expect(candidates[0]).toMatchObject({ claimId, codesMatch: true });
+    await post([{ ...goodPosting('VER-7X', 'TRC-VER-7'), paidCents: paid.paid }]);
+    const [julia] = await admin.db.select().from(users).where(eq(users.email, 'julia@northwind.test'));
+    const res = await withTenant(app.db, { tenantId: NORTHWIND }, (tx) =>
+      linkPayment(tx, { tenantId: NORTHWIND, userId: julia!.id }, { itemId: item!.id, claimId }),
+    );
+    expect(res).toEqual({ ok: true, remittanceStatus: 'reconciled' });
+    const [c] = await admin.db.select().from(claims).where(eq(claims.id, claimId));
+    expect(c!.status).toBe('paid');
+    const [rc] = await admin.db.select().from(remitClaims).where(eq(remitClaims.remittanceId, id));
+    expect(rc).toMatchObject({ claimId, matchStatus: 'matched', matchedBy: 'manual' });
+    expect((await itemsFor(id, 'remit_unmatched'))[0]).toMatchObject({
+      status: 'resolved',
+      resolution: 'Linked by hand',
+    });
+  });
+
+  it('sets aside a payment billed before go-live and moves the remittance on', async () => {
+    const id = await ingest(era('OLD-1', 'TRC-VER-8', [PAID]));
+    const [item] = await itemsFor(id, 'remit_unmatched');
+    const [julia] = await admin.db.select().from(users).where(eq(users.email, 'julia@northwind.test'));
+    const res = await withTenant(app.db, { tenantId: NORTHWIND }, (tx) =>
+      setAsidePayment(
+        tx,
+        { tenantId: NORTHWIND, userId: julia!.id },
+        { itemId: item!.id, reason: 'Before go-live' },
+      ),
+    );
+    // Nothing matched is left to check, so the payment reconciles.
+    expect(res).toEqual({ ok: true, remittanceStatus: 'reconciled' });
+    const [rc] = await admin.db.select().from(remitClaims).where(eq(remitClaims.remittanceId, id));
+    expect(rc!.matchStatus).toBe('set_aside');
   });
 });

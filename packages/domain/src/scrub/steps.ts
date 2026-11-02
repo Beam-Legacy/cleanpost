@@ -54,6 +54,8 @@ export interface ScrubInput {
     checkedAt: Date;
     /** When the payer reports the patient is covered by a different plan. */
     otherPayerName?: string | null;
+    /** AAA reject reasons from the 271 when the check failed. */
+    errorCodes?: string[];
   } | null;
   reference: {
     /** Known ICD-10-CM codes and whether each is billable (not a header). Null when not loaded. */
@@ -151,6 +153,9 @@ export function structural(input: ScrubInput): Finding[] {
   return out;
 }
 
+/** 271 AAA codes that mean the payer has no such member, not that it could not answer. */
+const MEMBER_NOT_FOUND = new Set(['72', '75']);
+
 export function eligibility(input: ScrubInput): Finding[] {
   const cov = input.coverage;
   if (!cov) return []; // structural already blocks
@@ -197,6 +202,18 @@ export function eligibility(input: ScrubInput): Finding[] {
         'eligibility.inactive',
         'coverage',
         'The payer reports the coverage inactive on the date of service.',
+      ),
+    ];
+  }
+  // The payer says it has no such member (AAA 72 invalid member ID, 75 subscriber not found): the
+  // claim would be rejected at the front end (277CA A7:33), so it does not go out as is.
+  if (e.status === 'error' && e.errorCodes?.some((c) => MEMBER_NOT_FOUND.has(c))) {
+    return [
+      block(
+        'eligibility',
+        'eligibility.member_not_found',
+        'coverage',
+        'The payer does not recognize this member. Check the payer and the member ID in the PM.',
       ),
     ];
   }

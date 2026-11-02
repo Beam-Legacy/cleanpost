@@ -30,6 +30,8 @@ export const workItems = pgTable(
     assigneeId: uuid('assignee_id').references(() => users.id),
     claimId: uuid('claim_id'),
     remittanceId: uuid('remittance_id'),
+    /** The payment in the 835 an unmatched-payment item is about (W-17). */
+    remitClaimId: uuid('remit_claim_id'),
     encounterId: uuid('encounter_id'),
     documentId: uuid('document_id'),
     connectionId: uuid('connection_id'),

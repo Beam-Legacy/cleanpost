@@ -8,7 +8,8 @@
     "start": "tsx src/main.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:cycle": "vitest run --config vitest.cycle.config.ts"
   },
   "dependencies": {
     "@cleanpost/adapters": "workspace:*",

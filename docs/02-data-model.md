@@ -52,12 +52,13 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `remittances` | client_id, payer_id, source (`stedi`,`pm`,`file`), trace_number (check/EFT), payment_method (`ACH`,`CHK`,`NON`), payment_amount_cents, payment_date, raw_ref, status | One per 835 transaction/payment |
-| `remit_claims` | remittance_id, claim_id?, patient_control_number, payer_claim_control_number, claim_status_code, charge_cents, paid_cents, patient_resp_cents, match_status (`matched`,`unmatched`,`ambiguous`), matched_by (`pcn`,`payer_claim_number`,`heuristic`,`manual`) | CLP |
-| `remit_lines` | remit_claim_id, claim_line_id?, code, modifiers, charge_cents, allowed_cents?, paid_cents, units, line_control_number | SVC |
+| `remit_claims` | remittance_id, claim_id?, patient_control_number, payer_claim_control_number, claim_status_code, charge_cents, paid_cents, patient_resp_cents, match_status (`matched`,`unmatched`,`ambiguous`,`set_aside`: billed before go-live or not this client's, W-17), matched_by (`pcn`,`payer_claim_number`,`heuristic`,`manual`) | CLP |
+| `remit_lines` | remit_claim_id, claim_line_id?, code, modifiers, charge_cents, allowed_cents?, paid_cents, units, line_control_number, verify_status? (`pending`,`verified`,`mismatch`,`missing`,`unmapped`), verify_detail?, verified_at? | SVC; verify_* from the posting match (Modes A, C) |
 | `remit_adjustments` | remit_claim_id or remit_line_id, group_code (`CO`,`PR`,`OA`,`PI`,`CR`), carc, amount_cents, quantity | CAS |
 | `remit_remarks` | remit_claim_id or remit_line_id, rarc | LQ / MOA / MIA |
 | `provider_adjustments` | remittance_id, reason_code, reference, amount_cents | PLB |
 | `adjustment_mappings` | tenant_id, client_id?, pm_type, group_code, carc, pm_adjustment_code, action (`adjust`,`transfer_to_patient`,`write_off`,`info_only`) | Maps to the PM's own codes |
+| `pm_postings` | client_id, connection_id, external_key, trace_number, encounter_external_id, line_external_id?, paid_cents, adjustments (PM codes), patient_resp_cents, posted_at | What the PM posted, read with `pullPostings` (Modes A, C) for the posting match |
 | `postings` | remittance_id, connection_id, status, method (`api`,`file`,`browser`,`manual`,`pm_native`), attempts, last_error, posted_total_cents, verified_at | |
 | `deposits` (phase 2) | client_id, bank_date, amount_cents, trace_number, matched_remittance_id | Bank reconciliation |
 
@@ -65,7 +66,7 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `work_items` | client_id, type, status, priority (1–4), due_at, assignee_id?, claim_id?, remittance_id?, encounter_id?, document_id?, connection_id?, reason_code, summary (no PHI beyond what the UI shows), snoozed_until?, resolved_by, resolution | See `docs/08-work-queue.md` |
+| `work_items` | client_id, type, status, priority (1–4), due_at, assignee_id?, claim_id?, remittance_id?, remit_claim_id? (the payment an unmatched-payment item is about), encounter_id?, document_id?, connection_id?, reason_code, summary (no PHI beyond what the UI shows), snoozed_until?, resolved_by, resolution | See `docs/08-work-queue.md` |
 | `corrections` | work_item_id, field_path, before jsonb, after jsonb, user_id, promoted_rule_id? | Training data for rules |
 | `rules` | scope (`global`,`tenant`,`client`,`payer`,`client_payer`), scope ids, name, kind (`validate`,`transform`,`route`), condition jsonb, action jsonb, severity, enabled, source (`seed`,`user`,`promoted`), version | |
 
