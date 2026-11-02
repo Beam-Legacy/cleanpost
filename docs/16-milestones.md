@@ -67,6 +67,9 @@ Accept:
 - `pnpm test:cycle` passes for Mode A clients (see `12-testing.md`)
 - Every unverified or mismatched line has exactly one open work item
 
+Status (Nov 2, 2026):
+- Built: `packages/x12` 835 parser into the canonical structure (`packages/domain/src/remit`), the "835 balance" check, golden files in `packages/testing/golden/835` (paid in full, partial with deductible, CO-197 denial, several claims per check, reversal and correction, secondary crossover, PLB interest and recoupment, zero pay, and one that does not balance). All parse and balance.
+
 ## M4 — Denials, eligibility, documents, reports (weeks 12–15)
 
 Build: denial triage and categories, corrected-claim flow (D-01 to D-03, W-16, C-09, C-14); claim status checks via Stedi 276/277 (C-15, W-15); eligibility screens and patients (P-01 to P-06, W-13); card upload and extraction with review (W-14); reports with PDF/CSV export (RP-01 to RP-07, F-01); usage metering; notifications and digest (G-04, S-09, E-04, E-05); timely-filing watch (W-22).

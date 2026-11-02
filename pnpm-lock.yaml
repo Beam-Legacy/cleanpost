@@ -701,6 +701,16 @@ importers:
         specifier: workspace:*
         version: link:../testing
 
+  packages/x12:
+    dependencies:
+      '@cleanpost/domain':
+        specifier: workspace:*
+        version: link:../domain
+    devDependencies:
+      '@cleanpost/testing':
+        specifier: workspace:*
+        version: link:../testing
+
 packages:
 
   '@adobe/css-tools@4.5.0':

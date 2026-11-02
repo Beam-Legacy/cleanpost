@@ -10,7 +10,8 @@
     "./claims": "./src/claims/index.ts",
     "./rules": "./src/rules/index.ts",
     "./scrub": "./src/scrub/index.ts",
-    "./work": "./src/work/index.ts"
+    "./work": "./src/work/index.ts",
+    "./remit": "./src/remit/index.ts"
   },
   "scripts": {
     "lint": "eslint .",
