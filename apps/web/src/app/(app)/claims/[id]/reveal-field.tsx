@@ -3,15 +3,19 @@
 import { Copy, Eye, EyeOff } from 'lucide-react';
 import { useEffect, useState, useTransition } from 'react';
 import { IconButton, useToast } from '@cleanpost/ui';
+import { revealPatientField } from '../../patients/actions';
 import { revealField } from './actions';
 
+/** On a claim (C-06) by claim; on a patient (P-01) by the patient (DOB) or the coverage (member ID). */
+export type RevealTarget = { claimId: string } | { patientId: string } | { coverageId: string };
+
 export function RevealField({
-  claimId,
+  target,
   field,
   masked,
   label,
 }: {
-  claimId: string;
+  target: RevealTarget;
   field: 'dob' | 'member_id';
   masked: string;
   label: string;
@@ -27,7 +31,10 @@ export function RevealField({
   }, [value]);
   const fetchValue = (purpose: 'reveal' | 'copy') =>
     start(async () => {
-      const res = await revealField(claimId, field, purpose);
+      const res =
+        'claimId' in target
+          ? await revealField(target.claimId, field, purpose)
+          : await revealPatientField(target, purpose);
       if (!res.ok) return toast({ message: res.message, tone: 'bad' });
       if (purpose === 'copy') {
         await navigator.clipboard?.writeText(res.value).catch(() => undefined);

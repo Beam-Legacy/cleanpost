@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectAccessible, firstSignIn } from './helpers';
+import { expectAccessible, signedInPage } from './helpers';
 
 /**
  * W-01 Work queue with the W-10 panel, W-06 snooze and W-07 resolve, on the synthetic practices
@@ -28,8 +28,7 @@ async function pressesToFirstReview() {
 test.beforeAll(async ({ browser }, info) => {
   test.setTimeout(120_000);
   const { baseURL, viewport } = info.project.use;
-  page = await (await browser.newContext({ baseURL, viewport })).newPage();
-  await firstSignIn(page, 'marcus@northwind.test');
+  page = await signedInPage(browser, { baseURL, viewport }, 'marcus@northwind.test');
 });
 
 test.afterAll(async () => {

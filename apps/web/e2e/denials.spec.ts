@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectAccessible, firstSignIn } from './helpers';
+import { expectAccessible, signedInPage } from './helpers';
 
 /**
  * Flow 5 (docs/09): a CO-4 denial on Cascade (made by e2e/fixtures/denial.ts) to a corrected claim:
@@ -19,8 +19,7 @@ let authId = '';
 test.beforeAll(async ({ browser }, info) => {
   test.setTimeout(120_000);
   const { baseURL, viewport } = info.project.use;
-  page = await (await browser.newContext({ baseURL, viewport })).newPage();
-  await firstSignIn(page, 'lena@northwind.test');
+  page = await signedInPage(browser, { baseURL, viewport }, 'lena@northwind.test');
 });
 
 test.afterAll(async () => {
@@ -100,9 +99,8 @@ test('D-03 over the approval limit: the biller asks an admin', async () => {
 test('an admin approves it in the queue and the denial is written off', async ({ browser }, info) => {
   test.setTimeout(120_000);
   const { baseURL, viewport } = info.project.use;
-  const admin = await (await browser.newContext({ baseURL, viewport })).newPage();
+  const admin = await signedInPage(browser, { baseURL, viewport }, 'priya@northwind.test');
   try {
-    await firstSignIn(admin, 'priya@northwind.test');
     await admin.goto('/work?type=denials');
     await admin
       .getByRole('table', { name: 'Work items' })

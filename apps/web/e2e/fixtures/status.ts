@@ -3,14 +3,15 @@
  * through the app's own code. A Lakeside claim the PM billed and the payer accepted gets a "no
  * payment" follow-up from the daily sweep (run as of 31 days later), and a status check whose payer
  * answer (a canned 277 in Stedi's normalized shape: P3/21, pended for records) is stored like any
- * other. CI runs no payer-sim, so the answer is canned here. Once per database; synthetic data
+ * other, and its coverage's eligibility (P-01, P-03). CI runs no payer-sim, so the answers are canned
+ * here. Once per database; synthetic data
  * only; prints IDs only.
  */
 import { and, eq, inArray, like, ne } from 'drizzle-orm';
 import { applyClaimEvent, checkClaimStatus, markReleased, statusSweep } from '@cleanpost/claims';
 import { claims, createDatabase, withTenant, workItems, type Database } from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
-import type { ClaimStatusClient } from '@cleanpost/eligibility';
+import { checkCoverage, type ClaimStatusClient, type EligibilityClient } from '@cleanpost/eligibility';
 import { createLogger } from '@cleanpost/log';
 
 const NORTHWIND = '01a00000-0000-7000-8000-000000000001';
@@ -60,6 +61,28 @@ async function main() {
         ],
       }),
     };
+    // P-01 and P-03: the coverage's eligibility, answered the same way (a canned 271 summary).
+    if (c.coverageId) {
+      const eligibility: EligibilityClient = {
+        kind: 'payer-sim',
+        check: async () => ({
+          ok: true,
+          summary: {
+            status: 'active',
+            planBegin: '2026-01-01',
+            planEnd: null,
+            copayCents: 2_500,
+            deductibleRemainingCents: 40_000,
+            coinsurancePercent: 20,
+            errorCodes: [],
+          },
+        }),
+      };
+      await checkCoverage(
+        { db: app.db, client: eligibility, log },
+        { tenantId: NORTHWIND, coverageId: c.coverageId },
+      );
+    }
     const res = await checkClaimStatus(
       { db: app.db, client, log },
       { tenantId: NORTHWIND, claimId: c.id, trigger: 'sweep' },

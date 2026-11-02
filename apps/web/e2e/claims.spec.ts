@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectAccessible, firstSignIn } from './helpers';
+import { expectAccessible, signedInPage } from './helpers';
 
 /**
  * C-01 Claims list, C-02 to C-05 claim detail and C-08 editor on the synthetic practices the
@@ -12,8 +12,7 @@ let page: Page;
 test.beforeAll(async ({ browser }, info) => {
   test.setTimeout(120_000);
   const { baseURL, viewport } = info.project.use;
-  page = await (await browser.newContext({ baseURL, viewport })).newPage();
-  await firstSignIn(page, 'lena@northwind.test');
+  page = await signedInPage(browser, { baseURL, viewport }, 'lena@northwind.test');
 });
 
 test.afterAll(async () => {

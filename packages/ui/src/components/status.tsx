@@ -39,6 +39,7 @@ export const STATUS = {
   Differences: ['warn', TriangleAlert],
   Unmatched: ['warn', TriangleAlert],
   'Needs mapping': ['warn', TriangleAlert],
+  'Not confirmed': ['warn', TriangleAlert],
   Rejected: ['bad', CircleX],
   Denied: ['bad', CircleX],
   Overdue: ['bad', CircleX],
@@ -47,6 +48,7 @@ export const STATUS = {
   'Does not match': ['bad', CircleX],
   'Missing posting': ['bad', CircleX],
   'Denial written off': ['bad', CircleX],
+  Inactive: ['bad', CircleX],
   Paid: ['good', CircleCheck],
   Posted: ['good', CircleCheck],
   Balanced: ['good', CircleCheck],
@@ -55,6 +57,7 @@ export const STATUS = {
   Succeeded: ['good', CircleCheck],
   Verified: ['good', CircleCheck],
   Matches: ['good', CircleCheck],
+  Active: ['good', CircleCheck],
 } as const satisfies Record<string, readonly [Tone, LucideIcon]>;
 
 export type Status = keyof typeof STATUS;

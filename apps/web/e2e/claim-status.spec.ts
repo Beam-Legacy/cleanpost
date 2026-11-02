@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectAccessible, firstSignIn } from './helpers';
+import { expectAccessible, signedInPage } from './helpers';
 
 /**
  * C-15 and W-15 (docs/09): a claim the payer accepted a month ago with no payment has a follow-up
@@ -14,8 +14,7 @@ let page: Page;
 test.beforeAll(async ({ browser }, info) => {
   test.setTimeout(120_000);
   const { baseURL, viewport } = info.project.use;
-  page = await (await browser.newContext({ baseURL, viewport })).newPage();
-  await firstSignIn(page, 'lena@northwind.test');
+  page = await signedInPage(browser, { baseURL, viewport }, 'lena@northwind.test');
 });
 
 test.afterAll(async () => {
@@ -57,4 +56,24 @@ test('C-15 shows the status check on the claim with its codes', async () => {
   await page.keyboard.press('Escape');
   await expect(page).not.toHaveURL(/status=last/);
   await expect(page.getByRole('link', { name: 'Status details' })).toBeVisible();
+});
+
+test('P-01 shows the patient with coverage and claims; P-03 the eligibility result', async () => {
+  await page.getByRole('link', { name: 'Open patient' }).click();
+  await expect(page).toHaveURL(/\/patients\/[0-9a-f-]+$/);
+  await expect(page.getByRole('heading', { level: 1, name: /^.+, .+ · \d+ y$/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Coverage' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Claims for this patient' })).toBeVisible();
+  await expectAccessible(page, 'P-01');
+  await page
+    .getByRole('link', { name: /^Active: eligibility for / })
+    .first()
+    .click();
+  const drawer = page.getByRole('dialog', { name: 'Eligibility' });
+  await expect(drawer.getByText('Copay, office visit')).toBeVisible();
+  await expect(drawer.getByText('$25.00')).toBeVisible();
+  await expect(drawer.getByText('20%')).toBeVisible();
+  await expectAccessible(page, 'P-03');
+  await page.keyboard.press('Escape');
+  await expect(page).not.toHaveURL(/eligibility=/);
 });

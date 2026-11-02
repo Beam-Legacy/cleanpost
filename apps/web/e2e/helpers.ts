@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Browser, type Page } from '@playwright/test';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -61,4 +61,39 @@ export async function firstSignIn(page: Page, email: string): Promise<string> {
     timeout: 30_000,
   });
   return key;
+}
+
+const stateFile = (email: string) => `${keyFile(email)}.state.json`;
+
+/**
+ * A page signed in as this user in a new context. The first spec that needs the user signs in
+ * (firstSignIn) and saves the session; later specs reuse it, so a run stays under the sign-in rate
+ * limit (10 a minute, packages/auth). The saved sessions live in test-results, cleared every run.
+ */
+export async function signedInPage(
+  browser: Browser,
+  use: { baseURL?: string | undefined; viewport?: { width: number; height: number } | null | undefined },
+  email: string,
+): Promise<Page> {
+  const opts = { baseURL: use.baseURL, viewport: use.viewport ?? null };
+  const file = stateFile(email);
+  if (existsSync(file)) {
+    const ctx = await browser.newContext({ ...opts, storageState: file });
+    const page = await ctx.newPage();
+    await page.goto('/work');
+    try {
+      await page
+        .getByRole('heading', { level: 1, name: /^(Work|Choose a company)$/ })
+        .waitFor({ state: 'visible', timeout: 20_000 });
+      return page;
+    } catch {
+      await ctx.close();
+    }
+  }
+  const ctx = await browser.newContext(opts);
+  const page = await ctx.newPage();
+  await firstSignIn(page, email);
+  mkdirSync(KEYS, { recursive: true });
+  await ctx.storageState({ path: file });
+  return page;
 }

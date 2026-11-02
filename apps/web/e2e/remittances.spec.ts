@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { expectAccessible, firstSignIn } from './helpers';
+import { expectAccessible, signedInPage } from './helpers';
 
 /**
  * R-01 Remittances, R-02 Upload 835 and R-04 remittance detail, with synthetic golden 835 files for
@@ -27,8 +27,7 @@ let page: Page;
 test.beforeAll(async ({ browser }, info) => {
   test.setTimeout(120_000);
   const { baseURL, viewport } = info.project.use;
-  page = await (await browser.newContext({ baseURL, viewport })).newPage();
-  await firstSignIn(page, 'lena@northwind.test');
+  page = await signedInPage(browser, { baseURL, viewport }, 'lena@northwind.test');
 });
 
 test.afterAll(async () => {

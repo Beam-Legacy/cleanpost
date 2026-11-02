@@ -138,6 +138,9 @@ export default async function ClaimPage({
                 )}
               {canEdit && <VoidClaimButton claimId={c.id} pmName={d.pmName} />}
               {statusView && canNote && <CheckStatusButton view={statusView} after="open" />}
+              <Link className="btn btn-ghost btn-sm" href={`/patients/${c.patientId}`}>
+                Open patient
+              </Link>
             </div>
           )}
         </div>
@@ -643,7 +646,7 @@ async function PatientCoverage({
                   'Date of birth',
                   <RevealField
                     key="dob"
-                    claimId={claimId}
+                    target={{ claimId }}
                     field="dob"
                     masked={v.patient.dobMasked}
                     label="date of birth"
@@ -667,7 +670,7 @@ async function PatientCoverage({
                     'Member ID',
                     <RevealField
                       key="mid"
-                      claimId={claimId}
+                      target={{ claimId }}
                       field="member_id"
                       masked={v.coverage.memberIdMasked}
                       label="member ID"
