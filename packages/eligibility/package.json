@@ -1,0 +1,27 @@
+{
+  "name": "@cleanpost/eligibility",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cleanpost/payer-sim": "workspace:*",
+    "@cleanpost/seed": "workspace:*",
+    "@cleanpost/testing": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.1"
+  }
+}

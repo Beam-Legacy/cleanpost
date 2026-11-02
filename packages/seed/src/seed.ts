@@ -22,7 +22,16 @@ import {
 } from '@cleanpost/db';
 import { memoryMailer } from '@cleanpost/email';
 import { seedReference } from './reference';
-import { CLIENTS, HARBOR_RCM, NORTHWIND, PAYERS, npi, pmLocationId, pmMockSecretRef } from './world';
+import {
+  CLIENTS,
+  HARBOR_RCM,
+  NORTHWIND,
+  PAYERS,
+  SIM_PAYER_IDS,
+  npi,
+  pmLocationId,
+  pmMockSecretRef,
+} from './world';
 
 export { HARBOR_RCM, NORTHWIND } from './world';
 
@@ -82,8 +91,20 @@ export async function seed(systemDb: Database, password: string): Promise<{ crea
   for (const payer of PAYERS) {
     await systemDb
       .insert(payers)
-      .values({ id: payer.id, name: payer.name, aliases: [...payer.aliases] })
-      .onConflictDoUpdate({ target: payers.id, set: { name: payer.name, aliases: [...payer.aliases] } });
+      .values({
+        id: payer.id,
+        name: payer.name,
+        aliases: [...payer.aliases],
+        stediPayerId: SIM_PAYER_IDS[payer.name] ?? null,
+      })
+      .onConflictDoUpdate({
+        target: payers.id,
+        set: {
+          name: payer.name,
+          aliases: [...payer.aliases],
+          stediPayerId: SIM_PAYER_IDS[payer.name] ?? null,
+        },
+      });
   }
 
   await systemDb

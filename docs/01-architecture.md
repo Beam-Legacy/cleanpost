@@ -54,7 +54,7 @@ All asynchronous work is a pg-boss job. Payloads carry IDs only and are validate
 | `sync.tick` | Every minute (worker) | Lists due connections through `app.sync_candidates()` (IDs and schedule fields only) and queues `sync.pull` for each; marks healthy connections stale after 2× their interval |
 | `sync.pull` | `sync.tick` (default interval from the adapter's `syncPolicy`: mock 15 min, Tebra 2 hours; connections may override), Run now on I-02 | Calls adapter pull operations, upserts canonical records, records a SyncRun per operation, moves the connection through its state machine. One queued and one running job per connection. M1 pulls patients and charges; claim status joins in M2, remittances and postings in M3 |
 | `system.dead_letter` | A job that failed its last retry | Creates a `system` work item and logs an error for the platform operator |
-| `eligibility.check` | New or changed coverage; 3 days before a scheduled claim release | Stedi 270, stores 271 summary |
+| `eligibility.check` | A built claim whose coverage has no check in the last 7 days (the scrub waits for it); later also 3 days before a scheduled release | Stedi 270 (payer-sim in local and preview), stores the 271 summary; then queues the waiting scrubs. A payer that is down is retried, then the scrub goes on without a check |
 | `claim.build` | New charges complete for an encounter | Builds claim version from canonical records |
 | `claim.scrub` | After build, after any edit | Runs rules and AI review, sets confidence, routes |
 | `claim.release` | Auto-release, or approval (queued 10 s out so Undo can cancel it) | Mode A: adapter release; B/C: Stedi submission. Waits while a correction is on its way to the PM |

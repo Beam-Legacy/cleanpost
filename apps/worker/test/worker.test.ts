@@ -5,11 +5,21 @@
  */
 import { and, count, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { claims, connections, createDatabase, scrubResults, syncRuns, workItems } from '@cleanpost/db';
+import {
+  claims,
+  connections,
+  createDatabase,
+  eligibilityChecks,
+  scrubResults,
+  syncRuns,
+  workItems,
+} from '@cleanpost/db';
 import { testDatabaseUrls } from '@cleanpost/db/testing';
 import { createBoss, JOBS, sendSyncPull } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
-import { createPmDb, createPmMockApp } from '@cleanpost/pm-mock';
+import { createStediEligibilityClient } from '@cleanpost/eligibility';
+import { createPayerSimApp, createSimDb } from '@cleanpost/payer-sim';
+import { createPmDb, createPmMockApp, loadRoster } from '@cleanpost/pm-mock';
 import { seedPmMock } from '@cleanpost/pm-mock/seed';
 import { seed } from '@cleanpost/seed';
 import { CLIENTS } from '@cleanpost/seed/world';
@@ -34,11 +44,23 @@ const pmApp = createPmMockApp({ db: pm.db, log, rateScale: 1000 });
 const pmFetch = ((input: string | URL | Request, init?: RequestInit) =>
   Promise.resolve(pmApp.request(String(input), init))) as typeof fetch;
 
+const simDb = createSimDb(urls.adminUrl, 2);
+const simApp = createPayerSimApp({ db: simDb.db, log });
+const simFetch = ((input: string | URL | Request, init?: RequestInit) =>
+  Promise.resolve(simApp.request(String(input).replace('http://payer-sim.test', ''), init))) as typeof fetch;
+
 const deps: WorkerDeps = {
   db: app.db,
   boss,
   log,
   retryDelaysMs: [20],
+  // Eligibility against payer-sim, as in local and preview: build -> eligibility.check -> scrub.
+  eligibility: createStediEligibilityClient({
+    apiKey: 'payer-sim',
+    baseUrl: 'http://payer-sim.test',
+    kind: 'payer-sim',
+    fetch: simFetch,
+  }),
   registry: buildRegistry({
     db: app.db,
     pmMock: { url: 'http://pm-mock.test', secret: SECRET, fetch: pmFetch },
@@ -65,13 +87,14 @@ async function statusOf(clientId: string) {
 beforeAll(async () => {
   await seed(admin.db, 'worker-test-password-123');
   await seedPmMock(pm.db, { secret: SECRET, asOf: new Date(), scale: 0.1 });
+  await loadRoster(pm.db, { payerSimUrl: 'http://payer-sim.test', fetch: simFetch });
   await boss.start();
   await registerWorkers(deps, { schedule: false, concurrency: 3 });
 });
 
 afterAll(async () => {
   await boss.stop({ graceful: false });
-  await Promise.all([admin.close(), app.close(), pm.close()]);
+  await Promise.all([admin.close(), app.close(), pm.close(), simDb.close()]);
 });
 
 describe('schedule', () => {
@@ -94,6 +117,17 @@ describe('schedule', () => {
     }, 60_000);
     const results = await admin.db.select({ n: count() }).from(scrubResults);
     expect(results[0]!.n).toBeGreaterThan(0);
+    // Coverage was checked with the payer before the scrub (step 2), so the scrub read the result.
+    const checks = await admin.db.select({ status: eligibilityChecks.status }).from(eligibilityChecks);
+    expect(checks.length).toBeGreaterThan(0);
+    expect(checks.some((c) => c.status === 'active')).toBe(true);
+    const findings = await admin.db.select({ f: scrubResults.findings }).from(scrubResults);
+    const notChecked = findings.filter((r) =>
+      ((r.f as { items: { ruleId: string }[] }).items ?? []).some(
+        (i) => i.ruleId === 'eligibility.not_checked',
+      ),
+    );
+    expect(notChecked.length).toBeLessThan(findings.length);
   });
 
   it('queues nothing until the next run is due', async () => {

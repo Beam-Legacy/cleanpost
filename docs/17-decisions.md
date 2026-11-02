@@ -117,6 +117,16 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 | C-08 live findings | The deterministic scrub steps on the unsaved payload (`previewScrub`), 400 ms after the last change; nothing is written until Save | The editor shows the effect of a change before it becomes a version. |
 | C-05 "What changed" | Each version diffed against the one before (`diffPayload`), for person and PM versions alike | Exact and complete; the `corrections` rows remain the record of who changed what. |
 
+## DEC-14 — Eligibility before the Stedi key (Nov 2, 2026)
+
+| Topic | Choice | Why |
+| --- | --- | --- |
+| Building without the key | One client (`packages/eligibility`) for Stedi's 270/271 JSON; payer-sim serves the same path from the payers' member files | The scrub's step 2 and the job chain work now; switching to Stedi is configuration (`STEDI_API_KEY`). |
+| When a check runs | Before the scrub of a built claim whose coverage has no check in 7 days; the scrub waits for it | Scrub step 2 needs the answer; a check per coverage per week keeps cost near Stedi's per-check price times patients seen. |
+| What is stored | `eligibility_checks.summary`: status, plan dates, copay, deductible remaining, coinsurance, AAA codes; no identifiers. The raw 271 waits for object storage (M3) | PHI stays in the database and encrypted storage only; the summary is all scrub step 2 and P-03 need. |
+| Payer IDs in the synthetic world | Simulator IDs (`SIMAETNA`, ...) on the seeded payers | Real Stedi payer IDs come from Stedi's payers API at onboarding. |
+| Inactive coverage | Blocks the claim through scrub step 2 (`claim_blocked`), no separate `eligibility_issue` item yet | One item per problem; the eligibility panel (W-13) arrives in M4. |
+
 ## Open questions
 
 | Question | Owner | Needed by |

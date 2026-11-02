@@ -12,6 +12,7 @@ import {
 } from '@cleanpost/ai';
 import { parseEnv } from '@cleanpost/config';
 import { createDatabase } from '@cleanpost/db';
+import { createStediEligibilityClient } from '@cleanpost/eligibility';
 import { createBoss } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import { buildRegistry, registerWorkers } from './handlers';
@@ -29,6 +30,12 @@ const env = parseEnv(
     AI_REVIEW: z.enum(['bedrock', 'stand-in', 'off']).optional(),
     AI_MODEL_ROUTINE: z.string().min(1).default(DEFAULT_MODELS.routine),
     AWS_REGION: z.string().optional(),
+    /** Scrub step 2. stedi: Stedi 270/271; payer-sim: the simulator (local, preview); off: skip. */
+    ELIGIBILITY: z.enum(['stedi', 'payer-sim', 'off']).optional(),
+    STEDI_API_KEY: z.string().min(8).optional(),
+    STEDI_BASE_URL: z.url().optional(),
+    PAYER_SIM_URL: z.url().optional(),
+    PAYER_SIM_TOKEN: z.string().min(24).optional(),
   }),
 );
 
@@ -57,6 +64,30 @@ const reviewer =
       ? createClaimReviewer({ model: createStandInReviewModel(), log })
       : undefined;
 
+const eligibilityMode =
+  env.ELIGIBILITY ?? (env.STEDI_API_KEY ? 'stedi' : synthetic && env.PAYER_SIM_URL ? 'payer-sim' : 'off');
+if (eligibilityMode === 'payer-sim' && (!synthetic || !env.PAYER_SIM_URL)) {
+  log.error('ELIGIBILITY=payer-sim needs PAYER_SIM_URL and is only allowed in local and preview');
+  process.exit(1);
+}
+if (eligibilityMode === 'stedi' && !env.STEDI_API_KEY) {
+  log.error('ELIGIBILITY=stedi needs STEDI_API_KEY');
+  process.exit(1);
+}
+const eligibility =
+  eligibilityMode === 'stedi'
+    ? createStediEligibilityClient({
+        apiKey: env.STEDI_API_KEY!,
+        ...(env.STEDI_BASE_URL ? { baseUrl: env.STEDI_BASE_URL } : {}),
+      })
+    : eligibilityMode === 'payer-sim'
+      ? createStediEligibilityClient({
+          apiKey: env.PAYER_SIM_TOKEN ?? 'payer-sim',
+          baseUrl: env.PAYER_SIM_URL!,
+          kind: 'payer-sim',
+        })
+      : undefined;
+
 const handle = createDatabase(env.DATABASE_URL, { max: env.WORKER_CONCURRENCY + 2 });
 const boss = createBoss(env.DATABASE_URL, 'worker');
 boss.on('error', (err) => log.error({ err }, 'job queue error'));
@@ -68,11 +99,23 @@ const registry = buildRegistry({
     : {}),
 });
 await registerWorkers(
-  { db: handle.db, boss, log, registry, ...(reviewer ? { reviewer } : {}) },
+  {
+    db: handle.db,
+    boss,
+    log,
+    registry,
+    ...(reviewer ? { reviewer } : {}),
+    ...(eligibility ? { eligibility } : {}),
+  },
   { concurrency: env.WORKER_CONCURRENCY },
 );
 log.info(
-  { mockPm: Boolean(env.PM_MOCK_URL), aiReview: aiMode, concurrency: env.WORKER_CONCURRENCY },
+  {
+    mockPm: Boolean(env.PM_MOCK_URL),
+    aiReview: aiMode,
+    eligibility: eligibilityMode,
+    concurrency: env.WORKER_CONCURRENCY,
+  },
   'worker started',
 );
 

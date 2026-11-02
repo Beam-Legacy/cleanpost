@@ -245,6 +245,9 @@ importers:
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@cleanpost/eligibility':
+        specifier: workspace:*
+        version: link:../../packages/eligibility
       '@cleanpost/jobs':
         specifier: workspace:*
         version: link:../../packages/jobs
@@ -261,6 +264,9 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      '@cleanpost/payer-sim':
+        specifier: workspace:*
+        version: link:../payer-sim
       '@cleanpost/pm-mock':
         specifier: workspace:*
         version: link:../pm-mock
@@ -445,6 +451,37 @@ importers:
       '@cleanpost/testing':
         specifier: workspace:*
         version: link:../testing
+
+  packages/eligibility:
+    dependencies:
+      '@cleanpost/db':
+        specifier: workspace:*
+        version: link:../db
+      '@cleanpost/log':
+        specifier: workspace:*
+        version: link:../log
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@cleanpost/payer-sim':
+        specifier: workspace:*
+        version: link:../../apps/payer-sim
+      '@cleanpost/seed':
+        specifier: workspace:*
+        version: link:../seed
+      '@cleanpost/testing':
+        specifier: workspace:*
+        version: link:../testing
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
 
   packages/email:
     dependencies:

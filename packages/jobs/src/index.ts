@@ -19,6 +19,7 @@ export const JOBS = {
   claimScrub: 'claim.scrub',
   claimRelease: 'claim.release',
   claimCorrect: 'claim.correct',
+  eligibilityCheck: 'eligibility.check',
   deadLetter: 'system.dead_letter',
 } as const;
 
@@ -43,6 +44,10 @@ export const claimCorrectPayload = z.object({
   versionId: z.uuid(),
 });
 export type ClaimCorrectPayload = z.infer<typeof claimCorrectPayload>;
+
+/** Stedi 270/271 for one coverage (docs/01-architecture.md); the claims waiting on it scrub after. */
+export const eligibilityCheckPayload = z.object({ tenantId: z.uuid(), coverageId: z.uuid() });
+export type EligibilityCheckPayload = z.infer<typeof eligibilityCheckPayload>;
 
 const RETRIES = {
   retryLimit: 4,
@@ -79,6 +84,8 @@ export const QUEUES: { name: string; options: Parameters<PgBoss['createQueue']>[
   { name: JOBS.claimBuild, options: { policy: 'stately', expireInSeconds: 30 * 60, ...RETRIES } },
   // One queued release per claim (singletonKey = claim ID).
   { name: JOBS.claimRelease, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
+  // One queued check per coverage (singletonKey = coverage ID).
+  { name: JOBS.eligibilityCheck, options: { policy: 'stately', expireInSeconds: 5 * 60, ...RETRIES } },
   // One queued write-back per claim (singletonKey = claim ID); it sends every change still missing.
   { name: JOBS.claimCorrect, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
   // One queued scrub per claim version (singletonKey = version ID).
@@ -171,6 +178,14 @@ export async function sendClaimRelease(
     singletonKey: data.claimId,
     ...(opts.delaySeconds ? { startAfter: opts.delaySeconds } : {}),
   });
+}
+
+export async function sendEligibilityCheck(
+  boss: PgBoss,
+  payload: EligibilityCheckPayload,
+): Promise<string | null> {
+  const data = eligibilityCheckPayload.parse(payload);
+  return boss.send(JOBS.eligibilityCheck, data, { singletonKey: data.coverageId });
 }
 
 export async function sendClaimCorrect(boss: PgBoss, payload: ClaimCorrectPayload): Promise<string | null> {

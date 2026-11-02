@@ -20,17 +20,25 @@ import {
   versionsAwaitingScrub,
   type ClaimReviewer,
 } from '@cleanpost/claims';
-import { eq } from 'drizzle-orm';
-import { claimVersions, withTenant, workItems, recordAudit, type Database } from '@cleanpost/db';
+import { eq, inArray } from 'drizzle-orm';
+import { claims, claimVersions, withTenant, workItems, recordAudit, type Database } from '@cleanpost/db';
+import {
+  checkCoverage,
+  coveragesNeedingCheck,
+  versionsWaitingOnCoverage,
+  type EligibilityClient,
+} from '@cleanpost/eligibility';
 import {
   claimBuildPayload,
   claimCorrectPayload,
   claimReleasePayload,
+  eligibilityCheckPayload,
   claimScrubPayload,
   JOBS,
   sendClaimBuild,
   sendClaimRelease,
   sendClaimScrub,
+  sendEligibilityCheck,
   sendSyncPull,
   syncPullPayload,
   type PgBoss,
@@ -52,6 +60,8 @@ export interface WorkerDeps {
   registry: AdapterRegistry;
   /** Step 8 of the scrub (AI review); scrubs run without it when absent. */
   reviewer?: ClaimReviewer;
+  /** Stedi 270/271 (payer-sim in local and preview); scrubs read no check when absent. */
+  eligibility?: EligibilityClient;
   now?: () => Date;
   retryDelaysMs?: number[];
 }
@@ -104,10 +114,16 @@ export async function handleClaimBuild(deps: WorkerDeps, data: unknown) {
     tenantId: payload.tenantId,
     claimIds: result.createdClaimIds,
   });
-  // Every built version waits for a scrub, including any a crashed worker left behind.
+  // Every built version waits for a scrub, including any a crashed worker left behind. Where the
+  // coverage has no recent eligibility check, the check runs first and queues the scrub (step 2).
   const awaiting = await versionsAwaitingScrub(deps.db, payload.tenantId, payload.clientId);
-  for (const claimVersionId of new Set([...result.toScrub, ...awaiting])) {
-    await sendClaimScrub(deps.boss, { tenantId: payload.tenantId, claimVersionId });
+  const versions = [...new Set([...result.toScrub, ...awaiting])];
+  const waiting = deps.eligibility
+    ? await waitForEligibility(deps, payload.tenantId, versions)
+    : new Set<string>();
+  for (const claimVersionId of versions) {
+    if (!waiting.has(claimVersionId))
+      await sendClaimScrub(deps.boss, { tenantId: payload.tenantId, claimVersionId });
   }
   // Claims that waited for a correction in the PM go once the PM shows it.
   for (const claimId of result.toRelease) {
@@ -144,6 +160,56 @@ export async function handleClaimScrub(deps: WorkerDeps, data: unknown) {
     if (claimId) await sendClaimRelease(deps.boss, { tenantId: payload.tenantId, claimId });
   }
   return result;
+}
+
+/**
+ * Queues an eligibility check for each coverage among these versions that has none in the last
+ * 7 days; returns the versions that now wait for it (the check queues their scrub).
+ */
+async function waitForEligibility(deps: WorkerDeps, tenantId: string, versionIds: string[]) {
+  if (!versionIds.length) return new Set<string>();
+  const now = deps.now?.() ?? new Date();
+  const { byCoverage, due } = await withTenant(deps.db, { tenantId }, async (tx) => {
+    const rows = await tx
+      .select({ versionId: claimVersions.id, coverageId: claims.coverageId })
+      .from(claimVersions)
+      .innerJoin(claims, eq(claims.id, claimVersions.claimId))
+      .where(inArray(claimVersions.id, versionIds));
+    const byCoverage = new Map<string, string[]>();
+    for (const r of rows) {
+      if (!r.coverageId) continue;
+      byCoverage.set(r.coverageId, [...(byCoverage.get(r.coverageId) ?? []), r.versionId]);
+    }
+    return { byCoverage, due: await coveragesNeedingCheck(tx, [...byCoverage.keys()], now) };
+  });
+  const waiting = new Set<string>();
+  for (const coverageId of due) {
+    await sendEligibilityCheck(deps.boss, { tenantId, coverageId });
+    for (const v of byCoverage.get(coverageId) ?? []) waiting.add(v);
+  }
+  return waiting;
+}
+
+/** eligibility.check: store the 271 summary, then scrub the claims that waited for it. */
+export async function handleEligibilityCheck(deps: WorkerDeps, data: unknown) {
+  const payload = eligibilityCheckPayload.parse(data);
+  const result = deps.eligibility
+    ? await checkCoverage(
+        { db: deps.db, client: deps.eligibility, log: deps.log, ...(deps.now ? { now: deps.now } : {}) },
+        payload,
+      )
+    : ({ status: 'skipped', reason: 'not_found' } as const);
+  // A payer that is down is retried with backoff; after the last attempt the scrub goes on without it.
+  if (result.status === 'failed' && result.retryable)
+    throw new Error(`eligibility check failed: ${result.code}`);
+  await scrubWaiting(deps, payload);
+  return result;
+}
+
+async function scrubWaiting(deps: WorkerDeps, p: { tenantId: string; coverageId: string }) {
+  for (const claimVersionId of await versionsWaitingOnCoverage(deps.db, p.tenantId, p.coverageId)) {
+    await sendClaimScrub(deps.boss, { tenantId: p.tenantId, claimVersionId });
+  }
 }
 
 const releaseDeps = (deps: WorkerDeps) => ({
@@ -213,44 +279,56 @@ export async function handleDeadLetter(deps: WorkerDeps, data: unknown) {
   const sync = syncPullPayload.safeParse(data);
   const build = claimBuildPayload.safeParse(data);
   const scrub = claimScrubPayload.safeParse(data);
+  const eligibility = eligibilityCheckPayload.safeParse(data);
+  if (eligibility.success) {
+    // Claims must not wait for ever on a payer that does not answer: scrub them without a check.
+    await scrubWaiting(deps, eligibility.data);
+  }
   const correct = claimCorrectPayload.safeParse(data);
   const release = claimReleasePayload.safeParse(data);
-  const failed = sync.success
+  const failed = eligibility.success
     ? {
-        job: JOBS.syncPull,
-        tenantId: sync.data.tenantId,
-        refs: { connectionId: sync.data.connectionId },
-        what: 'A sync job',
+        job: JOBS.eligibilityCheck,
+        tenantId: eligibility.data.tenantId,
+        refs: {},
+        what: 'An eligibility check',
       }
-    : build.success
+    : sync.success
       ? {
-          job: JOBS.claimBuild,
-          tenantId: build.data.tenantId,
-          refs: { clientId: build.data.clientId },
-          what: 'A claim build job',
+          job: JOBS.syncPull,
+          tenantId: sync.data.tenantId,
+          refs: { connectionId: sync.data.connectionId },
+          what: 'A sync job',
         }
-      : scrub.success
+      : build.success
         ? {
-            job: JOBS.claimScrub,
-            tenantId: scrub.data.tenantId,
-            refs: { claimVersionId: scrub.data.claimVersionId },
-            what: 'A claim scrub job',
+            job: JOBS.claimBuild,
+            tenantId: build.data.tenantId,
+            refs: { clientId: build.data.clientId },
+            what: 'A claim build job',
           }
-        : correct.success
+        : scrub.success
           ? {
-              job: JOBS.claimCorrect,
-              tenantId: correct.data.tenantId,
-              refs: { claimId: correct.data.claimId },
-              what: 'A claim correction job',
+              job: JOBS.claimScrub,
+              tenantId: scrub.data.tenantId,
+              refs: { claimVersionId: scrub.data.claimVersionId },
+              what: 'A claim scrub job',
             }
-          : release.success
+          : correct.success
             ? {
-                job: JOBS.claimRelease,
-                tenantId: release.data.tenantId,
-                refs: { claimId: release.data.claimId },
-                what: 'A claim release job',
+                job: JOBS.claimCorrect,
+                tenantId: correct.data.tenantId,
+                refs: { claimId: correct.data.claimId },
+                what: 'A claim correction job',
               }
-            : null;
+            : release.success
+              ? {
+                  job: JOBS.claimRelease,
+                  tenantId: release.data.tenantId,
+                  refs: { claimId: release.data.claimId },
+                  what: 'A claim release job',
+                }
+              : null;
   deps.log.error({ job: failed?.job ?? 'unknown', ...(failed?.refs ?? {}) }, 'job failed after retries');
   if (!failed) return;
   const now = deps.now?.() ?? new Date();
@@ -309,6 +387,9 @@ export async function registerWorkers(
   });
   await deps.boss.work(JOBS.claimCorrect, { batchSize: 1, localConcurrency: 2 }, async ([job]) => {
     if (job) await handleClaimCorrect(deps, job.data);
+  });
+  await deps.boss.work(JOBS.eligibilityCheck, { batchSize: 1, localConcurrency: 4 }, async ([job]) => {
+    if (job) await handleEligibilityCheck(deps, job.data);
   });
   await deps.boss.work(JOBS.deadLetter, async ([job]) => {
     if (job) await handleDeadLetter(deps, job.data);

@@ -1,0 +1,217 @@
+{
+  "id": "a2bef0d1-ed49-4730-a257-14ac5cf7005d",
+  "prevId": "30ec8910-5f6e-47eb-a3e8-e3115b1063c7",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "payer_sim.clock": {
+      "name": "clock",
+      "schema": "payer_sim",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "offset_ms": {
+          "name": "offset_ms",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "payer_sim.members": {
+      "name": "members",
+      "schema": "payer_sim",
+      "columns": {
+        "payer_id": {
+          "name": "payer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "member_id": {
+          "name": "member_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "date_of_birth": {
+          "name": "date_of_birth",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plan_begin": {
+          "name": "plan_begin",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_end": {
+          "name": "plan_end",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "copay_cents": {
+          "name": "copay_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "deductible_remaining_cents": {
+          "name": "deductible_remaining_cents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coinsurance_percent": {
+          "name": "coinsurance_percent",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "members_payer_id_member_id_pk": {
+          "name": "members_payer_id_member_id_pk",
+          "columns": [
+            "payer_id",
+            "member_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "payer_sim.submissions": {
+      "name": "submissions",
+      "schema": "payer_sim",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "patient_control_number": {
+          "name": "patient_control_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payer_name": {
+          "name": "payer_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "claim": {
+          "name": "claim",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "received_at": {
+          "name": "received_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ack_due_at": {
+          "name": "ack_due_at",
+          "type": "timestamp (3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ack_status": {
+          "name": "ack_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ack_codes": {
+          "name": "ack_codes",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ack_reasons": {
+          "name": "ack_reasons",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "submissions_source_due_idx": {
+          "name": "submissions_source_due_idx",
+          "columns": [
+            {
+              "expression": "source",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ack_due_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "payer_sim": "payer_sim"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

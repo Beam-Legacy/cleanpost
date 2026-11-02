@@ -1,5 +1,5 @@
 /** payer-sim's own schema, apart from Cleanpost's and pm-mock's. Synthetic claims only. */
-import { bigint, index, integer, jsonb, pgSchema, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, index, integer, jsonb, pgSchema, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 
 export const sim = pgSchema('payer_sim');
 
@@ -33,4 +33,25 @@ export const submissions = sim.table(
     ackReasons: text('ack_reasons').array().notNull(),
   },
   (t) => [index('submissions_source_due_idx').on(t.source, t.ackDueAt)],
+);
+
+/**
+ * The payer's member file (its enrollment), loaded by pm-mock's seed: who is covered, when, and
+ * their cost sharing. Matched on payer, member ID and date of birth, as a 270 is.
+ */
+export const members = sim.table(
+  'members',
+  {
+    payerId: text('payer_id').notNull(),
+    memberId: text('member_id').notNull(),
+    dateOfBirth: text('date_of_birth').notNull(),
+    /** active | inactive */
+    status: text('status').notNull(),
+    planBegin: text('plan_begin'),
+    planEnd: text('plan_end'),
+    copayCents: integer('copay_cents'),
+    deductibleRemainingCents: integer('deductible_remaining_cents'),
+    coinsurancePercent: integer('coinsurance_percent'),
+  },
+  (t) => [primaryKey({ columns: [t.payerId, t.memberId] })],
 );

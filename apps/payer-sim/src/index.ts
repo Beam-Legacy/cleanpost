@@ -2,3 +2,4 @@ export { acknowledge, ackDelayMinutes, submittedClaimSchema, type Ack, type Subm
 export { createPayerSimApp, simNow } from './app';
 export { createSimDb, migrateSimDb, type SimDb } from './db';
 export * as simSchema from './schema';
+export { eligibilityRequestSchema, memberRosterSchema, respond271 } from './eligibility';

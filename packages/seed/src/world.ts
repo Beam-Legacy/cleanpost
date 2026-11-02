@@ -6,6 +6,22 @@ import type { ProfileKey } from '@cleanpost/adapters';
 import type { SpecialtyKey } from '@cleanpost/testing/synth';
 import { npiFromBase } from '@cleanpost/domain';
 
+/**
+ * Simulator trading-partner IDs, one per synthetic payer. payer-sim answers eligibility for these;
+ * real Stedi payer IDs come from Stedi's payers API when a client is onboarded.
+ */
+export const SIM_PAYER_IDS: Record<string, string> = {
+  'Medicare (Noridian JF)': 'SIMMCRJF',
+  'Regence BlueCross BlueShield': 'SIMREGNC',
+  'Oregon Health Plan': 'SIMOHPMC',
+  UnitedHealthcare: 'SIMUHC',
+  Aetna: 'SIMAETNA',
+  Cigna: 'SIMCIGNA',
+  'Moda Health': 'SIMMODA',
+  PacificSource: 'SIMPACSRC',
+  'Providence Health Plan': 'SIMPROV',
+};
+
 export const NORTHWIND = '01a00000-0000-7000-8000-000000000001';
 export const HARBOR_RCM = '01a00000-0000-7000-8000-000000000002';
 

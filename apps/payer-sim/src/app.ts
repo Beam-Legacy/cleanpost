@@ -13,7 +13,8 @@ import { z } from 'zod';
 import type { Logger } from '@cleanpost/log';
 import { acknowledge, ackDelayMinutes, submittedClaimSchema } from './ack';
 import type { SimDb } from './db';
-import { clock, submissions } from './schema';
+import { eligibilityRequestSchema, memberRosterSchema, respond271 } from './eligibility';
+import { clock, members, submissions } from './schema';
 
 export interface SimDeps {
   db: SimDb;
@@ -47,6 +48,13 @@ export function createPayerSimApp(deps: SimDeps) {
     app.use('/claims', auth);
     app.use('/acks', auth);
     app.use('/clock/*', auth);
+    app.use('/members', auth);
+    app.use('/2024-04-01/*', async (c, next) => {
+      // Stedi sends the raw key in Authorization (no Bearer prefix); accept either here.
+      const h = c.req.header('authorization') ?? '';
+      if (h.replace(/^(Bearer|Key) /, '') !== deps.token) return c.json({ error: 'unauthorized' }, 401);
+      await next();
+    });
   }
 
   app.post('/claims', async (c) => {
@@ -109,6 +117,49 @@ export function createPayerSimApp(deps: SimDeps) {
         at: r.ackDueAt.toISOString(),
       })),
     });
+  });
+
+  // The payer's member file (pm-mock's seed loads it).
+  app.post('/members', async (c) => {
+    const body = memberRosterSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'invalid', field: body.error.issues[0]?.path.join('.') }, 422);
+    for (const m of body.data.members) {
+      const row = {
+        payerId: m.payerId,
+        memberId: m.memberId,
+        dateOfBirth: m.dateOfBirth,
+        status: m.status,
+        planBegin: m.planBegin ?? null,
+        planEnd: m.planEnd ?? null,
+        copayCents: m.copayCents ?? null,
+        deductibleRemainingCents: m.deductibleRemainingCents ?? null,
+        coinsurancePercent: m.coinsurancePercent ?? null,
+      };
+      await deps.db
+        .insert(members)
+        .values(row)
+        .onConflictDoUpdate({ target: [members.payerId, members.memberId], set: row });
+    }
+    return c.json({ loaded: body.data.members.length });
+  });
+
+  // Stedi's real-time eligibility path and response shape (src/eligibility.ts).
+  app.post('/2024-04-01/change/medicalnetwork/eligibility/v3', async (c) => {
+    const req = eligibilityRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!req.success)
+      return c.json({ errors: [{ code: '33', description: 'Input Errors', field: 'AAA' }] }, 400);
+    const [member] = req.data.subscriber.memberId
+      ? await deps.db
+          .select()
+          .from(members)
+          .where(
+            and(
+              eq(members.payerId, req.data.tradingPartnerServiceId),
+              eq(members.memberId, req.data.subscriber.memberId),
+            ),
+          )
+      : [];
+    return c.json(respond271(req.data, member ?? null));
   });
 
   app.get('/clock', async (c) => c.json({ now: (await simNow(deps.db, realNow)).toISOString() }));

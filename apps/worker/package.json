@@ -12,17 +12,19 @@
   },
   "dependencies": {
     "@cleanpost/adapters": "workspace:*",
+    "@cleanpost/ai": "workspace:*",
+    "@cleanpost/claims": "workspace:*",
     "@cleanpost/config": "workspace:*",
     "@cleanpost/db": "workspace:*",
+    "@cleanpost/eligibility": "workspace:*",
     "@cleanpost/jobs": "workspace:*",
     "@cleanpost/log": "workspace:*",
     "@cleanpost/sync": "workspace:*",
     "drizzle-orm": "^0.45.4",
-    "zod": "^4.6.7",
-    "@cleanpost/claims": "workspace:*",
-    "@cleanpost/ai": "workspace:*"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@cleanpost/payer-sim": "workspace:*",
     "@cleanpost/pm-mock": "workspace:*",
     "@cleanpost/seed": "workspace:*",
     "@cleanpost/testing": "workspace:*",
