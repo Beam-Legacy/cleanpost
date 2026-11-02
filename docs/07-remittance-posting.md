@@ -55,6 +55,12 @@ Mode B: build a `PostingInstruction` per remittance and call `postPayment`. Part
 
 Modes A and C: do not post. Read `pullPostings` and compare with the parsed 835 per line. Differences (missing posting, wrong amount, wrong adjustment code, denial written off) become `posting_exception` work items. Optional per client: "Cleanpost corrects PM postings" (uses `postPayment` adjustments) once the adapter supports it.
 
+How the posting match runs (`packages/remit/src/verify.ts`, after every sync and after each upload):
+- The PM's postings are stored in `pm_postings` (keyed by their own fields, so re-reads are not stored twice). A line is compared with the postings that carry its line control number (or its charge's PM ID) and the payment's trace number.
+- Expected per line: the paid amount; each adjustment in the PM's code by its mapping (client, then the tenant default for the PM type, then the built-in defaults CO-45 and CO-253 to `CONTR`, PR-1 `DEDUCT`, PR-2 `COINS`, PR-3 `COPAY`); patient responsibility as the sum of PR. Denied amounts expect no adjustment.
+- Line results: `verified`, `pending` (nothing posted for the payment yet), `missing`, `mismatch` (with the differences, e.g. "Denial written off"), `unmapped`.
+- Items: one `posting_exception` per claim with differing or missing lines; one per payment the PM has not posted after 3 days; one `mapping_needed` per client and group-CARC. Items the check opened close themselves when a later sync matches; a person's resolution stands. The remittance is `reconciled` when no open item remains.
+
 ## Secondary claims
 
 When a primary remit leaves a balance and a secondary coverage exists, build a secondary claim version (837 with prior payer paid amounts and adjustments, loop 2320/2430) and scrub it. Mode A: release in the PM (most PMs create secondaries; Cleanpost verifies). Modes B/C: submit via Stedi.

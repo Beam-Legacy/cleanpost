@@ -26,6 +26,7 @@ Rules:
 - `built | needs_review | blocked | ready → on_hold` (`hold`, C-12) and `on_hold → built` (`unhold`, scrubbed again). A held claim keeps its hold through new versions (`edit` stays `on_hold`) and is never released.
 - `ready → needs_review` (`unapprove`) is the 10-second Undo of a person's approval (docs/09-ui-screens.md), only while the release has not gone out; it cancels the queued release and reopens the review item. An approval counts only if no later `unapproved` event exists for the same version.
 - `ready → submitted` requires either `scrub_result.decision = auto_release` with confidence ≥ the effective threshold, or a human approval event.
+- `built | needs_review | blocked | on_hold | ready | corrected → submitted` (`billed_outside`, Mode A): the PM shows the claim sent although Cleanpost did not release it (a biller approved it in the PM, or a PM with no hold billed it at its batch time). Recorded as a `released` event with `via: pm_outside_cleanpost`; open review and blocked items for the claim close themselves. It is the PM's record of what happened, not a release by Cleanpost.
 - Rejected claims were never adjudicated; fix and resubmit as frequency 1 with the same patient control number.
 - Denied claims were adjudicated; corrections use frequency 7 with the payer claim control number.
 - `filing_deadline` is computed at build from the client-payer timely filing days (default 90 for commercial, 365 for Medicare; configurable).

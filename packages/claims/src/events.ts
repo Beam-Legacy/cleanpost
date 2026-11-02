@@ -31,6 +31,7 @@ const EVENT_TYPE: Record<state.ClaimEvent, string> = {
   hold: 'held',
   unhold: 'hold_released',
   release: 'released',
+  billed_outside: 'released',
   reject: 'rejected',
   accept: 'ack_277ca',
   status: 'status_277',

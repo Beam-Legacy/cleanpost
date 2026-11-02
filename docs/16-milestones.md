@@ -68,7 +68,12 @@ Accept:
 - Every unverified or mismatched line has exactly one open work item
 
 Status (Nov 2, 2026):
-- Built: `packages/x12` 835 parser into the canonical structure (`packages/domain/src/remit`), the "835 balance" check, golden files in `packages/testing/golden/835` (paid in full, partial with deductible, CO-197 denial, several claims per check, reversal and correction, secondary crossover, PLB interest and recoupment, zero pay, and one that does not balance). All parse and balance.
+- Built: `packages/x12` 835 parser and writer (canonical structure in `packages/domain/src/remit`), golden files in `packages/testing/golden/835` (paid in full, partial with deductible, CO-197 denial, several claims per check, reversal and correction, secondary crossover, PLB interest and recoupment, zero pay, and one that does not balance); all parse, balance and round-trip.
+- Built: ingestion with idempotency, from the PM (`pullRemittances`) and by upload (R-02); matching by control number, payer claim number and line; the 835 balance check; claim moves (paid, partly paid, denied, reversed); `denial`, `remit_unmatched` and `out_of_balance` items.
+- Built: the posting match (Modes A and C): `pullPostings` into `pm_postings`, per-line comparison in the PM's adjustment codes with built-in defaults and tenant/client mappings, `posting_exception` per claim or per unposted payment (after 3 grace days), `mapping_needed` per CARC pair; items close themselves when the PM fixes the posting; remittance verifying → reconciled | posting_mismatch.
+- Built: payer-sim adjudication and 835s (docs/12-testing.md), the mock PM's ERA inbox with auto-posting (and deliberate posting mistakes), the PM's own billing batch for PMs with no hold, and ERA downloads for the Tebra profile.
+- Built: R-01, R-02, R-04; queue panels for denials, posting differences, unmatched and out-of-balance payments and mappings (W-16 to W-20, read and resolve; correction and write-off are M4); the preview-only payer simulator clock on Work and Remittances.
+- Next: adjustment mapping screen and actions (W-19), link unmatched payments (W-17, R-05), accept a difference (W-18), manual tasks and worksheets (M-01 to M-03, F-02), R-06 to R-08, C-07, secondary claim verification, `pnpm test:cycle`.
 
 ## M4 — Denials, eligibility, documents, reports (weeks 12–15)
 

@@ -43,7 +43,7 @@ describe('golden 835s', () => {
       traceNumber: '1EFT0001',
     });
     expect(r.payer).toEqual({ name: 'AETNA SIM', id: 'SIMAETNA' });
-    expect(r.payee.npi).toBe('1487726595');
+    expect(r.payee.npi).toBe('1487726592');
     const [c] = r.claims;
     expect(c).toMatchObject({
       patientControlNumber: 'LFM-E10001',

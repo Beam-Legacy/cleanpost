@@ -156,12 +156,18 @@ export async function markReleased(
     .update(claimVersions)
     .set({ releasedAt: now, updatedAt: now })
     .where(eq(claimVersions.id, claim.currentVersionId!));
-  await applyClaimEvent(tx, claim, 'release', {
-    actor,
-    versionId: claim.currentVersionId,
-    payload: { via },
-    now,
-  });
+  // A claim that was ready leaves by release; one still in review, blocked or held left without it.
+  await applyClaimEvent(
+    tx,
+    claim,
+    claim.status === 'ready' || claim.status === 'corrected' ? 'release' : 'billed_outside',
+    {
+      actor,
+      versionId: claim.currentVersionId,
+      payload: { via },
+      now,
+    },
+  );
   // Once a claim has left, the encounter's status belongs to Cleanpost (sync never downgrades it).
   await tx
     .update(encounters)

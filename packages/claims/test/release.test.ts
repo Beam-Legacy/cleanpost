@@ -14,6 +14,7 @@ import {
   type PmAdapter,
 } from '@cleanpost/adapters';
 import {
+  claimEvents,
   claims,
   claimVersions,
   corrections,
@@ -318,6 +319,47 @@ describe('release (Mode A, Tebra profile)', () => {
       );
     expect(items).toHaveLength(1);
     expect(items[0]!.summary).toBe('Rejected: Subscriber not found');
+  });
+
+  it('records a claim the PM sent while it was still in review, and closes its review item', async () => {
+    const [c] = await inReview();
+    const pmEnc = await pmEncounterOf(c!.id);
+    await pm.db
+      .insert(pmSchema.claims)
+      .values({
+        encounterId: pmEnc.id,
+        practiceId: pmEnc.practiceId,
+        patientControlNumber: pmEnc.id,
+        status: 'sent',
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: pmSchema.claims.encounterId,
+        set: { status: 'sent', updatedAt: new Date() },
+      });
+    const conn = await connectionOf('Willamette');
+    await runSync(
+      {
+        db: app.db,
+        registry,
+        log,
+        retryDelaysMs: [10],
+        appliers: { pullClaimsAndStatus: applyClaimStatuses },
+      },
+      { tenantId: NORTHWIND, connectionId: conn.id, trigger: 'manual' },
+    );
+    const [after] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
+    expect(after).toMatchObject({ status: 'submitted', patientControlNumber: pmEnc.id });
+    const [ev] = await admin.db
+      .select()
+      .from(claimEvents)
+      .where(and(eq(claimEvents.claimId, c!.id), eq(claimEvents.type, 'released')));
+    expect(ev!.payload).toMatchObject({ event: 'billed_outside', via: 'pm_outside_cleanpost' });
+    const items = await admin.db
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.claimId, c!.id), eq(workItems.type, 'claim_review')));
+    expect(items.every((i) => i.status === 'resolved')).toBe(true);
   });
 
   it('creates exactly one manual task when the PM can only release by hand', async () => {

@@ -12,7 +12,17 @@ import { SIM_PAYER_IDS } from '@cleanpost/seed/world';
 import { parse835 } from '@cleanpost/x12';
 import type { PmDb } from './db';
 import { receiveEra } from './era';
-import { answerKey, charges, claims, clearinghouseState, encounters, policies, practices } from './schema';
+import { PROFILE_RULES } from './profiles';
+import {
+  accounts,
+  answerKey,
+  charges,
+  claims,
+  clearinghouseState,
+  encounters,
+  policies,
+  practices,
+} from './schema';
 
 export interface ClearinghouseDeps {
   db: PmDb;
@@ -24,6 +34,8 @@ export interface ClearinghouseDeps {
 }
 
 export interface ClearinghouseRun {
+  /** Encounters the PM billed on its own (profiles with no hold, at the batch). */
+  billed: number;
   sent: number;
   accepted: number;
   rejected: number;
@@ -32,6 +44,49 @@ export interface ClearinghouseRun {
 }
 
 const BATCH = 200;
+
+/**
+ * The PM's own billing batch, for profiles with no hold (managed_api): every ready encounter is
+ * billed and queued for the clearinghouse, whatever Cleanpost thinks of it. That is why Cleanpost
+ * reviews these clients before their batch time (docs/04-modes.md, Mode A without hold).
+ */
+export async function billReady(db: PmDb, practiceId: string, now: Date): Promise<number> {
+  const [row] = await db
+    .select({ profile: accounts.profile })
+    .from(practices)
+    .innerJoin(accounts, eq(accounts.id, practices.accountId))
+    .where(eq(practices.id, practiceId));
+  if (!row || PROFILE_RULES[row.profile].hold !== false) return 0;
+  const ready = await db
+    .select({ id: encounters.id })
+    .from(encounters)
+    .where(
+      and(
+        eq(encounters.practiceId, practiceId),
+        eq(encounters.status, 'ready'),
+        eq(encounters.onHold, false),
+      ),
+    );
+  for (const e of ready) {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(encounters)
+        .set({ status: 'billed', patientControlNumber: e.id, updatedAt: now })
+        .where(eq(encounters.id, e.id));
+      await tx
+        .insert(claims)
+        .values({
+          encounterId: e.id,
+          practiceId,
+          patientControlNumber: e.id,
+          status: 'queued',
+          updatedAt: now,
+        })
+        .onConflictDoNothing();
+    });
+  }
+  return ready.length;
+}
 
 interface Remit {
   id: string;
@@ -118,17 +173,22 @@ async function queued(db: PmDb, practiceId: string, practiceName: string) {
   return out;
 }
 
-export async function runClearinghouse(deps: ClearinghouseDeps): Promise<ClearinghouseRun> {
+export async function runClearinghouse(
+  deps: ClearinghouseDeps,
+  opts: { bill?: boolean } = {},
+): Promise<ClearinghouseRun> {
   const doFetch = deps.fetch ?? fetch;
   const now = deps.now ?? (() => new Date());
   const headers = {
     'content-type': 'application/json',
     ...(deps.token ? { authorization: `Bearer ${deps.token}` } : {}),
   };
-  const run: ClearinghouseRun = { sent: 0, accepted: 0, rejected: 0, remits: 0, linesPosted: 0 };
+  const run: ClearinghouseRun = { billed: 0, sent: 0, accepted: 0, rejected: 0, remits: 0, linesPosted: 0 };
   const all = await deps.db.select({ id: practices.id, name: practices.name }).from(practices);
   for (const { id: practiceId, name } of all) {
     const source = `pm-mock:${practiceId}`;
+    // 0. The PM's own billing batch, when it is due.
+    if (opts.bill) run.billed += await billReady(deps.db, practiceId, now());
     // 1. Send the queued batch.
     const batch = await queued(deps.db, practiceId, name);
     if (batch.length) {
@@ -224,6 +284,7 @@ export async function runClearinghouse(deps: ClearinghouseDeps): Promise<Clearin
       if (remits.length < 100) break;
     }
   }
-  if (run.sent || run.accepted || run.rejected || run.remits) deps.log.info(run, 'clearinghouse run');
+  if (run.billed || run.sent || run.accepted || run.rejected || run.remits)
+    deps.log.info(run, 'clearinghouse run');
   return run;
 }

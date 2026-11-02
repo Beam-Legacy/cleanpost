@@ -7,6 +7,8 @@
  *                        `-scrub(auto)-> ready
  *   built|needs_review|blocked|ready -hold-> on_hold -unhold-> built (re-scrubbed)
  *   ready -release-> submitted
+ *   built|needs_review|blocked|on_hold|ready -billed_outside-> submitted  (Mode A: the PM sent it
+ *     without Cleanpost's release, e.g. a PM with no hold billing at its batch time)
  *   submitted -999/277CA reject-> rejected -fix-> built        (new version, frequency 1)
  *   submitted -277CA accept-> accepted (-277 status-> accepted)
  *   accepted -835 paid-> paid -close-> closed
@@ -53,6 +55,8 @@ export type ClaimEvent =
   | 'block'
   | 'fix'
   | 'release'
+  /** Mode A: the PM shows the claim sent although Cleanpost had not released it. */
+  | 'billed_outside'
   | 'reject'
   | 'accept'
   | 'status'
@@ -66,7 +70,12 @@ export type ClaimEvent =
   | 'reverse'
   | 'readjudicate';
 
-const editable = { edit: 'built', void: 'voided', hold: 'on_hold' } as const;
+const editable = {
+  edit: 'built',
+  void: 'voided',
+  hold: 'on_hold',
+  billed_outside: 'submitted',
+} as const;
 
 const TABLE: TransitionTable<ClaimState, ClaimEvent> = {
   draft: { build: 'built', void: 'voided' },
@@ -75,7 +84,7 @@ const TABLE: TransitionTable<ClaimState, ClaimEvent> = {
   blocked: { fix: 'built', ...editable },
   ready: { release: 'submitted', unapprove: 'needs_review', ...editable },
   // A held claim keeps its hold through new versions (a PM change, a person's edit).
-  on_hold: { unhold: 'built', edit: 'on_hold', void: 'voided' },
+  on_hold: { unhold: 'built', edit: 'on_hold', void: 'voided', billed_outside: 'submitted' },
   submitted: { reject: 'rejected', accept: 'accepted', status: 'submitted', void: 'voided' },
   rejected: { fix: 'built', void: 'voided' },
   accepted: {

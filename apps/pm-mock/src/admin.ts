@@ -27,8 +27,11 @@ export interface AdminDeps {
   db: PmDb;
   password: string;
   now: () => Date;
-  /** Runs the clearinghouse once (send queued claims, read 277CAs); absent without payer-sim. */
-  clearinghouse?: () => Promise<unknown>;
+  /**
+   * Runs the clearinghouse once (send queued claims, read 277CAs and 835s); `bill` also runs the
+   * billing batch of PMs with no hold. Absent without payer-sim.
+   */
+  clearinghouse?: (opts?: { bill?: boolean }) => Promise<unknown>;
 }
 
 const faultBody = z.object({
@@ -112,7 +115,7 @@ export function adminRoutes(deps: AdminDeps) {
 
   app.post('/api/clearinghouse/run', async (c) => {
     if (!deps.clearinghouse) return c.json({ error: 'payer-sim is not configured' }, 409);
-    return c.json(await deps.clearinghouse());
+    return c.json(await deps.clearinghouse({ bill: c.req.query('bill') === '1' }));
   });
 
   app.post('/api/accounts/:id/faults', async (c) => {

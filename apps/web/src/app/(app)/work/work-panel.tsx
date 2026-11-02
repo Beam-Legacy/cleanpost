@@ -20,6 +20,7 @@ import {
 } from '@cleanpost/ui';
 import { CLAIM_STATUS } from '@/lib/claim-display';
 import { formatDate, formatMoney } from '@/lib/format';
+import { CARC_LABEL } from '@/lib/remit-display';
 import type { WorkDetail } from '@/lib/queries/work';
 import type { Permissions } from './work-queue';
 
@@ -90,6 +91,16 @@ function whyHere(d: WorkDetail): string {
     case 'sync_failure':
     case 'system':
       return 'Closes itself when the next sync succeeds.';
+    case 'denial':
+      return 'The payer denied all or part of this claim. The balance stays open until it is corrected and resubmitted, appealed or written off.';
+    case 'posting_exception':
+      return `${d.connection?.pmName ?? 'The PM'} posted this payment differently from the 835. Correct it in ${d.connection?.pmName ?? 'the PM'}; this closes itself when the next sync shows the posting matches.`;
+    case 'out_of_balance':
+      return 'The 835 does not add up, so nothing from it is checked or posted until the payer corrects it or an admin accepts the difference.';
+    case 'remit_unmatched':
+      return 'A payment in the 835 does not match any claim in Cleanpost; often a claim billed before this client went live.';
+    case 'mapping_needed':
+      return 'An adjustment code in an 835 has no matching code in the PM, so postings with it cannot be checked until an admin maps it.';
     default:
       return d.item.summary;
   }
@@ -294,9 +305,42 @@ export function WorkPanel({
           </div>
         )}
 
-        {!['claim_review', 'claim_blocked', 'rejection', 'manual_task', 'sync_failure', 'system'].includes(
-          d.item.type,
-        ) && <div>{d.item.summary}</div>}
+        {d.remittance && (
+          <div className="stack-sm">
+            <span className="overline">Payment</span>
+            <div>{d.item.summary}</div>
+            <div className="muted dense">
+              {d.remittance.payerName} · trace <span className="code">{d.remittance.traceNumber}</span> ·{' '}
+              {formatMoney(d.remittance.amountCents)} · {formatDate(d.remittance.paymentDate)}
+            </div>
+            {d.item.type === 'denial' &&
+              d.remittance.adjustments.some((a) => a.group !== 'PR' && a.carc !== '45') && (
+                <ul className="stack-sm" style={{ paddingLeft: 18, margin: 0 }}>
+                  {d.remittance.adjustments
+                    .filter((a) => a.group !== 'PR' && a.carc !== '45')
+                    .map((a, i) => (
+                      <li key={i}>
+                        <span className="code">{a.code}</span> denied {formatMoney(a.amountCents)}{' '}
+                        <span className="codechip bad">
+                          {a.group}-{a.carc}
+                        </span>{' '}
+                        <span className="muted">{CARC_LABEL[a.carc] ?? ''}</span>
+                      </li>
+                    ))}
+                </ul>
+              )}
+            <div>
+              <Link className="btn btn-secondary btn-sm" href={`/remittances/${d.remittance.id}`}>
+                Open remittance
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {!d.remittance &&
+          !['claim_review', 'claim_blocked', 'rejection', 'manual_task', 'sync_failure', 'system'].includes(
+            d.item.type,
+          ) && <div>{d.item.summary}</div>}
 
         <div className="why">
           <CircleHelp aria-hidden />

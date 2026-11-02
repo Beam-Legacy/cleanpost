@@ -5,7 +5,8 @@ import { z } from 'zod';
 import { policy, work } from '@cleanpost/domain';
 import { EmptyState, KpiRow, KpiTile } from '@cleanpost/ui';
 import { PageHead } from '@/components/page';
-import { formatCount } from '@/lib/format';
+import { SimClockSlot } from '@/components/sim-clock-slot';
+import { formatCount, formatMoney } from '@/lib/format';
 import { getWorkDetail, listSavedViews, listWork, viewQuery, type WorkFilters } from '@/lib/queries/work';
 import { requireActiveContext } from '@/lib/session';
 import { RemoveViewButton, SaveViewButton } from './saved-views';
@@ -82,6 +83,7 @@ export default async function WorkPage({
         subtitle={caughtUp ? 'Nothing assigned to you is due' : subtitle}
         actions={<SaveViewButton canShare={ctx.actor.role === 'admin'} summary={viewSummary} />}
       />
+      <SimClockSlot ctx={ctx} />
       <KpiRow label="Today">
         <KpiTile label="Due today" value={formatCount(k.dueToday)} />
         <KpiTile
@@ -91,7 +93,7 @@ export default async function WorkPage({
         />
         <KpiTile label="Ready to release" value={formatCount(k.readyToRelease)} />
         <KpiTile label="Released today" value={formatCount(k.releasedToday)} />
-        <KpiTile label="Posted today" value="—" />
+        <KpiTile label="Posted today" value={formatMoney(k.paymentsTodayCents).replace(/\.\d\d$/, '')} />
         <KpiTile label="Released without review today" value={autoShare} />
       </KpiRow>
 

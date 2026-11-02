@@ -27,18 +27,41 @@ if (env.CLEANPOST_ENV === 'staging' || env.CLEANPOST_ENV === 'production') {
 
 await migratePmDb(env.PM_MOCK_DATABASE_URL);
 const handle = createPmDb(env.PM_MOCK_DATABASE_URL);
-// The clearinghouse sends queued claims to payer-sim and reads 277CAs back, one run at a time.
+// The clearinghouse sends queued claims to payer-sim and reads 277CAs and 835s back, one run at a
+// time. PMs with no hold also bill their ready encounters once a day at 6 pm Pacific (billReady).
 let running: Promise<ClearinghouseRun> | null = null;
+let billedOn: string | null = null;
+const pacific = (d: Date) =>
+  Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      hourCycle: 'h23',
+    })
+      .formatToParts(d)
+      .map((p) => [p.type, p.value]),
+  );
 const clearinghouse = env.PAYER_SIM_URL
-  ? () =>
-      (running ??= runClearinghouse({
-        db: handle.db,
-        log,
-        payerSimUrl: env.PAYER_SIM_URL!,
-        ...(env.PAYER_SIM_TOKEN ? { token: env.PAYER_SIM_TOKEN } : {}),
-      }).finally(() => {
+  ? (opts: { bill?: boolean } = {}) => {
+      const p = pacific(new Date());
+      const today = `${p.year}-${p.month}-${p.day}`;
+      const batchDue = Number(p.hour) >= 18 && billedOn !== today;
+      if (batchDue) billedOn = today;
+      return (running ??= runClearinghouse(
+        {
+          db: handle.db,
+          log,
+          payerSimUrl: env.PAYER_SIM_URL!,
+          ...(env.PAYER_SIM_TOKEN ? { token: env.PAYER_SIM_TOKEN } : {}),
+        },
+        { bill: Boolean(opts.bill) || batchDue },
+      ).finally(() => {
         running = null;
-      }))
+      }));
+    }
   : undefined;
 const app = createPmMockApp({
   db: handle.db,

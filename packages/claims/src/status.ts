@@ -8,6 +8,7 @@
 import { and, eq, inArray, ne } from 'drizzle-orm';
 import type { ExtClaimStatus } from '@cleanpost/adapters';
 import { claims, externalRefs, recordAudit, workItems, type AuditActor, type Tx } from '@cleanpost/db';
+import { state } from '@cleanpost/domain';
 import { applyClaimEvent } from './events';
 import { markReleased } from './release';
 
@@ -23,6 +24,50 @@ export interface StatusCounts {
   changed: number;
   unchanged: number;
   failed: number;
+}
+
+/** Claim states a PM can bill from without Cleanpost (state machine: release or billed_outside). */
+const OUTSIDE_FROM = new Set(['built', 'needs_review', 'blocked', 'on_hold', 'ready']);
+
+/** Review and blocked items for a claim that has left are moot: closed by automation. */
+async function closeReviewItems(
+  tx: Tx,
+  claim: { id: string; clientId: string },
+  actor: AuditActor,
+  now: Date,
+) {
+  const open = await tx
+    .select()
+    .from(workItems)
+    .where(
+      and(
+        eq(workItems.claimId, claim.id),
+        inArray(workItems.type, ['claim_review', 'claim_blocked']),
+        ne(workItems.status, 'resolved'),
+      ),
+    );
+  for (const item of open) {
+    const next = state.nextWorkItemState(item.status as state.WorkItemState, 'auto_resolve');
+    if (!next.ok) continue;
+    await tx
+      .update(workItems)
+      .set({
+        status: next.value,
+        resolvedBy: actor,
+        resolvedAt: now,
+        resolution: 'Billed in the PM before review',
+        updatedAt: now,
+      })
+      .where(eq(workItems.id, item.id));
+    await recordAudit(tx, {
+      actor,
+      action: 'work_item.auto_resolve',
+      entityType: 'work_item',
+      entityId: item.id,
+      clientId: claim.clientId,
+      metadata: { type: item.type, claimId: claim.id },
+    });
+  }
 }
 
 export async function applyClaimStatuses(
@@ -66,9 +111,16 @@ export async function applyClaimStatuses(
         .where(eq(claims.id, claim.id));
       changed = true;
     }
-    // A biller approved the charge in the PM directly: the claim left without Cleanpost's release.
-    if (current.status === 'ready' && item.status !== 'unknown') {
+    // The claim left without Cleanpost's release: a biller approved the charge in the PM directly,
+    // or a PM with no hold billed it at its batch time while Cleanpost still had it in review.
+    if (
+      OUTSIDE_FROM.has(current.status) &&
+      current.currentVersionId &&
+      item.status !== 'unknown' &&
+      item.status !== 'queued'
+    ) {
       await markReleased(tx, current, 'pm_outside_cleanpost', ctx.actor, now);
+      await closeReviewItems(tx, current, ctx.actor, now);
       current = { ...current, status: 'submitted' };
       changed = true;
     }

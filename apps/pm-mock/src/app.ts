@@ -15,7 +15,7 @@ export interface PmMockOptions {
   rateScale?: number;
   now?: () => Date;
   /** The clearinghouse run, exposed at POST /admin/api/clearinghouse/run. */
-  clearinghouse?: () => Promise<unknown>;
+  clearinghouse?: (opts?: { bill?: boolean }) => Promise<unknown>;
 }
 
 export function createPmMockApp(opts: PmMockOptions) {

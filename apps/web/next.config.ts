@@ -36,10 +36,14 @@ const config: NextConfig = {
     '@cleanpost/email',
     '@cleanpost/jobs',
     '@cleanpost/log',
+    '@cleanpost/remit',
     '@cleanpost/sync',
     '@cleanpost/ui',
     '@cleanpost/work',
+    '@cleanpost/x12',
   ],
+  // 835 uploads (R-02) go through a server action; a month of payments for one payer fits easily.
+  experimental: { serverActions: { bodySizeLimit: '10mb' } },
   serverExternalPackages: ['pg', 'pg-boss', 'pino', 'nodemailer'],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];

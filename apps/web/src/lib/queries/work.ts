@@ -10,6 +10,10 @@ import {
   memberships,
   patients,
   payers,
+  remitAdjustments,
+  remitClaims,
+  remitLines,
+  remittances,
   savedViews,
   scrubResults,
   users,
@@ -72,6 +76,7 @@ export interface WorkQueue {
     readyToRelease: number;
     releasedToday: number;
     releasedWithoutReviewToday: number;
+    paymentsTodayCents: number;
   };
   payers: { id: string; name: string }[];
   clientsInQueue: number;
@@ -189,6 +194,18 @@ export async function listWork(ctx: ActiveContext, f: WorkFilters, now = new Dat
       .innerJoin(claims, eq(claims.id, claimEvents.claimId))
       .where(and(cs, clientWhere, eq(claimEvents.type, 'released'), gte(claimEvents.occurredAt, day.start)));
     const fromCleanpost = released.filter((r) => r.via !== 'pm_outside_cleanpost');
+    // Payments that came in today (835s read or uploaded), in the person's client scope.
+    const rs = policy.clientFilter(ctx.actor);
+    const [paidToday] = await tx
+      .select({ cents: sql<number>`coalesce(sum(${remittances.paymentAmountCents}), 0)::bigint` })
+      .from(remittances)
+      .where(
+        and(
+          rs === 'all' ? undefined : inArray(remittances.clientId, rs.length ? [...rs] : [NONE]),
+          f.clientId ? eq(remittances.clientId, f.clientId) : undefined,
+          gte(remittances.createdAt, day.start),
+        ),
+      );
     const payerRows = await tx
       .selectDistinct({ id: payers.id, name: payers.name })
       .from(workItems)
@@ -250,6 +267,7 @@ export async function listWork(ctx: ActiveContext, f: WorkFilters, now = new Dat
         readyToRelease: ready?.n ?? 0,
         releasedToday: fromCleanpost.length,
         releasedWithoutReviewToday: fromCleanpost.filter((r) => r.actor.startsWith('automation:')).length,
+        paymentsTodayCents: Number(paidToday?.cents ?? 0),
       },
       payers: payerRows,
       clientsInQueue: new Set(mapped.map((r) => r.clientId).filter(Boolean)).size,
@@ -299,6 +317,16 @@ export interface WorkDetail {
   } | null;
   connection: { id: string; status: string; pmName: string } | null;
   manualTask: { title: string; instructions: string[]; status: string } | null;
+  /** W-16 to W-20: the payment the item is about, and for a denial the denied lines' codes. */
+  remittance: {
+    id: string;
+    payerName: string;
+    traceNumber: string;
+    amountCents: number;
+    paymentDate: string;
+    status: string;
+    adjustments: { code: string; group: string; carc: string; amountCents: number }[];
+  } | null;
 }
 
 function ageAt(dob: string, dos: string): number {
@@ -394,10 +422,39 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
         };
     }
   }
+  let remittance: WorkDetail['remittance'] = null;
+  if (item.remittanceId) {
+    const [r] = await tx.select().from(remittances).where(eq(remittances.id, item.remittanceId));
+    if (r) {
+      const adj = item.claimId
+        ? await tx
+            .select({
+              code: remitLines.code,
+              group: remitAdjustments.groupCode,
+              carc: remitAdjustments.carc,
+              amountCents: remitAdjustments.amountCents,
+            })
+            .from(remitAdjustments)
+            .innerJoin(remitLines, eq(remitLines.id, remitAdjustments.remitLineId))
+            .innerJoin(remitClaims, eq(remitClaims.id, remitLines.remitClaimId))
+            .where(and(eq(remitClaims.remittanceId, r.id), eq(remitClaims.claimId, item.claimId)))
+        : [];
+      remittance = {
+        id: r.id,
+        payerName: r.payerName,
+        traceNumber: r.traceNumber,
+        amountCents: Number(r.paymentAmountCents),
+        paymentDate: r.paymentDate,
+        status: r.status,
+        adjustments: adj.map((a) => ({ ...a, amountCents: Number(a.amountCents) })),
+      };
+    }
+  }
   return {
     item,
     clientName: client?.name ?? null,
     threshold: client?.autoReleaseThreshold ?? 90,
+    remittance,
     claim,
     scrub,
     connection: conn
