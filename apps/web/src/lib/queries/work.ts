@@ -7,6 +7,7 @@ import {
   clients,
   connections,
   manualTasks,
+  memberships,
   patients,
   payers,
   scrubResults,
@@ -52,6 +53,8 @@ export interface WorkRow {
   payerName: string | null;
   assigneeId: string | null;
   assigneeName: string | null;
+  /** W-04: a claim review whose findings are all info level can be released in bulk (C-17). */
+  releasable: boolean;
 }
 
 export interface WorkQueue {
@@ -211,7 +214,29 @@ export async function listWork(ctx: ActiveContext, f: WorkFilters, now = new Dat
       payerName: r.payerName,
       assigneeId: r.item.assigneeId,
       assigneeName: r.assigneeName,
+      releasable: false,
     }));
+    // Bulk release (W-04, C-17): claim reviews with only info-level findings.
+    const reviewClaims = mapped.filter((r) => r.type === 'claim_review' && r.claimId).map((r) => r.claimId!);
+    if (reviewClaims.length) {
+      const scrubs = await tx
+        .select({ claimId: claims.id, status: claims.status, findings: scrubResults.findings })
+        .from(claims)
+        .innerJoin(claimVersions, eq(claimVersions.id, claims.currentVersionId))
+        .innerJoin(scrubResults, eq(scrubResults.id, claimVersions.scrubResultId))
+        .where(inArray(claims.id, reviewClaims));
+      const ok = new Set(
+        scrubs
+          .filter(
+            (x) =>
+              (x.status === 'needs_review' || x.status === 'ready') &&
+              ((x.findings as { items?: Finding[] }).items ?? []).every((f) => f.severity === 'info'),
+          )
+          .map((x) => x.claimId),
+      );
+      for (const r of mapped)
+        r.releasable = r.type === 'claim_review' && Boolean(r.claimId && ok.has(r.claimId));
+    }
     return {
       rows: mapped,
       counts,
@@ -408,4 +433,61 @@ export function nextAfter(rows: WorkRow[], id: string): string | null {
   const i = rows.findIndex((r) => r.id === id);
   if (i < 0) return rows[0]?.id ?? null;
   return rows[i + 1]?.id ?? rows[i - 1]?.id ?? null;
+}
+
+export interface Assignee {
+  id: string;
+  name: string;
+  open: number;
+  overdue: number;
+}
+
+/** W-05: people who may see every one of these clients, with their open and overdue counts. */
+export async function listAssignees(
+  ctx: ActiveContext,
+  clientIds: string[],
+  now = new Date(),
+): Promise<Assignee[]> {
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const people = await tx
+      .select({
+        id: users.id,
+        name: users.name,
+        role: memberships.role,
+        scope: memberships.clientScope,
+        clientIds: memberships.clientIds,
+      })
+      .from(memberships)
+      .innerJoin(users, eq(users.id, memberships.userId))
+      .where(inArray(memberships.role, ['admin', 'biller']));
+    const allowed = people.filter(
+      (p) =>
+        p.scope === 'all' || p.role === 'admin' || clientIds.every((c) => (p.clientIds ?? []).includes(c)),
+    );
+    const load = allowed.length
+      ? await tx
+          .select({
+            id: workItems.assigneeId,
+            open: count(),
+            overdue: sql<number>`count(*) filter (where ${workItems.dueAt} < ${now})::int`,
+          })
+          .from(workItems)
+          .where(
+            and(
+              inArray(
+                workItems.assigneeId,
+                allowed.map((p) => p.id),
+              ),
+              ne(workItems.status, 'resolved'),
+            ),
+          )
+          .groupBy(workItems.assigneeId)
+      : [];
+    return allowed
+      .map((p) => {
+        const l = load.find((x) => x.id === p.id);
+        return { id: p.id, name: p.name, open: l?.open ?? 0, overdue: l?.overdue ?? 0 };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
 }

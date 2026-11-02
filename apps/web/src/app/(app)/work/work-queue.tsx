@@ -11,7 +11,16 @@ import { work } from '@cleanpost/domain';
 import { Button, DueChip, Kbd, Modal, PriorityMarker, useToast } from '@cleanpost/ui';
 import { formatMoney } from '@/lib/format';
 import type { WorkDetail, WorkRow } from '@/lib/queries/work';
-import { applyFixes, approveAndRelease, resolve, snooze, undo, type WorkActionResult } from './actions';
+import {
+  applyFixes,
+  approveAndRelease,
+  resolve,
+  snooze,
+  snoozeMany,
+  undo,
+  type WorkActionResult,
+} from './actions';
+import { AssignDialog, BulkBar } from './bulk';
 import { WorkPanel, primaryAction } from './work-panel';
 
 export interface Permissions {
@@ -25,7 +34,10 @@ function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
   if (!el) return false;
   const tag = el.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+  // Checkboxes and radios take a click, not text: shortcuts still work with focus on them.
+  if (tag === 'INPUT')
+    return !['checkbox', 'radio', 'button', 'submit', 'reset'].includes((el as HTMLInputElement).type);
+  return tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
 }
 
 export function WorkQueue({
@@ -51,6 +63,18 @@ export function WorkQueue({
   const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [resolveOpen, setResolveOpen] = useState(false);
   const [keysOpen, setKeysOpen] = useState(false);
+  // W-04 selection (checkboxes), kept to rows still in the list.
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const checkedRows = rows.filter((r) => checked.has(r.id));
+  const [bulkSnoozeOpen, setBulkSnoozeOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const toggle = (id: string) =>
+    setChecked((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
   const nowDate = useMemo(() => new Date(now), [now]);
   const selectedRow = useRef<HTMLTableRowElement | null>(null);
   // Set once the keyboard handler is attached (tests wait for it before timing a review).
@@ -159,6 +183,8 @@ export function WorkQueue({
           cursor.current = at - 1;
           select(prev.id);
         }
+      } else if (key === 'Escape' && checked.size) {
+        setChecked(new Set());
       } else if (key === 'Escape' && selectedId) {
         select(null);
       } else if (key === 'Enter' && detail?.claim) {
@@ -195,6 +221,7 @@ export function WorkQueue({
     snoozeOpen,
     resolveOpen,
     keysOpen,
+    checked.size,
   ]);
 
   const open = Boolean(detail);
@@ -206,6 +233,16 @@ export function WorkQueue({
             <thead>
               {open ? (
                 <tr>
+                  <th className="w-check">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all"
+                      checked={rows.length > 0 && checkedRows.length === rows.length}
+                      onChange={(e) =>
+                        setChecked(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())
+                      }
+                    />
+                  </th>
                   <th>
                     <span className="sr-only">Priority</span>
                   </th>
@@ -216,6 +253,16 @@ export function WorkQueue({
                 </tr>
               ) : (
                 <tr>
+                  <th className="w-check">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all"
+                      checked={rows.length > 0 && checkedRows.length === rows.length}
+                      onChange={(e) =>
+                        setChecked(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())
+                      }
+                    />
+                  </th>
                   <th>
                     <span className="sr-only">Priority</span>
                   </th>
@@ -252,6 +299,14 @@ export function WorkQueue({
                     onClick={() => select(r.id)}
                     style={{ cursor: 'pointer' }}
                   >
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${label}${r.patient ? ` for ${r.patient}` : ''}`}
+                        checked={checked.has(r.id)}
+                        onChange={() => toggle(r.id)}
+                      />
+                    </td>
                     <td>
                       <PriorityMarker priority={r.priority} />
                     </td>
@@ -352,7 +407,32 @@ export function WorkQueue({
             Showing {rows.length} of {total}
           </span>
         </div>
+        {checkedRows.length > 0 && (
+          <BulkBar
+            rows={checkedRows}
+            onClear={() => setChecked(new Set())}
+            onSnooze={() => setBulkSnoozeOpen(true)}
+            canRelease={can.release}
+            canAssign={can.resolve}
+          />
+        )}
+        <SnoozeDialog
+          open={bulkSnoozeOpen}
+          onOpenChange={setBulkSnoozeOpen}
+          now={nowDate}
+          overdue={checkedRows.some((r) => work.dueState(new Date(r.dueAt), nowDate) === 'over')}
+          onPick={(until) => {
+            setBulkSnoozeOpen(false);
+            const ids = checkedRows.map((r) => r.id);
+            start(async () => {
+              const res = await snoozeMany(ids, until.toISOString());
+              toast({ message: res.message, ...(res.ok ? {} : { tone: 'bad' as const }) });
+              setChecked(new Set());
+            });
+          }}
+        />
       </div>
+      {detail && <AssignDialog open={assignOpen} onOpenChange={setAssignOpen} itemIds={[detail.item.id]} />}
       {detail && (
         <WorkPanel
           detail={detail}
@@ -363,6 +443,7 @@ export function WorkQueue({
           onFix={doFix}
           onSnooze={() => setSnoozeOpen(true)}
           onResolve={() => setResolveOpen(true)}
+          onAssign={() => setAssignOpen(true)}
           onClose={() => select(null)}
         />
       )}

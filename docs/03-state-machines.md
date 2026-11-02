@@ -22,6 +22,7 @@ paid/closed ──835 reversal (CLP02=22)──► reversed ──► accepted (
 ```
 
 Rules:
+- Work items: `assigned → open` (`unassign`) when an item goes back to nobody (W-05).
 - `ready → needs_review` (`unapprove`) is the 10-second Undo of a person's approval (docs/09-ui-screens.md), only while the release has not gone out; it cancels the queued release and reopens the review item. An approval counts only if no later `unapproved` event exists for the same version.
 - `ready → submitted` requires either `scrub_result.decision = auto_release` with confidence ≥ the effective threshold, or a human approval event.
 - Rejected claims were never adjudicated; fix and resubmit as frequency 1 with the same patient control number.

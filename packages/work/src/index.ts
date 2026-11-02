@@ -4,7 +4,15 @@
  * Authorization (work.resolve) is the caller's: these run inside the caller's tenant.
  */
 import { and, eq, lte } from 'drizzle-orm';
-import { recordAudit, withTenant, workItems, type AuditActor, type Database, type Tx } from '@cleanpost/db';
+import {
+  notifications,
+  recordAudit,
+  withTenant,
+  workItems,
+  type AuditActor,
+  type Database,
+  type Tx,
+} from '@cleanpost/db';
 import { state, work } from '@cleanpost/domain';
 
 export type WorkActionResult =
@@ -141,4 +149,66 @@ export async function wakeDueItems(tx: Tx, now: Date): Promise<number> {
     await move(tx, item, 'wake', { snoozedUntil: null }, 'automation:work.wake', 'work_item.woken');
   }
   return due.length;
+}
+
+/**
+ * W-05: hand an item to a teammate (or take it back to unassigned). The caller checks that the
+ * assignee may see the item's client. The new assignee gets an in-app notification.
+ */
+export async function assignItem(
+  db: Database,
+  ctx: Ctx,
+  itemId: string,
+  assigneeId: string | null,
+): Promise<WorkActionResult> {
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const item = await locked(tx, itemId);
+    if (!item) return { ok: false, reason: 'not_found' };
+    if (item.assigneeId === assigneeId) return { ok: true };
+    const actor: AuditActor = `user:${ctx.userId}`;
+    // Snoozed items keep their snooze; the assignee is recorded either way.
+    const event: state.WorkItemEvent | null =
+      item.status === 'snoozed'
+        ? null
+        : assigneeId
+          ? 'assign'
+          : item.status === 'assigned'
+            ? 'unassign'
+            : null;
+    if (event) {
+      const res = await move(
+        tx,
+        item,
+        event,
+        { assigneeId },
+        actor,
+        assigneeId ? 'work_item.assigned' : 'work_item.unassigned',
+        {
+          assigneeId,
+        },
+      );
+      if (!res.ok) return res;
+    } else {
+      await tx.update(workItems).set({ assigneeId, updatedAt: new Date() }).where(eq(workItems.id, item.id));
+      await recordAudit(tx, {
+        actor,
+        action: assigneeId ? 'work_item.assigned' : 'work_item.unassigned',
+        entityType: 'work_item',
+        entityId: item.id,
+        clientId: item.clientId,
+        metadata: { assigneeId },
+      });
+    }
+    if (assigneeId && assigneeId !== ctx.userId) {
+      await tx.insert(notifications).values({
+        tenantId: ctx.tenantId,
+        userId: assigneeId,
+        type: 'work_item.assigned',
+        entityType: 'work_item',
+        entityId: item.id,
+        summary: `Assigned to you: ${work.WORK_TYPE_LABEL[item.type as work.WorkItemType] ?? item.type}`,
+      });
+    }
+    return { ok: true };
+  });
 }

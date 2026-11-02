@@ -1,10 +1,10 @@
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { auditEvents, createDatabase, users, withTenant, workItems } from '@cleanpost/db';
+import { auditEvents, createDatabase, notifications, users, withTenant, workItems } from '@cleanpost/db';
 import { testDatabaseUrls } from '@cleanpost/db/testing';
 import { seed } from '@cleanpost/seed';
 import { CLIENTS, NORTHWIND } from '@cleanpost/seed/world';
-import { reopenItem, resolveItem, snoozeItem, wakeDueItems, wakeItem } from '../src';
+import { assignItem, reopenItem, resolveItem, snoozeItem, wakeDueItems, wakeItem } from '../src';
 
 const urls = testDatabaseUrls();
 const admin = createDatabase(urls.adminUrl, { max: 2 });
@@ -119,5 +119,22 @@ describe('work item actions', () => {
       ok: false,
       reason: 'not_found',
     });
+  });
+
+  it('assigns to a teammate with a notification, and unassigns back to open (W-05)', async () => {
+    const item = await newItem();
+    const [marcus] = await admin.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, 'marcus@northwind.test'));
+    expect(await assignItem(app.db, ctx(), item.id, marcus!.id)).toEqual({ ok: true });
+    expect(await get(item.id)).toMatchObject({ status: 'assigned', assigneeId: marcus!.id });
+    const [note] = await admin.db
+      .select()
+      .from(notifications)
+      .where(and(eq(notifications.userId, marcus!.id), eq(notifications.entityId, item.id)));
+    expect(note!.summary).toBe('Assigned to you: Claim review');
+    expect(await assignItem(app.db, ctx(), item.id, null)).toEqual({ ok: true });
+    expect(await get(item.id)).toMatchObject({ status: 'open', assigneeId: null });
   });
 });

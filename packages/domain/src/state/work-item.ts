@@ -1,16 +1,18 @@
 /**
  * Work item lifecycle (docs/03-state-machines.md):
- * open -assign-> assigned -start-> in_progress -resolve-> resolved; open/assigned -snooze-> snoozed
+ * open -assign-> assigned (-unassign-> open) -start-> in_progress -resolve-> resolved; open/assigned -snooze-> snoozed
  * -wake-> open; any -auto_resolve-> resolved (actor = automation); resolved -reopen-> open.
  */
 import { transition, type TransitionTable } from './machine';
 
 export type WorkItemState = 'open' | 'assigned' | 'in_progress' | 'snoozed' | 'resolved';
-export type WorkItemEvent = 'assign' | 'start' | 'snooze' | 'wake' | 'resolve' | 'auto_resolve' | 'reopen';
+export type WorkItemEvent =
+  'assign' | 'unassign' | 'start' | 'snooze' | 'wake' | 'resolve' | 'auto_resolve' | 'reopen';
 
 const TABLE: TransitionTable<WorkItemState, WorkItemEvent> = {
   open: { assign: 'assigned', snooze: 'snoozed', resolve: 'resolved', auto_resolve: 'resolved' },
   assigned: {
+    unassign: 'open',
     start: 'in_progress',
     snooze: 'snoozed',
     resolve: 'resolved',

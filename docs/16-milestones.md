@@ -54,7 +54,8 @@ Status (Nov 2, 2026):
 - Met since: the 277CA comes from payer-sim through pm-mock's clearinghouse and sync (`packages/claims/test/release.test.ts`).
 - Built since: eligibility. `packages/eligibility` speaks Stedi's 270/271 JSON; payer-sim answers it from the payers' member files (pm-mock's seed loads them); claims wait for a check before the scrub (`eligibility.check`). Open: the same check against the Stedi sandbox once the key arrives.
 - Built since: C-06 with G-12 reveal, C-10, C-13 (before release, DEC-15), C-16.
-- Open: C-12, C-17, W-04, W-05, W-08, W-09, G-06, the C-01 column picker and export.
+- Built since: W-04 bulk bar, W-05 assign (with in-app notification), C-17 bulk release (claim reviews whose findings are all info).
+- Open: C-12, W-08, W-09, G-06, the C-01 column picker and export.
 
 ## M3 — Payments in, Mode A verification (weeks 9–11)
 

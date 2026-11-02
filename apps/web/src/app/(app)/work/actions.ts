@@ -8,11 +8,12 @@ import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { approveClaim, editClaim, scrubVersion, unapproveClaim } from '@cleanpost/claims';
-import { claims, withTenant, workItems } from '@cleanpost/db';
+import { claims, claimVersions, scrubResults, withTenant, workItems } from '@cleanpost/db';
 import { policy, type policy as P } from '@cleanpost/domain';
 import { cancelClaimRelease, sendClaimCorrect, sendClaimRelease } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
-import { reopenItem, resolveItem, snoozeItem, wakeItem } from '@cleanpost/work';
+import { assignItem, reopenItem, resolveItem, snoozeItem, wakeItem } from '@cleanpost/work';
+import { listAssignees, type Assignee } from '@/lib/queries/work';
 import { getBoss } from '@/lib/jobs';
 import { getDb } from '@/lib/server';
 import { requireActiveContext, type ActiveContext } from '@/lib/session';
@@ -262,4 +263,110 @@ export async function resolve(
             : 'This item cannot be resolved now.',
     };
   return { ok: true, done: true, message: 'Resolved.', undo: { kind: 'resolve', itemId: id } };
+}
+
+const Ids = z.array(Id).min(1).max(200);
+
+/** W-05: who may take these items (access to every item's client), with their workload. */
+export async function assigneesFor(itemIds: string[]): Promise<Assignee[]> {
+  const ctx = await requireActiveContext();
+  const ids = Ids.parse(itemIds);
+  const clientIds = new Set<string>();
+  for (const itemId of ids) {
+    const { item } = await scoped(ctx, 'work.resolve', { itemId });
+    if (item?.clientId) clientIds.add(item.clientId);
+  }
+  return listAssignees(ctx, [...clientIds]);
+}
+
+/** W-05 Assign (one item or the W-04 selection); null unassigns. */
+export async function assign(itemIds: string[], assigneeId: string | null): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const ids = Ids.parse(itemIds);
+  const to = assigneeId === null ? null : Id.parse(assigneeId);
+  if (to) {
+    const allowed = await assigneesFor(ids);
+    if (!allowed.some((a) => a.id === to))
+      return { ok: false, message: 'That person cannot see every selected client.' };
+  }
+  let done = 0;
+  for (const itemId of ids) {
+    await scoped(ctx, 'work.resolve', { itemId });
+    const res = await assignItem(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, itemId, to);
+    if (res.ok) done++;
+  }
+  revalidatePath('/work');
+  const what = ids.length === 1 ? 'Item' : `${done} of ${ids.length} items`;
+  return { ok: done > 0, message: to ? `${what} assigned.` : `${what} unassigned.` };
+}
+
+/** W-04 Snooze for the selection. */
+export async function snoozeMany(itemIds: string[], untilIso: string): Promise<WorkActionResult> {
+  const ids = Ids.parse(itemIds);
+  let done = 0;
+  for (const id of ids) if ((await snooze(id, untilIso)).ok) done++;
+  return { ok: done > 0, message: `${done} of ${ids.length} items snoozed.` };
+}
+
+/**
+ * C-17 Bulk release: claim reviews whose findings are all info level, approved and released at
+ * once by this user. Checked again here; anything else is skipped and counted, never dropped silently.
+ */
+export async function bulkRelease(
+  itemIds: string[],
+): Promise<WorkActionResult & { released: number; skipped: number }> {
+  const ctx = await requireActiveContext();
+  const ids = Ids.parse(itemIds);
+  policy.assertAllowed(ctx.actor, 'claim.release');
+  const boss = await getBoss();
+  let released = 0;
+  let skipped = 0;
+  for (const itemId of ids) {
+    const { item } = await scoped(ctx, 'claim.release', { itemId });
+    if (!item?.claimId || item.type !== 'claim_review') {
+      skipped++;
+      continue;
+    }
+    const eligible = await withTenant(
+      getDb(),
+      { tenantId: ctx.tenantId, userId: ctx.user.id },
+      async (tx) => {
+        const [row] = await tx
+          .select({ status: claims.status, findings: scrubResults.findings })
+          .from(claims)
+          .innerJoin(claimVersions, eq(claimVersions.id, claims.currentVersionId))
+          .innerJoin(scrubResults, eq(scrubResults.id, claimVersions.scrubResultId))
+          .where(eq(claims.id, item.claimId!));
+        return (
+          row &&
+          (row.status === 'needs_review' || row.status === 'ready') &&
+          ((row.findings as { items?: { severity: string }[] }).items ?? []).every(
+            (f) => f.severity === 'info',
+          )
+        );
+      },
+    );
+    if (!eligible) {
+      skipped++;
+      continue;
+    }
+    const approved = await approveClaim(getDb(), {
+      tenantId: ctx.tenantId,
+      userId: ctx.user.id,
+      claimId: item.claimId,
+    });
+    if (!approved.ok && approved.reason !== 'not_in_review') {
+      skipped++;
+      continue;
+    }
+    await sendClaimRelease(boss, { tenantId: ctx.tenantId, claimId: item.claimId, userId: ctx.user.id });
+    released++;
+  }
+  revalidatePath('/work');
+  return {
+    ok: released > 0,
+    released,
+    skipped,
+    message: `Releasing ${released} ${released === 1 ? 'claim' : 'claims'}.${skipped ? ` ${skipped} skipped: not eligible any more.` : ''}`,
+  };
 }

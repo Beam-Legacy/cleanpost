@@ -104,6 +104,7 @@ export function WorkPanel({
   onFix,
   onSnooze,
   onResolve,
+  onAssign,
   onClose,
 }: {
   detail: WorkDetail;
@@ -114,6 +115,7 @@ export function WorkPanel({
   onFix: (ruleId: string) => void;
   onSnooze: () => void;
   onResolve: () => void;
+  onAssign: () => void;
   onClose: () => void;
 }) {
   const c = d.claim;
@@ -327,6 +329,9 @@ export function WorkPanel({
             </Button>
             <Button disabled={pending} onClick={onResolve}>
               Resolve <Kbd>R</Kbd>
+            </Button>
+            <Button variant="ghost" disabled={pending} onClick={onAssign}>
+              {d.item.assigneeId ? 'Reassign' : 'Assign'}
             </Button>
           </>
         )}

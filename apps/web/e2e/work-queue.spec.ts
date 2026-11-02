@@ -18,7 +18,7 @@ async function ready() {
 async function pressesToFirstReview() {
   const labels = await page
     .getByRole('table', { name: 'Work items' })
-    .locator('tbody tr td:nth-child(2) b')
+    .locator('tbody tr td:nth-child(3) b')
     .allInnerTexts();
   const i = labels.findIndex((l) => l.trim() === 'Claim review');
   expect(i).toBeGreaterThanOrEqual(0);
@@ -113,6 +113,40 @@ test('snooze (W-06) and resolve with a reason (W-07), each with Undo', async () 
   await expect(page.getByText('Resolved.')).toBeVisible();
   await page.getByRole('button', { name: 'Undo' }).click();
   await expect(page.getByText('Item reopened.')).toBeVisible();
+});
+
+test('W-04 bulk bar: assign two items (W-05) and confirm a bulk release (C-17)', async () => {
+  await page.goto('/work?type=review');
+  await ready();
+  const rows = page.getByRole('table', { name: 'Work items' }).locator('tbody tr');
+  await rows.nth(0).getByRole('checkbox').check();
+  await rows.nth(1).getByRole('checkbox').check();
+  const bar = page.getByRole('toolbar', { name: 'Selected items' });
+  await expect(bar).toContainText('2 selected');
+  await expect(bar.getByRole('button', { name: /^Release \d of 2$/ })).toBeVisible();
+  await expectAccessible(page, 'W-04');
+
+  await bar.getByRole('button', { name: 'Assign' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Assign 2 items' });
+  await expect(dialog.getByRole('list', { name: 'People' })).toContainText('Marcus Lee');
+  await expectAccessible(page, 'W-05');
+  await dialog.getByRole('button', { name: /^Marcus Lee/ }).click();
+  await expect(page.getByText('2 of 2 items assigned.')).toBeVisible();
+
+  // C-17 always confirms first; cancelled here so the synthetic claims stay in review.
+  await rows.nth(0).getByRole('checkbox').check();
+  const release = page
+    .getByRole('toolbar', { name: 'Selected items' })
+    .getByRole('button', { name: /^Release/ });
+  if (await release.isEnabled()) {
+    await release.click();
+    const confirm = page.getByRole('alertdialog');
+    await expect(confirm).toContainText('This cannot be undone.');
+    await expectAccessible(page, 'C-17');
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+  }
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('toolbar', { name: 'Selected items' })).toHaveCount(0);
 });
 
 test('? lists the shortcuts', async () => {
