@@ -27,8 +27,11 @@ export async function advanceClock(daysInput: number): Promise<SimResult> {
   if (!policy.authorize(ctx.actor, 'integration.manage').allowed)
     return { ok: false, message: 'Only admins can move the simulated clock.' };
   const days = z.number().int().min(1).max(30).parse(daysInput);
+  // Send what is queued at today's simulated date (with the PM's billing batch), move the clock,
+  // then collect the 277CAs and 835s that came due.
+  await runClearinghouse(config, { bill: true });
   const now = await advanceSimClock(config, days);
-  const ran = await runClearinghouse(config);
+  const ran = await runClearinghouse(config, { bill: false });
   const conns = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
     const rows = await tx
       .select({ id: connections.id })

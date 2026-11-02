@@ -53,10 +53,10 @@ export async function advanceSimClock(c: SimConfig, days: number): Promise<Date>
 }
 
 /** Runs the mock PM's clearinghouse once (claims out, 277CAs and 835s in); false if not reachable. */
-export async function runClearinghouse(c: SimConfig): Promise<boolean> {
+export async function runClearinghouse(c: SimConfig, opts: { bill: boolean }): Promise<boolean> {
   if (!c.pmMockUrl || !c.pmMockAdminPassword) return false;
   try {
-    const res = await fetch(`${c.pmMockUrl}/admin/api/clearinghouse/run?bill=1`, {
+    const res = await fetch(`${c.pmMockUrl}/admin/api/clearinghouse/run${opts.bill ? '?bill=1' : ''}`, {
       method: 'POST',
       headers: { authorization: `Basic ${Buffer.from(`admin:${c.pmMockAdminPassword}`).toString('base64')}` },
       signal: AbortSignal.timeout(60_000),
