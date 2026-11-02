@@ -18,7 +18,15 @@ import { createRegistry, memoryFileSource, type ChargeCorrection, type PmAdapter
 import { pmSchema } from '@cleanpost/pm-mock';
 import { runSync } from '@cleanpost/sync';
 import { scanForPhi } from '@cleanpost/testing';
-import { applyClaimEvent, buildClaimsForClient, correctionPending, editClaim, pushCorrection } from '../src';
+import {
+  addClaimNote,
+  applyClaimEvent,
+  buildClaimsForClient,
+  correctionPending,
+  editClaim,
+  pushCorrection,
+  voidClaim,
+} from '../src';
 import {
   admin,
   app,
@@ -350,5 +358,66 @@ describe('edits by a person (Mode A, a PM that takes charge corrections)', () =>
         { kind: 'fix', ruleIds: ['x'] },
       ),
     ).toEqual({ status: 'refused', reason: 'not_editable' });
+  });
+});
+
+describe('void and notes (C-13, C-16)', () => {
+  it('voids a claim that was never sent, with its reason, and closes its open items', async () => {
+    const user = await userIdOf();
+    const [c] = await admin.db
+      .select()
+      .from(claims)
+      .where(and(eq(claims.clientId, lakeside().id), eq(claims.status, 'built')))
+      .limit(1);
+    expect(
+      await voidClaim(app.db, { tenantId: NORTHWIND, userId: user, claimId: c!.id, reason: 'Other' }),
+    ).toEqual({ ok: false, reason: 'note_required' });
+    expect(
+      await voidClaim(app.db, { tenantId: NORTHWIND, userId: user, claimId: c!.id, reason: 'Duplicate' }),
+    ).toEqual({ ok: true });
+    const [after] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
+    expect(after!.status).toBe('voided');
+    const [event] = await admin.db
+      .select()
+      .from(claimEvents)
+      .where(and(eq(claimEvents.claimId, c!.id), eq(claimEvents.type, 'voided')));
+    expect(event!.payload).toMatchObject({ reason: 'Duplicate' });
+  });
+
+  it('refuses to void a claim the payer already has', async () => {
+    const [sent] = await admin.db
+      .select()
+      .from(claims)
+      .where(and(eq(claims.clientId, lakeside().id), eq(claims.status, 'submitted')))
+      .limit(1);
+    expect(
+      await voidClaim(app.db, {
+        tenantId: NORTHWIND,
+        userId: await userIdOf(),
+        claimId: sent!.id,
+        reason: 'Duplicate',
+      }),
+    ).toEqual({ ok: false, reason: 'already_sent' });
+  });
+
+  it('adds a note to the timeline and keeps its text out of the audit log', async () => {
+    const [c] = await admin.db.select().from(claims).where(eq(claims.clientId, lakeside().id)).limit(1);
+    const res = await addClaimNote(app.db, {
+      tenantId: NORTHWIND,
+      userId: await userIdOf(),
+      claimId: c!.id,
+      text: 'Called the payer; reprocessing.',
+    });
+    expect(res).toEqual({ ok: true });
+    const [note] = await admin.db
+      .select()
+      .from(claimEvents)
+      .where(and(eq(claimEvents.claimId, c!.id), eq(claimEvents.type, 'note')));
+    expect(note!.payload).toEqual({ text: 'Called the payer; reprocessing.' });
+    const [audit] = await admin.db
+      .select()
+      .from(auditEvents)
+      .where(and(eq(auditEvents.entityId, c!.id), eq(auditEvents.action, 'claim.note_added')));
+    expect(JSON.stringify(audit!.metadata)).not.toContain('payer');
   });
 });

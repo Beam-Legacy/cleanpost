@@ -6,8 +6,16 @@
 import { revalidatePath } from 'next/cache';
 import { and, eq, inArray, ne } from 'drizzle-orm';
 import { z } from 'zod';
-import { approveClaim, editClaim, previewScrub, scrubVersion, type PreviewOutcome } from '@cleanpost/claims';
-import { claims, withTenant, workItems } from '@cleanpost/db';
+import {
+  addClaimNote,
+  approveClaim,
+  editClaim,
+  previewScrub,
+  scrubVersion,
+  voidClaim,
+  type PreviewOutcome,
+} from '@cleanpost/claims';
+import { claims, coverages, decryptField, patients, withAudit, withTenant, workItems } from '@cleanpost/db';
 import { claimPayloadSchema, policy, type ClaimPayload } from '@cleanpost/domain';
 import { sendClaimCorrect, sendClaimRelease } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
@@ -160,4 +168,88 @@ export async function saveEdit(
     };
   const released = await release(ctx, id);
   return { ...released, message: `${saved} ${released.message}`, versionId: res.versionId };
+}
+
+/**
+ * G-12: the full DOB or member ID, for one person, recorded each time (reveal or copy). The page
+ * masks it again after 30 seconds.
+ */
+export async function revealField(
+  claimId: string,
+  field: 'dob' | 'member_id',
+  purpose: 'reveal' | 'copy',
+): Promise<{ ok: true; value: string } | { ok: false; message: string }> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(claimId);
+  const kind = z.enum(['dob', 'member_id']).parse(field);
+  const why = z.enum(['reveal', 'copy']).parse(purpose);
+  await claimInScope(ctx, id, 'claim.view');
+  const value = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const [row] = await tx
+      .select({ claim: claims, dob: patients.dob, memberId: coverages.memberIdEncrypted })
+      .from(claims)
+      .innerJoin(patients, eq(patients.id, claims.patientId))
+      .leftJoin(coverages, eq(coverages.id, claims.coverageId))
+      .where(eq(claims.id, id));
+    if (!row) return null;
+    if (kind === 'member_id' && !row.memberId) return null;
+    return withAudit(
+      tx,
+      {
+        actor: `user:${ctx.user.id}`,
+        action: why === 'copy' ? 'phi.copied' : 'phi.revealed',
+        entityType: 'claim',
+        entityId: id,
+        clientId: row.claim.clientId,
+        metadata: { field: kind },
+      },
+      async () => (kind === 'dob' ? row.dob : decryptField(row.memberId!)),
+    );
+  });
+  return value === null ? { ok: false, message: 'Nothing to show.' } : { ok: true, value };
+}
+
+/** C-13: void a claim that was never sent (DEC-15). */
+export async function voidClaimAction(
+  claimId: string,
+  reason: string,
+  note: string | null,
+): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(claimId);
+  await claimInScope(ctx, id, 'claim.edit');
+  const res = await voidClaim(getDb(), {
+    tenantId: ctx.tenantId,
+    userId: ctx.user.id,
+    claimId: id,
+    reason: z.string().max(100).parse(reason),
+    note: note === null ? null : z.string().max(1000).parse(note),
+  });
+  revalidatePath(`/claims/${id}`);
+  revalidatePath('/work');
+  if (res.ok) return { ok: true, message: 'Claim voided. Its open items are closed.' };
+  return {
+    ok: false,
+    message:
+      res.reason === 'already_sent'
+        ? 'The payer already has this claim; voiding it needs a void claim (frequency 8), which comes with corrections.'
+        : res.reason === 'note_required'
+          ? 'Add a note for "Other".'
+          : 'Not voided.',
+  };
+}
+
+/** C-16: a note on the timeline. */
+export async function addNoteAction(claimId: string, text: string): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(claimId);
+  await claimInScope(ctx, id, 'work.resolve');
+  const res = await addClaimNote(getDb(), {
+    tenantId: ctx.tenantId,
+    userId: ctx.user.id,
+    claimId: id,
+    text: z.string().max(2000).parse(text),
+  });
+  revalidatePath(`/claims/${id}`);
+  return res.ok ? { ok: true, message: 'Note added.' } : { ok: false, message: 'Write a note first.' };
 }

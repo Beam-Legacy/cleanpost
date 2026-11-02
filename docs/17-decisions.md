@@ -127,6 +127,11 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 | Payer IDs in the synthetic world | Simulator IDs (`SIMAETNA`, ...) on the seeded payers | Real Stedi payer IDs come from Stedi's payers API at onboarding. |
 | Inactive coverage | Blocks the claim through scrub step 2 (`claim_blocked`), no separate `eligibility_issue` item yet | One item per problem; the eligibility panel (W-13) arrives in M4. |
 
+## DEC-15 — Void before release only, in M2 (Nov 2, 2026)
+
+- **Decision:** C-13 voids claims that were never sent (draft to ready): status Voided with the reason, open items closed. A claim the payer has needs a void claim (frequency 8); in Mode A the PM sends it, and Cleanpost adds that path with corrections in M4. The dialog tells the biller to reject the encounter in the PM too, so the PM never bills it.
+- **Also:** notes (C-16) are claim events of type `note`, shown on the timeline to users with access to the client; the audit row records the length, not the text. G-12 reveals write `phi.revealed` or `phi.copied` with the field name.
+
 ## Open questions
 
 | Question | Owner | Needed by |

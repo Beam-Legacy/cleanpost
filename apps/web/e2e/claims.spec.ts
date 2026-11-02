@@ -74,3 +74,47 @@ test('C-08: an edit shows live findings and saves as a new version with its chan
     'Prior authorization number set',
   );
 });
+
+test('C-10: compares the edited version with the one before', async () => {
+  await page
+    .getByRole('link', { name: /^Compare with v\d+$/ })
+    .first()
+    .click();
+  await expect(page.getByRole('table', { name: 'Changed fields' })).toContainText(
+    'Prior authorization number set',
+  );
+  await expectAccessible(page, 'C-10');
+});
+
+test('C-06 and G-12: coverage is masked; a reveal shows the value and is recorded', async () => {
+  await page.getByRole('link', { name: 'Patient and coverage' }).click();
+  await expect(page.getByText(/^••\/••\/\d{4}$/)).toBeVisible();
+  await expectAccessible(page, 'C-06');
+  await page.getByRole('button', { name: 'Reveal date of birth' }).click();
+  await expect(page.getByText(/^\d{4}-\d{2}-\d{2}$/)).toBeVisible();
+  await page.getByRole('button', { name: 'Hide date of birth' }).click();
+  await expect(page.getByText(/^••\/••\/\d{4}$/)).toBeVisible();
+});
+
+test('C-16: a note appears on the timeline', async () => {
+  await page.getByRole('link', { name: 'Summary' }).click();
+  await page.getByLabel('Add a note').fill('Called the practice about the prior authorization.');
+  await page.getByRole('button', { name: 'Add note' }).click();
+  await expect(page.getByText('Note added.')).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Recent activity' })).toContainText(
+    'Note: Called the practice',
+  );
+});
+
+test('C-13: voids a claim that was never sent', async () => {
+  await page.goto('/claims?view=review');
+  await page.getByRole('table', { name: 'Claims' }).getByRole('link').nth(1).click();
+  await page.getByRole('button', { name: 'Void', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Void claim' });
+  await expect(dialog.getByRole('button', { name: 'Void claim' })).toBeDisabled();
+  await dialog.getByLabel('Duplicate').check();
+  await expectAccessible(page, 'C-13');
+  await dialog.getByRole('button', { name: 'Void claim' }).click();
+  await expect(page.getByText('Claim voided. Its open items are closed.')).toBeVisible();
+  await expect(page.locator('.chip', { hasText: 'Voided' }).first()).toBeVisible();
+});

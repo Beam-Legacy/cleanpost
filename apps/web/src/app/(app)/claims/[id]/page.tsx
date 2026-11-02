@@ -9,6 +9,7 @@ import {
   ConfidenceMeter,
   DueChip,
   FindingRow,
+  KeyValue,
   ModeBadge,
   StatusChip,
   Suggestion,
@@ -16,9 +17,11 @@ import {
 } from '@cleanpost/ui';
 import { actorLabel, CLAIM_STATUS, describeEvent, FREQUENCY_LABEL } from '@/lib/claim-display';
 import { formatDate, formatMoney, formatWhen } from '@/lib/format';
-import { getClaim, type ClaimDetail } from '@/lib/queries/claims';
+import { getClaim, getClaimCoverage, type ClaimDetail } from '@/lib/queries/claims';
 import { requireActiveContext } from '@/lib/session';
 import { ClaimActions } from './claim-actions';
+import { AddNote, VoidClaimButton } from './claim-more';
+import { RevealField } from './reveal-field';
 import { ClaimEditor } from './claim-editor';
 
 export const metadata: Metadata = { title: 'Claim' };
@@ -28,6 +31,7 @@ const TABS = [
   { key: 'lines', label: 'Lines' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'versions', label: 'Versions' },
+  { key: 'patient', label: 'Patient and coverage' },
 ] as const;
 type Tab = (typeof TABS)[number]['key'];
 
@@ -62,6 +66,7 @@ export default async function ClaimPage({
     ? Math.ceil((Date.parse(`${c.filingDeadline}T00:00:00Z`) - now.getTime()) / 86_400_000)
     : null;
   const editing = sp.edit === '1' && canEdit;
+  const canNote = policy.authorize(ctx.actor, 'work.resolve', { clientId: c.clientId }).allowed;
 
   return (
     <>
@@ -102,12 +107,15 @@ export default async function ClaimPage({
             </div>
           </div>
           {!editing && (
-            <ClaimActions
-              claimId={c.id}
-              canRelease={canRelease}
-              canEdit={canEdit}
-              inReview={c.status === 'needs_review'}
-            />
+            <div className="row">
+              <ClaimActions
+                claimId={c.id}
+                canRelease={canRelease}
+                canEdit={canEdit}
+                inReview={c.status === 'needs_review'}
+              />
+              {canEdit && <VoidClaimButton claimId={c.id} pmName={d.pmName} />}
+            </div>
           )}
         </div>
         <dl className="dl" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
@@ -184,17 +192,18 @@ export default async function ClaimPage({
               </Link>
             ))}
           </nav>
-          {tab === 'summary' && <Summary d={d} now={now} />}
+          {tab === 'summary' && <Summary d={d} now={now} canNote={canNote} />}
           {tab === 'lines' && <Lines d={d} />}
           {tab === 'timeline' && <ClaimTimeline d={d} filter={sp.filter ?? 'all'} />}
-          {tab === 'versions' && <Versions d={d} />}
+          {tab === 'versions' && <Versions d={d} compare={Number.parseInt(sp.compare ?? '', 10) || null} />}
+          {tab === 'patient' && <PatientCoverage claimId={c.id} ctx={ctx} />}
         </>
       )}
     </>
   );
 }
 
-function Summary({ d, now }: { d: ClaimDetail; now: Date }) {
+function Summary({ d, now, canNote }: { d: ClaimDetail; now: Date; canNote: boolean }) {
   const item = d.openItem;
   const recent = d.events.slice(0, 4);
   return (
@@ -274,6 +283,11 @@ function Summary({ d, now }: { d: ClaimDetail; now: Date }) {
             })}
           />
         </div>
+        {canNote && (
+          <div className="card-foot">
+            <AddNote claimId={d.claim.id} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -418,52 +432,254 @@ function ClaimTimeline({ d, filter }: { d: ClaimDetail; filter: string }) {
   );
 }
 
-function Versions({ d }: { d: ClaimDetail }) {
+function Versions({ d, compare }: { d: ClaimDetail; compare: number | null }) {
+  const shown = compare ? d.versions.find((v) => v.version === compare) : null;
   return (
-    <div className="card flush">
-      <div className="table-wrap">
-        <table className="table" aria-label="Claim versions">
-          <thead>
-            <tr>
-              <th>Version</th>
-              <th>Frequency</th>
-              <th>Made by</th>
-              <th>Created</th>
-              <th>Scrub</th>
-              <th>Released</th>
-              <th className="num">Charge</th>
-              <th>What changed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {d.versions.map((v) => (
-              <tr key={v.id}>
-                <td>
-                  v{v.version}
-                  {v.id === d.versionId && (
-                    <span className="tag" style={{ marginLeft: 6 }}>
-                      Current
-                    </span>
-                  )}
-                </td>
-                <td>{FREQUENCY_LABEL[v.frequencyCode] ?? v.frequencyCode}</td>
-                <td>
-                  {v.createdBy.startsWith('user:') ? (v.createdByName ?? 'A user') : `Built from ${d.pmName}`}
-                </td>
-                <td>{formatWhen(v.createdAt)}</td>
-                <td>{v.confidence !== null ? `${v.confidence}` : '—'}</td>
-                <td>{v.releasedAt ? formatWhen(v.releasedAt) : '—'}</td>
-                <td className="num">{formatMoney(v.totalChargeCents)}</td>
-                <td>{v.changes.length ? v.changes.join('; ') : v.version === 1 ? 'First version' : '—'}</td>
+    <div className="stack">
+      {shown && <CompareVersions d={d} v={shown} />}
+      <div className="card flush">
+        <div className="table-wrap">
+          <table className="table" aria-label="Claim versions">
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Frequency</th>
+                <th>Made by</th>
+                <th>Created</th>
+                <th>Scrub</th>
+                <th>Released</th>
+                <th className="num">Charge</th>
+                <th>What changed</th>
+                <th>
+                  <span className="sr-only">Compare</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {d.versions.map((v) => (
+                <tr key={v.id}>
+                  <td>
+                    v{v.version}
+                    {v.id === d.versionId && (
+                      <span className="tag" style={{ marginLeft: 6 }}>
+                        Current
+                      </span>
+                    )}
+                  </td>
+                  <td>{FREQUENCY_LABEL[v.frequencyCode] ?? v.frequencyCode}</td>
+                  <td>
+                    {v.createdBy.startsWith('user:')
+                      ? (v.createdByName ?? 'A user')
+                      : `Built from ${d.pmName}`}
+                  </td>
+                  <td>{formatWhen(v.createdAt)}</td>
+                  <td>{v.confidence !== null ? `${v.confidence}` : '—'}</td>
+                  <td>{v.releasedAt ? formatWhen(v.releasedAt) : '—'}</td>
+                  <td className="num">{formatMoney(v.totalChargeCents)}</td>
+                  <td>
+                    {v.changes.length
+                      ? v.changes.map((x) => x.label).join('; ')
+                      : v.version === 1
+                        ? 'First version'
+                        : '—'}
+                  </td>
+                  <td>
+                    {v.version > 1 && (
+                      <Link
+                        className="btn btn-ghost btn-sm"
+                        href={`/claims/${d.claim.id}?tab=versions&compare=${v.version}`}
+                      >
+                        Compare with v{v.version - 1}
+                      </Link>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="table-foot">
+          <span>
+            Released versions never change; a correction after release is a new version (frequency 7).
+          </span>
+        </div>
       </div>
-      <div className="table-foot">
-        <span>
-          Released versions never change; a correction after release is a new version (frequency 7).
-        </span>
+    </div>
+  );
+}
+
+const show = (v: unknown) =>
+  v === null || v === undefined
+    ? '—'
+    : Array.isArray(v)
+      ? v
+          .map((x) =>
+            x && typeof x === 'object' ? ((x as { icd10?: string }).icd10 ?? JSON.stringify(x)) : String(x),
+          )
+          .join(', ') || '—'
+      : String(v);
+
+/** C-10 Compare versions: what changed from the version before, field by field. */
+function CompareVersions({ d, v }: { d: ClaimDetail; v: ClaimDetail['versions'][number] }) {
+  return (
+    <div className="card" aria-label={`Compare v${v.version - 1} and v${v.version}`}>
+      <div className="card-head">
+        <h2>
+          v{v.version - 1} to v{v.version}
+        </h2>
+        <span className="spacer" />
+        <Link href={`/claims/${d.claim.id}?tab=versions`}>Close</Link>
+      </div>
+      <div className="card-body">
+        {v.changes.length === 0 ? (
+          <span className="muted">No field changed.</span>
+        ) : (
+          <table className="table" aria-label="Changed fields">
+            <thead>
+              <tr>
+                <th>Change</th>
+                <th>v{v.version - 1}</th>
+                <th>v{v.version}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {v.changes.map((x) => (
+                <tr key={x.fieldPath}>
+                  <td>{x.label}</td>
+                  <td className="code">
+                    <s>{show(x.before)}</s>
+                  </td>
+                  <td className="code">
+                    <b>{show(x.after)}</b>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** C-06 Patient and coverage: masked values; full ones through G-12, each recorded. */
+async function PatientCoverage({
+  claimId,
+  ctx,
+}: {
+  claimId: string;
+  ctx: Awaited<ReturnType<typeof requireActiveContext>>;
+}) {
+  const v = await getClaimCoverage(ctx, claimId);
+  if (!v) return null;
+  const e = v.eligibility;
+  const s = (e?.summary ?? {}) as {
+    copayCents?: number | null;
+    deductibleRemainingCents?: number | null;
+    coinsurancePercent?: number | null;
+    errorCodes?: string[];
+    source?: string;
+  };
+  return (
+    <div className="stack">
+      {v.coverage?.changedAfterRelease && (
+        <Banner tone="warn">Coverage on file changed after this claim was sent.</Banner>
+      )}
+      <div className="split">
+        <div className="card split-main">
+          <div className="card-head">
+            <h2>Patient</h2>
+          </div>
+          <div className="card-body">
+            <KeyValue
+              items={[
+                ['Name', v.patient.label],
+                [
+                  'Date of birth',
+                  <RevealField
+                    key="dob"
+                    claimId={claimId}
+                    field="dob"
+                    masked={v.patient.dobMasked}
+                    label="date of birth"
+                  />,
+                ],
+                ['Sex', v.patient.sex],
+              ]}
+            />
+          </div>
+        </div>
+        <div className="card split-main">
+          <div className="card-head">
+            <h2>Coverage</h2>
+          </div>
+          <div className="card-body">
+            {v.coverage ? (
+              <KeyValue
+                items={[
+                  ['Payer', v.coverage.payerName],
+                  [
+                    'Member ID',
+                    <RevealField
+                      key="mid"
+                      claimId={claimId}
+                      field="member_id"
+                      masked={v.coverage.memberIdMasked}
+                      label="member ID"
+                    />,
+                  ],
+                  ['Group', v.coverage.groupNumber ?? '—'],
+                  ['Relationship', v.coverage.relationship],
+                  ['Effective', formatDate(v.coverage.effectiveDate)],
+                  ['Ends', formatDate(v.coverage.terminationDate)],
+                ]}
+              />
+            ) : (
+              <span className="muted">No coverage on this claim.</span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-head">
+          <h2>Eligibility</h2>
+          {e && (
+            <span className="muted dense">
+              Checked {formatWhen(e.requestedAt)}
+              {s.source === 'payer-sim' ? ' · payer simulator' : ''}
+            </span>
+          )}
+        </div>
+        <div className="card-body">
+          {!e ? (
+            <span className="muted">
+              Not checked yet. Cleanpost checks coverage before it scrubs a claim.
+            </span>
+          ) : (
+            <KeyValue
+              items={[
+                [
+                  'Status',
+                  e.status === 'active'
+                    ? 'Active'
+                    : e.status === 'inactive'
+                      ? 'Inactive'
+                      : e.status === 'error'
+                        ? `Payer could not confirm${s.errorCodes?.length ? ` (AAA ${s.errorCodes.join(', ')})` : ''}`
+                        : 'Unknown',
+                ],
+                ['Copay', formatMoney(s.copayCents ?? null)],
+                ['Deductible remaining', formatMoney(s.deductibleRemainingCents ?? null)],
+                [
+                  'Coinsurance',
+                  s.coinsurancePercent !== null && s.coinsurancePercent !== undefined
+                    ? `${s.coinsurancePercent}%`
+                    : '—',
+                ],
+              ]}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -21,6 +21,8 @@ import {
   claimVersions,
   clients,
   connections,
+  coverages,
+  eligibilityChecks,
   encounters,
   patients,
   payers,
@@ -226,8 +228,8 @@ export interface ClaimVersionView {
   confidence: number | null;
   decision: string | null;
   totalChargeCents: number;
-  /** "Line 1 modifier 25 added", against the version before. */
-  changes: string[];
+  /** Against the version before: "Line 1 modifier 25 added", with the values (C-10). */
+  changes: { label: string; fieldPath: string; before: unknown; after: unknown }[];
 }
 
 export interface ClaimDetail {
@@ -339,7 +341,14 @@ async function loadClaim(tx: Tx, ctx: ActiveContext, id: string): Promise<ClaimD
   const byNumber = new Map(versionRows.map((r) => [r.v.version, r.v.payload as ClaimPayload]));
   const changesFor = (v: (typeof versionRows)[number]) => {
     const prev = byNumber.get(v.v.version - 1);
-    return prev ? diffPayload(prev, v.v.payload as ClaimPayload).map((x) => x.label) : [];
+    return prev
+      ? diffPayload(prev, v.v.payload as ClaimPayload).map(({ label, fieldPath, before, after }) => ({
+          label,
+          fieldPath,
+          before,
+          after,
+        }))
+      : [];
   };
   return {
     claim: c,
@@ -412,6 +421,96 @@ export async function getClaim(ctx: ActiveContext, id: string): Promise<ClaimDet
         clientId: d?.claim.clientId ?? null,
       }),
       () => loadClaim(tx, ctx, id),
+    ),
+  );
+}
+
+export interface ClaimCoverageView {
+  patient: { label: string; dobMasked: string; sex: string };
+  coverage: {
+    id: string;
+    payerName: string;
+    priority: number;
+    memberIdMasked: string;
+    groupNumber: string | null;
+    relationship: string;
+    effectiveDate: string | null;
+    terminationDate: string | null;
+    changedAfterRelease: boolean;
+  } | null;
+  eligibility: {
+    status: string;
+    requestedAt: Date;
+    summary: Record<string, unknown>;
+  } | null;
+}
+
+/** C-06: masked by default (last 4 of the member ID, year of birth); the full values need G-12. */
+export async function getClaimCoverage(
+  ctx: ActiveContext,
+  claimId: string,
+): Promise<ClaimCoverageView | null> {
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    withAudit(
+      tx,
+      (v: ClaimCoverageView | null) => ({
+        actor: `user:${ctx.user.id}`,
+        action: 'claim.coverage_viewed',
+        entityType: 'claim',
+        entityId: claimId,
+        metadata: { masked: true, found: Boolean(v) },
+      }),
+      async () => {
+        const [row] = await tx
+          .select({ claim: claims, patient: patients, coverage: coverages })
+          .from(claims)
+          .innerJoin(patients, eq(patients.id, claims.patientId))
+          .leftJoin(coverages, eq(coverages.id, claims.coverageId))
+          .where(and(eq(claims.id, claimId), scope(ctx)));
+        if (!row) return null;
+        const [released] = row.claim.currentVersionId
+          ? await tx
+              .select({ at: claimVersions.releasedAt })
+              .from(claimVersions)
+              .where(eq(claimVersions.id, row.claim.currentVersionId))
+          : [];
+        const [check] = row.coverage
+          ? await tx
+              .select()
+              .from(eligibilityChecks)
+              .where(eq(eligibilityChecks.coverageId, row.coverage.id))
+              .orderBy(desc(eligibilityChecks.requestedAt))
+              .limit(1)
+          : [];
+        const c = row.coverage;
+        return {
+          patient: {
+            label: patientLabel(row.patient)!,
+            dobMasked: `••/••/${row.patient.dob.slice(0, 4)}`,
+            sex: row.patient.sex,
+          },
+          coverage: c
+            ? {
+                id: c.id,
+                payerName: c.payerName,
+                priority: c.priority,
+                memberIdMasked: `•••••${c.memberIdLast4}`,
+                groupNumber: c.groupNumber,
+                relationship: c.relationship,
+                effectiveDate: c.effectiveDate,
+                terminationDate: c.terminationDate,
+                changedAfterRelease: Boolean(released?.at && c.updatedAt > released.at),
+              }
+            : null,
+          eligibility: check
+            ? {
+                status: check.status,
+                requestedAt: check.requestedAt,
+                summary: (check.summary ?? {}) as Record<string, unknown>,
+              }
+            : null,
+        };
+      },
     ),
   );
 }

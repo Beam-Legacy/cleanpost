@@ -7,6 +7,9 @@ export {
   markReleased,
   releaseClaim,
   unapproveClaim,
+  voidClaim,
+  addClaimNote,
+  VOID_REASONS,
   type ReleaseDeps,
   type ReleaseOutcome,
 } from './release';

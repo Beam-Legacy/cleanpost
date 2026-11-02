@@ -357,3 +357,99 @@ export async function unapproveClaim(
     return { ok: true };
   });
 }
+
+export const VOID_REASONS = [
+  'Duplicate',
+  'Entered in error',
+  'Patient will pay',
+  'Not billable',
+  'Other',
+] as const;
+
+/**
+ * C-13 for a claim that was never sent: draft to ready -> voided, with the reason, and its open
+ * work items close. A claim the payer has (submitted or later) needs a void claim (frequency 8),
+ * which goes with corrections in M4.
+ */
+export async function voidClaim(
+  db: Database,
+  ctx: { tenantId: string; userId: string; claimId: string; reason: string; note?: string | null },
+): Promise<
+  { ok: true } | { ok: false; reason: 'not_found' | 'already_sent' | 'note_required' | 'unknown_reason' }
+> {
+  if (!(VOID_REASONS as readonly string[]).includes(ctx.reason))
+    return { ok: false, reason: 'unknown_reason' };
+  if (ctx.reason === 'Other' && !ctx.note?.trim()) return { ok: false, reason: 'note_required' };
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId)).for('update');
+    if (!claim) return { ok: false, reason: 'not_found' };
+    if (!state.isPreRelease(claim.status as state.ClaimState)) return { ok: false, reason: 'already_sent' };
+    const actor: AuditActor = `user:${ctx.userId}`;
+    const now = new Date();
+    await applyClaimEvent(tx, claim, 'void', {
+      actor,
+      versionId: claim.currentVersionId,
+      payload: { reason: ctx.reason, ...(ctx.note?.trim() ? { note: ctx.note.trim() } : {}) },
+      now,
+    });
+    const open = await tx
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.claimId, claim.id), ne(workItems.status, 'resolved')));
+    for (const item of open) {
+      const next = state.nextWorkItemState(item.status as state.WorkItemState, 'auto_resolve');
+      if (!next.ok) continue;
+      await tx
+        .update(workItems)
+        .set({
+          status: next.value,
+          resolvedBy: actor,
+          resolution: 'Claim voided',
+          resolvedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(workItems.id, item.id));
+    }
+    await recordAudit(tx, {
+      actor,
+      action: 'claim.voided',
+      entityType: 'claim',
+      entityId: claim.id,
+      clientId: claim.clientId,
+      metadata: { reason: ctx.reason, itemsClosed: open.length },
+    });
+    return { ok: true };
+  });
+}
+
+/** C-16: a note on the claim timeline. Append-only; the text stays out of the audit metadata. */
+export async function addClaimNote(
+  db: Database,
+  ctx: { tenantId: string; userId: string; claimId: string; text: string },
+): Promise<{ ok: true } | { ok: false; reason: 'not_found' | 'empty' }> {
+  const text = ctx.text.trim();
+  if (!text) return { ok: false, reason: 'empty' };
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId));
+    if (!claim) return { ok: false, reason: 'not_found' };
+    const actor: AuditActor = `user:${ctx.userId}`;
+    await tx.insert(claimEvents).values({
+      tenantId: claim.tenantId,
+      clientId: claim.clientId,
+      claimId: claim.id,
+      claimVersionId: claim.currentVersionId,
+      type: 'note',
+      payload: { text: text.slice(0, 2000) },
+      actor,
+    });
+    await recordAudit(tx, {
+      actor,
+      action: 'claim.note_added',
+      entityType: 'claim',
+      entityId: claim.id,
+      clientId: claim.clientId,
+      metadata: { length: text.length },
+    });
+    return { ok: true };
+  });
+}

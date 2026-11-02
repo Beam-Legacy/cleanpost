@@ -92,7 +92,9 @@ export function describeEvent(e: EventLike, pmName: string): { title: string; to
     case 'correction_manual':
       return { title: `Correction task opened: make the change in ${pmName}`, tone: 'warn' };
     case 'voided':
-      return { title: 'Voided', tone: undefined };
+      return { title: `Voided${p.reason ? `: ${String(p.reason)}` : ''}`, tone: undefined };
+    case 'note':
+      return { title: `Note: ${String(p.text ?? '')}`, tone: undefined };
     case 'closed':
       return { title: 'Closed', tone: undefined };
     default:
@@ -115,6 +117,7 @@ export const LAST_EVENT: Record<string, string> = {
   correction_manual: 'Correction task opened',
   voided: 'Voided',
   closed: 'Closed',
+  note: 'Note added',
 };
 
 /** "Dana Reyes", "Automation (claim.scrub)" or "System" (docs/09 actor attribution). */
