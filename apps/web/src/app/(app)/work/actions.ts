@@ -13,6 +13,9 @@ import { policy, type policy as P } from '@cleanpost/domain';
 import { cancelClaimRelease, sendClaimCorrect, sendClaimRelease } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import {
+  confirmPosting,
+  ESCALATION_REASONS,
+  escalatePosting,
   linkPayment,
   mappingInputSchema,
   saveMapping,
@@ -488,4 +491,53 @@ export async function setAsideUnmatchedPayment(itemId: string, reason: string): 
   if (!res.ok)
     return { ok: false, message: LINK_REFUSED[res.reason] ?? 'The payment could not be set aside.' };
   return { ok: true, done: true, message: `Set aside: ${why.toLowerCase()}.` };
+}
+
+const POSTING_REFUSED: Record<string, string> = {
+  not_found: 'This is not a posting task.',
+  not_open: 'This task is already done.',
+  reference_required: 'Enter the payment ID the PM gave this payment.',
+};
+
+/** M-01 Mark as posted, with the PM's payment ID (required). */
+export async function markPosted(itemId: string, pmReference: string): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(itemId);
+  const ref = z.string().max(100).parse(pmReference);
+  await scoped(ctx, 'payment.post', { itemId: id });
+  const res = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    confirmPosting(tx, { tenantId: ctx.tenantId, userId: ctx.user.id }, { itemId: id, pmReference: ref }),
+  );
+  revalidatePath('/work');
+  revalidatePath('/remittances');
+  revalidatePath('/tasks');
+  if (!res.ok)
+    return { ok: false, message: POSTING_REFUSED[res.reason] ?? 'The task could not be completed.' };
+  return { ok: true, done: true, message: 'Marked as posted.' };
+}
+
+/** M-02 Couldn't complete: the reason and a note; the task goes to the owner. */
+export async function couldNotComplete(
+  itemId: string,
+  reason: string,
+  note: string,
+): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(itemId);
+  const why = z.enum(ESCALATION_REASONS).parse(reason);
+  const text = z.string().max(500).parse(note).trim();
+  if (why === 'Other' && !text) return { ok: false, message: 'Add a note for "Other".' };
+  await scoped(ctx, 'payment.post', { itemId: id });
+  const res = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    escalatePosting(
+      tx,
+      { tenantId: ctx.tenantId, userId: ctx.user.id },
+      { itemId: id, reason: why, note: text || null },
+    ),
+  );
+  revalidatePath('/work');
+  revalidatePath('/tasks');
+  if (!res.ok)
+    return { ok: false, message: POSTING_REFUSED[res.reason] ?? 'The task could not be escalated.' };
+  return { ok: true, done: true, message: 'Sent to the owner with your reason.' };
 }

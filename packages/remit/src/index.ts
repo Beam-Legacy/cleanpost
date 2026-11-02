@@ -9,7 +9,13 @@ export {
 } from './ingest';
 export { createWorkItem, type NewWorkItem } from './items';
 export { postingKey, storePmPostings } from './postings';
-export { POSTING_GRACE_DAYS, verifyInTx, type VerifyContext, type VerifyOutcome } from './verify';
+export {
+  mappingLookupFor,
+  POSTING_GRACE_DAYS,
+  verifyInTx,
+  type VerifyContext,
+  type VerifyOutcome,
+} from './verify';
 export { mappingInputSchema, saveMapping, type MappingInput, type MappingOutcome } from './mappings';
 export {
   linkCandidates,
@@ -21,3 +27,12 @@ export {
   type SetAsideReason,
 } from './link';
 export { acceptDifference, type AcceptOutcome } from './accept';
+export {
+  confirmPosting,
+  escalatePosting,
+  ESCALATION_REASONS,
+  POSTING_OPERATION,
+  readsPostings,
+  remittanceWorksheet,
+  type PostingTaskOutcome,
+} from './posting-tasks';

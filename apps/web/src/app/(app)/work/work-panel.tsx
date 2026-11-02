@@ -24,6 +24,7 @@ import { CARC_LABEL } from '@/lib/remit-display';
 import type { WorkDetail } from '@/lib/queries/work';
 import { LinkPayment } from './link-payment';
 import { MappingForm } from './mapping-form';
+import { PostingTask } from './posting-task';
 import type { Permissions } from './work-queue';
 
 const STEP_LABEL: Record<string, string> = {
@@ -294,6 +295,11 @@ export function WorkPanel({
             )}
           </div>
         )}
+
+        {d.item.type === 'manual_task' &&
+          d.item.reasonCode === 'postPayment' &&
+          d.item.status !== 'resolved' &&
+          can.resolve && <PostingTask itemId={d.item.id} pmName={d.connection?.pmName ?? 'the PM'} />}
 
         {(d.item.type === 'sync_failure' || d.item.type === 'system') && (
           <div className="stack-sm">

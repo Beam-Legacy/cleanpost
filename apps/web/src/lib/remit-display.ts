@@ -23,6 +23,8 @@ export const REMIT_STATUS: Record<string, Status> = {
 /** A line's result against the PM posting (remit_lines.verify_status and its differences). */
 export function lineResult(status: string | null, fields: string[]): Status {
   if (status === 'verified') return 'Matches';
+  // Posted by hand from a worksheet and confirmed by a person (manual posting, M-01).
+  if (status === 'confirmed') return 'Posted';
   if (status === 'missing') return 'Missing posting';
   if (status === 'unmapped') return 'Needs mapping';
   if (status === 'mismatch')

@@ -139,3 +139,12 @@ test('R-06 shows where an 835 does not add up; only an admin may accept it', asy
   await expect(page.getByText('An admin can accept the difference with a reason.')).toBeVisible();
   await expectAccessible(page, 'R-06');
 });
+
+test('M-03 lists manual tasks with where the hand work comes from, accessibly', async () => {
+  await page.goto('/tasks');
+  await expect(page.getByRole('heading', { level: 1, name: 'Manual tasks' })).toBeVisible();
+  await expect(
+    page.getByRole('table', { name: 'Open manual tasks' }).or(page.getByText('No open manual tasks')),
+  ).toBeVisible();
+  await expectAccessible(page, 'M-03');
+});

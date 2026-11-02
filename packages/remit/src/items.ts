@@ -13,10 +13,11 @@ export interface NewWorkItem {
   claimId?: string | null;
   remittanceId: string;
   remitClaimId?: string | null;
+  connectionId?: string | null;
   now: Date;
 }
 
-export async function createWorkItem(tx: Tx, v: NewWorkItem, actor: AuditActor) {
+export async function createWorkItem(tx: Tx, v: NewWorkItem, actor: AuditActor): Promise<string> {
   const [item] = await tx
     .insert(workItems)
     .values({
@@ -28,6 +29,7 @@ export async function createWorkItem(tx: Tx, v: NewWorkItem, actor: AuditActor) 
       claimId: v.claimId ?? null,
       remittanceId: v.remittanceId,
       remitClaimId: v.remitClaimId ?? null,
+      connectionId: v.connectionId ?? null,
       reasonCode: v.reasonCode,
       summary: v.summary,
       amountCents: v.amountCents,
@@ -41,6 +43,7 @@ export async function createWorkItem(tx: Tx, v: NewWorkItem, actor: AuditActor) 
     clientId: v.clientId,
     metadata: { type: v.type, remittanceId: v.remittanceId, ...(v.claimId ? { claimId: v.claimId } : {}) },
   });
+  return item!.id;
 }
 
 /** The claim this payment belongs to: our control number first, then the payer's claim number. */

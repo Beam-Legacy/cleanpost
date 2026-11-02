@@ -53,7 +53,7 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 | --- | --- | --- |
 | `remittances` | client_id, payer_id, source (`stedi`,`pm`,`file`), trace_number (check/EFT), payment_method (`ACH`,`CHK`,`NON`), payment_amount_cents, payment_date, raw_ref, status | One per 835 transaction/payment |
 | `remit_claims` | remittance_id, claim_id?, patient_control_number, payer_claim_control_number, claim_status_code, charge_cents, paid_cents, patient_resp_cents, match_status (`matched`,`unmatched`,`ambiguous`,`set_aside`: billed before go-live or not this client's, W-17), matched_by (`pcn`,`payer_claim_number`,`heuristic`,`manual`) | CLP |
-| `remit_lines` | remit_claim_id, claim_line_id?, code, modifiers, charge_cents, allowed_cents?, paid_cents, units, line_control_number, verify_status? (`pending`,`verified`,`mismatch`,`missing`,`unmapped`), verify_detail?, verified_at? | SVC; verify_* from the posting match (Modes A, C) |
+| `remit_lines` | remit_claim_id, claim_line_id?, code, modifiers, charge_cents, allowed_cents?, paid_cents, units, line_control_number, verify_status? (`pending`,`verified`,`mismatch`,`missing`,`unmapped`,`confirmed`: posted by hand and confirmed by a person), verify_detail?, verified_at? | SVC; verify_* from the posting match (Modes A, C) |
 | `remit_adjustments` | remit_claim_id or remit_line_id, group_code (`CO`,`PR`,`OA`,`PI`,`CR`), carc, amount_cents, quantity | CAS |
 | `remit_remarks` | remit_claim_id or remit_line_id, rarc | LQ / MOA / MIA |
 | `provider_adjustments` | remittance_id, reason_code, reference, amount_cents | PLB |
@@ -86,7 +86,7 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 | `sync_runs` | connection_id, operation, started_at, finished_at, status, counts jsonb (`new`, `changed`, `unchanged`, `failed`), error_code, error_detail (no PHI: PM record IDs and field names only) | One per operation per cycle |
 | `external_refs` | connection_id, entity_type (`patient`, `coverage`, `encounter`, `location`), entity_id, external_id | Maps PM IDs to canonical IDs; unique per connection, type and PM ID |
 | `rate_limit_buckets` | key (pm_account_ref, or the connection), endpoint, tokens, refilled_at | Token buckets shared by every worker (docs/05-adapters.md) |
-| `manual_tasks` | connection_id, operation, work_item_id, payload_ref, status | Tasks a biller completes in the PM by hand |
+| `manual_tasks` | connection_id, operation, work_item_id, title, instructions (steps and worksheet rows), payload_ref (e.g. the remittance for `postPayment`), status (`open`,`escalated`,`done`,`failed`), pm_reference (the PM's ID when done) | Tasks a biller completes in the PM by hand (M-01, M-03) |
 
 ## Platform
 

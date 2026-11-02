@@ -29,6 +29,7 @@ import {
 } from '@cleanpost/db';
 import { formatCents, remit, state } from '@cleanpost/domain';
 import { createWorkItem } from './items';
+import { ensurePostingTask, postingConnection } from './posting-tasks';
 
 /** Days the PM has to post a payment before Cleanpost says it has not. */
 export const POSTING_GRACE_DAYS = 3;
@@ -112,6 +113,26 @@ async function ensureItem(
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/** The client's adjustment mappings: its own, then the tenant's for its PM type, then defaults. */
+export async function mappingLookupFor(tx: Tx, clientId: string): Promise<remit.MappingLookup> {
+  const pmTypes = (
+    await tx.select({ k: connections.adapterKey }).from(connections).where(eq(connections.clientId, clientId))
+  ).map((r) => r.k);
+  const rows = await tx
+    .select()
+    .from(adjustmentMappings)
+    .where(
+      or(
+        eq(adjustmentMappings.clientId, clientId),
+        and(
+          isNull(adjustmentMappings.clientId),
+          pmTypes.length ? inArray(adjustmentMappings.pmType, pmTypes) : sql`false`,
+        ),
+      ),
+    );
+  return remit.mappingLookup(rows, clientId);
+}
+
 export async function verifyInTx(tx: Tx, ctx: VerifyContext, now: Date): Promise<VerifyOutcome> {
   const actor: AuditActor = ctx.actor ?? 'automation:remit.verify';
   const out: VerifyOutcome = {
@@ -125,25 +146,8 @@ export async function verifyInTx(tx: Tx, ctx: VerifyContext, now: Date): Promise
   // Mode B: Cleanpost posts and checks its own postings (M7).
   if (!client || client.defaultMode === 'B') return out;
 
-  const pmTypes = (
-    await tx
-      .select({ k: connections.adapterKey })
-      .from(connections)
-      .where(eq(connections.clientId, ctx.clientId))
-  ).map((r) => r.k);
-  const mappingRows = await tx
-    .select()
-    .from(adjustmentMappings)
-    .where(
-      or(
-        eq(adjustmentMappings.clientId, ctx.clientId),
-        and(
-          isNull(adjustmentMappings.clientId),
-          pmTypes.length ? inArray(adjustmentMappings.pmType, pmTypes) : sql`false`,
-        ),
-      ),
-    );
-  const lookup = remit.mappingLookup(mappingRows, ctx.clientId);
+  const conn = await postingConnection(tx, ctx.clientId);
+  const lookup = await mappingLookupFor(tx, ctx.clientId);
 
   const due = await tx
     .select()
@@ -217,6 +221,27 @@ export async function verifyInTx(tx: Tx, ctx: VerifyContext, now: Date): Promise
         .update(remitLines)
         .set({ verifyStatus: status, verifyDetail: detail, verifiedAt: now, updatedAt: now })
         .where(eq(remitLines.id, id));
+
+    // A PM Cleanpost cannot read postings from: a person posts it by hand from a worksheet (M-01);
+    // the lines wait for them, under that one task.
+    if (conn && !conn.readsPostings) {
+      for (const l of lines) if (!l.line.verifyStatus) await setLine(l.line.id, 'pending', null);
+      out.lines.pending += lines.length;
+      if (lines.length)
+        await ensurePostingTask(tx, {
+          tenantId: ctx.tenantId,
+          clientId: ctx.clientId,
+          connectionId: conn.id,
+          pmName: conn.pmName,
+          remittance: r,
+          lookup,
+          actor,
+          now,
+        });
+      else await moveRemittance(tx, r.id, status, 'posting_match', now);
+      out.pending++;
+      continue;
+    }
 
     // Nothing posted for this payment yet: wait out the grace days, then one item for the payment.
     const late = now.getTime() - r.createdAt.getTime() > POSTING_GRACE_DAYS * 86_400_000;
