@@ -33,12 +33,16 @@ export default async function globalSetup() {
     }
     // The work-queue specs need claims in review: the worker (with the mock PM) syncs, builds and
     // scrubs the synthetic practices after a fresh seed. Wait for that, up to 4 minutes.
-    const deadline = Date.now() + 240_000;
+    // Then wait for it to go quiet (nothing left to build or scrub), so specs do not race it.
+    const deadline = Date.now() + 300_000;
+    let quiet = 0;
     for (;;) {
-      const { rows } = await client.query<{ n: number }>(
-        "select count(*)::int as n from work_items where type = 'claim_review' and status <> 'resolved'",
+      const { rows } = await client.query<{ review: number; pending: number }>(
+        `select (select count(*)::int from work_items where type = 'claim_review' and status <> 'resolved') as review,
+                (select count(*)::int from claims where status in ('draft', 'built')) as pending`,
       );
-      if ((rows[0]?.n ?? 0) >= 5) break;
+      quiet = (rows[0]?.review ?? 0) >= 5 && rows[0]?.pending === 0 ? quiet + 1 : 0;
+      if (quiet >= 3) break;
       if (Date.now() > deadline)
         throw new Error('No claims in review: start the worker and pm-mock (pnpm dev) before the e2e run');
       await new Promise((r) => setTimeout(r, 2000));

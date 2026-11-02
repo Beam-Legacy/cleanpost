@@ -14,8 +14,19 @@ const panel = () => page.locator('aside.panel');
 async function ready() {
   await expect(page.locator('[data-keys="on"]')).toBeVisible();
 }
+/** How many J presses reach the first claim review (the chip also lists blocked claims). */
+async function pressesToFirstReview() {
+  const labels = await page
+    .getByRole('table', { name: 'Work items' })
+    .locator('tbody tr td:nth-child(2) b')
+    .allInnerTexts();
+  const i = labels.findIndex((l) => l.trim() === 'Claim review');
+  expect(i).toBeGreaterThanOrEqual(0);
+  return i + 1;
+}
 
 test.beforeAll(async ({ browser }, info) => {
+  test.setTimeout(120_000);
   const { baseURL, viewport } = info.project.use;
   page = await (await browser.newContext({ baseURL, viewport })).newPage();
   await firstSignIn(page, 'marcus@northwind.test');
@@ -39,8 +50,9 @@ test('a routine claim review takes under 20 seconds from the keyboard, and Undo 
   await page.goto('/work?type=review');
   await ready();
   // docs/08: a routine claim review in under 20 seconds.
+  const presses = await pressesToFirstReview();
   const started = Date.now();
-  await page.keyboard.press('j');
+  for (let i = 0; i < presses; i++) await page.keyboard.press('j');
   await expect(panel().getByRole('meter', { name: 'Confidence' })).toBeVisible();
   await expect(panel().getByRole('button', { name: /release/i })).toBeVisible();
   await page.keyboard.press('a');
@@ -56,7 +68,9 @@ test('a routine claim review takes under 20 seconds from the keyboard, and Undo 
 
 test('W-10 shows findings, lines and why the item is here; Esc closes it', async () => {
   await page.goto('/work?type=review');
-  await page.getByRole('table', { name: 'Work items' }).getByRole('row').nth(1).click();
+  await ready();
+  const n = await pressesToFirstReview();
+  await page.getByRole('table', { name: 'Work items' }).getByRole('row').nth(n).click();
   await expect(panel().getByText('Findings')).toBeVisible();
   await expect(panel().getByRole('table', { name: 'Claim lines' })).toBeVisible();
   await expect(

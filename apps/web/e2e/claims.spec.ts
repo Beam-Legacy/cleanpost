@@ -10,6 +10,7 @@ test.describe.configure({ mode: 'serial' });
 let page: Page;
 
 test.beforeAll(async ({ browser }, info) => {
+  test.setTimeout(120_000);
   const { baseURL, viewport } = info.project.use;
   page = await (await browser.newContext({ baseURL, viewport })).newPage();
   await firstSignIn(page, 'lena@northwind.test');
