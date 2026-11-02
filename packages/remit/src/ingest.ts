@@ -350,7 +350,7 @@ export async function ingestRemittance(
       // Check 1: the 835 must balance before anything is matched.
       const balance = remit.balance835(r);
       if (!balance.balanced) {
-        status = await move(tx, remittanceId, status, 'balance_fail');
+        await move(tx, remittanceId, status, 'balance_fail');
         const difference =
           balance.remittanceDifferenceCents || balance.claims.reduce((s, c) => s + c.differenceCents, 0);
         await workItem(
