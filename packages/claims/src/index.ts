@@ -12,3 +12,6 @@ export {
 export type { ClaimReview, ClaimReviewer } from './review';
 export { scrubVersion, versionsAwaitingScrub, type ScrubDeps, type ScrubOutcome } from './scrub';
 export { applyClaimStatuses, type StatusContext, type StatusCounts } from './status';
+export { editClaim, type EditInput, type EditOutcome } from './edit';
+export { CORRECTION_OPERATION, openCorrectionTasks, resolveCorrectionTasks } from './tasks';
+export { insertVersion, lastPmVersion } from './versions';

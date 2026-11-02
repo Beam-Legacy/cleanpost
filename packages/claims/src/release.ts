@@ -10,7 +10,7 @@
  * Every write goes through the claim state machine, with the actor, and is audit-logged.
  */
 import { and, desc, eq, inArray, ne } from 'drizzle-orm';
-import type { AdapterRegistry, Connection, OpResult } from '@cleanpost/adapters';
+import type { AdapterRegistry, Connection } from '@cleanpost/adapters';
 import {
   claimEvents,
   claims,
@@ -20,7 +20,6 @@ import {
   connections,
   encounters,
   externalRefs,
-  manualTasks,
   recordAudit,
   scrubResults,
   withTenant,
@@ -32,6 +31,9 @@ import {
 import { state } from '@cleanpost/domain';
 import type { Logger } from '@cleanpost/log';
 import { applyClaimEvent } from './events';
+import { ensureManualTask, openCorrectionTasks } from './tasks';
+
+export { ensureManualTask } from './tasks';
 
 export interface ReleaseDeps {
   db: Database;
@@ -45,7 +47,14 @@ export type ReleaseOutcome =
   | { status: 'manual_task'; workItemId: string }
   | {
       status: 'refused';
-      reason: 'not_found' | 'not_ready' | 'needs_approval' | 'mode_not_built' | 'no_connection';
+      reason:
+        | 'not_found'
+        | 'not_ready'
+        | 'needs_approval'
+        | 'mode_not_built'
+        | 'no_connection'
+        /** A correction is waiting to be made in the PM; releasing now would bill the old charge. */
+        | 'pm_correction_pending';
     }
   | { status: 'failed'; code: string; retryable: boolean; message: string };
 
@@ -128,6 +137,8 @@ async function load(
     approvedBy: approval?.actor ?? null,
   });
   if (!allowed.ok) return { status: 'refused', reason: allowed.error };
+  if ((await openCorrectionTasks(tx, claim.id)).length)
+    return { status: 'refused', reason: 'pm_correction_pending' };
   const target = await pmTarget(tx, claim);
   if (!target) return { status: 'refused', reason: 'no_connection' };
   return { claim, ...target };
@@ -163,66 +174,6 @@ export async function markReleased(
     clientId: claim.clientId,
     metadata: { via, mode: claim.mode },
   });
-}
-
-/** One open manual task (and work item) per claim and operation; reused if it already exists. */
-export async function ensureManualTask(
-  tx: Tx,
-  claim: Pick<
-    typeof claims.$inferSelect,
-    'id' | 'tenantId' | 'clientId' | 'encounterId' | 'totalChargeCents'
-  >,
-  conn: Connection,
-  spec: NonNullable<Extract<OpResult, { ok: false }>['manualTask']>,
-  actor: AuditActor,
-  now: Date,
-): Promise<string> {
-  const [existing] = await tx
-    .select({ id: workItems.id })
-    .from(workItems)
-    .where(
-      and(
-        eq(workItems.claimId, claim.id),
-        eq(workItems.type, 'manual_task'),
-        eq(workItems.reasonCode, spec.operation),
-        ne(workItems.status, 'resolved'),
-      ),
-    );
-  if (existing) return existing.id;
-  const [item] = await tx
-    .insert(workItems)
-    .values({
-      tenantId: claim.tenantId,
-      clientId: claim.clientId,
-      type: 'manual_task',
-      priority: 2,
-      dueAt: new Date(now.getTime() + 24 * 3_600_000),
-      claimId: claim.id,
-      encounterId: claim.encounterId,
-      connectionId: conn.id,
-      reasonCode: spec.operation,
-      summary: spec.title,
-      amountCents: claim.totalChargeCents,
-    })
-    .returning({ id: workItems.id });
-  await tx.insert(manualTasks).values({
-    tenantId: claim.tenantId,
-    clientId: claim.clientId,
-    connectionId: conn.id,
-    operation: spec.operation,
-    workItemId: item!.id,
-    title: spec.title,
-    instructions: spec.instructions,
-  });
-  await recordAudit(tx, {
-    actor,
-    action: 'manual_task.created',
-    entityType: 'work_item',
-    entityId: item!.id,
-    clientId: claim.clientId,
-    metadata: { operation: spec.operation, claimId: claim.id },
-  });
-  return item!.id;
 }
 
 export async function releaseClaim(

@@ -4,7 +4,7 @@ import {
   memoryFileSource,
   type AdapterRegistry,
 } from '@cleanpost/adapters';
-import { clients, connections, createDatabase } from '@cleanpost/db';
+import { clients, connections, createDatabase, users } from '@cleanpost/db';
 import { testDatabaseUrls } from '@cleanpost/db/testing';
 import { createLogger } from '@cleanpost/log';
 import { createPmDb, createPmMockApp } from '@cleanpost/pm-mock';
@@ -52,6 +52,12 @@ export async function clientRow(name: string) {
     .from(clients)
     .where(eq(clients.id, client(name).id));
   return row!;
+}
+
+/** A seeded user's ID (better-auth assigns them at seed time). */
+export async function userIdOf(email = 'dana@northwind.test') {
+  const [u] = await admin.db.select({ id: users.id }).from(users).where(eq(users.email, email));
+  return u!.id;
 }
 
 let world: Promise<void> | undefined;

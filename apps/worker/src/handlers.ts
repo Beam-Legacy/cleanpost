@@ -107,6 +107,10 @@ export async function handleClaimBuild(deps: WorkerDeps, data: unknown) {
   for (const claimVersionId of new Set([...result.toScrub, ...awaiting])) {
     await sendClaimScrub(deps.boss, { tenantId: payload.tenantId, claimVersionId });
   }
+  // Claims that waited for a correction in the PM go once the PM shows it.
+  for (const claimId of result.toRelease) {
+    await sendClaimRelease(deps.boss, { tenantId: payload.tenantId, claimId });
+  }
   deps.log.info(
     {
       clientId: payload.clientId,
@@ -114,6 +118,7 @@ export async function handleClaimBuild(deps: WorkerDeps, data: unknown) {
       updated: result.updated,
       toScrub: awaiting.length,
       held: held.held,
+      toRelease: result.toRelease.length,
     },
     'claims built',
   );

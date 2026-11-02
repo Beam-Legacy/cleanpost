@@ -6,7 +6,6 @@
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or } from 'drizzle-orm';
 import {
   chargeLines,
-  claimLines,
   claims,
   claimVersions,
   clientPayerSettings,
@@ -32,6 +31,8 @@ import {
   type EncounterForClaim,
 } from '@cleanpost/domain';
 import { applyClaimEvent } from './events';
+import { resolveCorrectionTasks } from './tasks';
+import { insertVersion, lastPmVersion } from './versions';
 
 export interface BuildOptions {
   now?: Date;
@@ -48,6 +49,8 @@ export interface BuildResult {
   toScrub: string[];
   /** Claims created in this run (their charges are held in the PM next). */
   createdClaimIds: string[];
+  /** Ready claims whose PM correction has now arrived: they can be released. */
+  toRelease: string[];
 }
 
 const DEFAULT_FILING_DAYS = 90;
@@ -114,45 +117,10 @@ async function primaryCoverage(tx: Tx, patientId: string, dos: string) {
   return c ?? null;
 }
 
-async function insertVersion(
-  tx: Tx,
-  claim: { id: string; tenantId: string; clientId: string },
-  version: number,
-  payload: ClaimPayload,
-  actor: AuditActor,
-) {
-  const [v] = await tx
-    .insert(claimVersions)
-    .values({
-      tenantId: claim.tenantId,
-      clientId: claim.clientId,
-      claimId: claim.id,
-      version,
-      frequencyCode: payload.frequencyCode,
-      payload,
-      createdBy: actor,
-    })
-    .returning({ id: claimVersions.id });
-  await tx.insert(claimLines).values(
-    payload.lines.map((l) => ({
-      tenantId: claim.tenantId,
-      clientId: claim.clientId,
-      claimVersionId: v!.id,
-      lineNumber: l.lineNumber,
-      chargeLineId: l.chargeLineId,
-      code: l.code,
-      modifiers: l.modifiers,
-      units: l.units,
-      chargeCents: l.chargeCents,
-      dxPointers: l.dxPointers,
-    })),
-  );
-  return v!.id;
-}
-
 type Outcome =
   | { kind: 'created' | 'updated'; versionId: string; claimId: string }
   | { kind: 'unchanged' }
+  | { kind: 'caught_up'; claimId: string }
   | { kind: 'skipped'; reason: string };
 
 async function buildOne(
@@ -230,7 +198,19 @@ async function buildOne(
   const [current] = existing.currentVersionId
     ? await tx.select().from(claimVersions).where(eq(claimVersions.id, existing.currentVersionId))
     : [];
-  if (current && samePayload(current.payload as ClaimPayload, payload)) return { kind: 'unchanged' };
+  // A person's edit stays until the PM itself changes: compare with the last version built from
+  // the PM, not with the edit (otherwise the next sync would undo the fix).
+  const fromPm = await lastPmVersion(tx, existing.id);
+  const pmChanged = !fromPm || !samePayload(fromPm.payload as ClaimPayload, payload);
+  if (pmChanged && current) {
+    // The PM was corrected (or changed for another reason): the correction task is done.
+    await resolveCorrectionTasks(tx, existing.id, opts.actor, opts.now);
+  }
+  if (!pmChanged || (current && samePayload(current.payload as ClaimPayload, payload))) {
+    // Caught up with a person's edit: the claim may now go, if it was waiting for that.
+    const waiting = pmChanged && existing.status === 'ready';
+    return waiting ? { kind: 'caught_up', claimId: existing.id } : { kind: 'unchanged' };
+  }
 
   const versionId = await insertVersion(tx, existing, (current?.version ?? 0) + 1, payload, opts.actor);
   await tx
@@ -287,6 +267,7 @@ export async function buildClaimsForClient(
     skipped: {},
     toScrub: [],
     createdClaimIds: [],
+    toRelease: [],
   };
   if (!client || client.status === 'offboarded') return result;
   for (const encounterId of candidates) {
@@ -297,6 +278,9 @@ export async function buildClaimsForClient(
       result.skipped[outcome.reason] = (result.skipped[outcome.reason] ?? 0) + 1;
     } else if (outcome.kind === 'unchanged') {
       result.unchanged++;
+    } else if (outcome.kind === 'caught_up') {
+      result.unchanged++;
+      result.toRelease.push(outcome.claimId);
     } else {
       result[outcome.kind]++;
       result.toScrub.push(outcome.versionId);

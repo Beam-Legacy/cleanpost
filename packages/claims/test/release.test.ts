@@ -13,13 +13,25 @@ import {
   PROFILES,
   type PmAdapter,
 } from '@cleanpost/adapters';
-import { claims, claimVersions, encounters, externalRefs, manualTasks, workItems } from '@cleanpost/db';
+import {
+  claims,
+  claimVersions,
+  corrections,
+  encounters,
+  externalRefs,
+  manualTasks,
+  rules,
+  scrubResults,
+  workItems,
+} from '@cleanpost/db';
+import type { ClaimPayload, Finding } from '@cleanpost/domain';
 import { pmSchema } from '@cleanpost/pm-mock';
 import { createPgRateLimiter, runSync } from '@cleanpost/sync';
 import {
   applyClaimStatuses,
   approveClaim,
   buildClaimsForClient,
+  editClaim,
   releaseClaim,
   scrubVersion,
   versionsAwaitingScrub,
@@ -37,6 +49,7 @@ import {
   registry,
   SECRET,
   syncedWorld,
+  userIdOf,
 } from './helpers';
 
 const willamette = () => client('Willamette');
@@ -97,6 +110,31 @@ function registryWith(release: 'manual' | 'unavailable') {
 beforeAll(async () => {
   await syncedWorld();
   await buildClaimsForClient(app.db, { tenantId: NORTHWIND, clientId: willamette().id });
+  // A client rule with a one-click fix, so the edit tests below have findings to fix.
+  const [first] = await admin.db
+    .select({ payload: claimVersions.payload })
+    .from(claimVersions)
+    .where(eq(claimVersions.clientId, willamette().id))
+    .limit(1);
+  const code = (first!.payload as ClaimPayload).lines[0]!.code;
+  const lineMatch = { codeIn: [code], modifierNotIn: ['59'] };
+  await admin.db.insert(rules).values({
+    tenantId: NORTHWIND,
+    scope: 'client',
+    clientId: willamette().id,
+    key: 'test.needs_59',
+    name: 'Test: modifier 59 on this code',
+    kind: 'validate',
+    severity: 'warn',
+    weight: 15,
+    source: 'user',
+    condition: { anyLine: lineMatch },
+    action: {
+      finding: `Add modifier 59 to ${code}.`,
+      field: 'lines',
+      suggestedFix: { op: 'addModifier', lineMatch, modifier: '59' },
+    },
+  });
   for (const v of await versionsAwaitingScrub(app.db, NORTHWIND, willamette().id)) {
     await scrubVersion({ db: app.db, log }, { tenantId: NORTHWIND, claimVersionId: v });
   }
@@ -251,5 +289,153 @@ describe('release (Mode A, Tebra profile)', () => {
       { tenantId: NORTHWIND, claimId: c!.id },
     );
     expect(res).toEqual({ status: 'released', via: 'pm_schedule' });
+  });
+});
+
+describe('edits in Mode A when the PM can only be corrected by hand (Tebra)', () => {
+  let user = '';
+  let claimId = '';
+  let ruleId = '';
+
+  beforeAll(async () => {
+    user = await userIdOf();
+    // A claim in review whose findings include a one-click fix (missing modifier 25).
+    const rows = await admin.db
+      .select({ claim: claims, findings: scrubResults.findings })
+      .from(claims)
+      .innerJoin(claimVersions, eq(claimVersions.id, claims.currentVersionId))
+      .innerJoin(scrubResults, eq(scrubResults.id, claimVersions.scrubResultId))
+      .where(and(eq(claims.clientId, willamette().id), eq(claims.status, 'needs_review')));
+    for (const r of rows) {
+      const items = (r.findings as { items: Finding[] }).items;
+      const f = items.find((x) => x.suggestedFix?.op === 'addModifier');
+      if (f) {
+        claimId = r.claim.id;
+        ruleId = f.ruleId;
+        break;
+      }
+    }
+  });
+
+  async function currentPayload() {
+    const [c] = await admin.db.select().from(claims).where(eq(claims.id, claimId));
+    const [v] = await admin.db.select().from(claimVersions).where(eq(claimVersions.id, c!.currentVersionId!));
+    return { claim: c!, version: v!, payload: v!.payload as ClaimPayload };
+  }
+
+  async function openCorrectionItems() {
+    return admin.db
+      .select()
+      .from(workItems)
+      .where(
+        and(
+          eq(workItems.claimId, claimId),
+          eq(workItems.reasonCode, 'pushChargeCorrection'),
+          ne(workItems.status, 'resolved'),
+        ),
+      );
+  }
+
+  it('applies a suggested fix as a new version and opens one correction task with a worksheet', async () => {
+    expect(claimId).not.toBe('');
+    const res = await editClaim(
+      deps,
+      { tenantId: NORTHWIND, userId: user, claimId },
+      { kind: 'fix', ruleId },
+    );
+    expect(res).toMatchObject({ status: 'edited', pm: 'manual_task' });
+    if (res.status !== 'edited') return;
+    expect(res.changes.map((c) => c.label)).toEqual([expect.stringMatching(/^Line \d modifier 59 added$/)]);
+    const items = await openCorrectionItems();
+    expect(items).toHaveLength(1);
+    const [task] = await admin.db.select().from(manualTasks).where(eq(manualTasks.workItemId, items[0]!.id));
+    expect(task!.title).toBe('Correct the encounter in Tebra');
+    expect(task!.instructions.at(-1)).toMatch(/^Worksheet: Line \d modifier 59 added\.$/);
+    expect(task!.payloadRef).toBe(`claim_version:${res.versionId}`);
+    const rows = await admin.db.select().from(corrections).where(eq(corrections.claimId, claimId));
+    expect(rows).toHaveLength(1);
+  });
+
+  it('keeps one task as more edits come, with every change on its worksheet', async () => {
+    const { payload } = await currentPayload();
+    const next = structuredClone(payload);
+    next.priorAuthNumber = 'PA20261101';
+    const res = await editClaim(
+      deps,
+      { tenantId: NORTHWIND, userId: user, claimId },
+      { kind: 'payload', payload: next },
+    );
+    expect(res).toMatchObject({ status: 'edited', pm: 'manual_task' });
+    const items = await openCorrectionItems();
+    expect(items).toHaveLength(1);
+    const [task] = await admin.db.select().from(manualTasks).where(eq(manualTasks.workItemId, items[0]!.id));
+    expect(task!.instructions.filter((i) => i.startsWith('Worksheet:'))).toHaveLength(2);
+  });
+
+  it('does not release while the correction is still to be made in the PM', async () => {
+    const { version } = await currentPayload();
+    await scrubVersion({ db: app.db, log }, { tenantId: NORTHWIND, claimVersionId: version.id });
+    const { claim } = await currentPayload();
+    if (claim.status === 'needs_review')
+      await approveClaim(app.db, { tenantId: NORTHWIND, userId: user, claimId });
+    expect((await currentPayload()).claim.status).toBe('ready');
+    expect(await releaseClaim(deps, { tenantId: NORTHWIND, claimId }, `user:${user}`)).toEqual({
+      status: 'refused',
+      reason: 'pm_correction_pending',
+    });
+  });
+
+  it('resolves the task and releases once a sync shows the change in the PM', async () => {
+    const { claim, payload, version } = await currentPayload();
+    // The biller makes the change in Tebra.
+    const pmEnc = await pmEncounterOf(claimId);
+    const lines = await pm.db
+      .select()
+      .from(pmSchema.charges)
+      .where(eq(pmSchema.charges.encounterId, pmEnc.id));
+    const [ref] = await admin.db
+      .select()
+      .from(externalRefs)
+      .where(and(eq(externalRefs.entityId, claim.encounterId), eq(externalRefs.entityType, 'encounter')));
+    expect(ref).toBeDefined();
+    for (const l of payload.lines) {
+      const pmLine = lines.find((x) => x.lineNumber === l.lineNumber)!;
+      await pm.db
+        .update(pmSchema.charges)
+        .set({ modifiers: l.modifiers, units: l.units })
+        .where(eq(pmSchema.charges.id, pmLine.id));
+    }
+    await pm.db
+      .update(pmSchema.encounters)
+      .set({ priorAuthNumber: payload.priorAuthNumber, updatedAt: new Date() })
+      .where(eq(pmSchema.encounters.id, pmEnc.id));
+    const conn = await connectionOf('Willamette');
+    await runSync(
+      {
+        db: app.db,
+        registry,
+        log,
+        retryDelaysMs: [10],
+        appliers: { pullClaimsAndStatus: applyClaimStatuses },
+      },
+      { tenantId: NORTHWIND, connectionId: conn.id, trigger: 'manual' },
+    );
+    const built = await buildClaimsForClient(
+      app.db,
+      { tenantId: NORTHWIND, clientId: willamette().id },
+      { quietPeriodMinutes: 0 },
+    );
+    expect(built.toRelease).toContain(claimId);
+    expect((await currentPayload()).version.id).toBe(version.id);
+    expect(await openCorrectionItems()).toHaveLength(0);
+    const [resolved] = await admin.db
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.claimId, claimId), eq(workItems.reasonCode, 'pushChargeCorrection')));
+    expect(resolved).toMatchObject({ status: 'resolved', resolvedBy: 'automation:claim.build' });
+    expect(await releaseClaim(deps, { tenantId: NORTHWIND, claimId }, `user:${user}`)).toEqual({
+      status: 'released',
+      via: 'adapter',
+    });
   });
 });

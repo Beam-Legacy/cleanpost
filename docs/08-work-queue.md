@@ -41,7 +41,7 @@ The queue must be fast to work from the keyboard:
 
 ## Correction capture
 
-Every edit made while resolving an item is written to `corrections` with before and after values (see `docs/06-rules-and-ai.md`). Resolution reasons are picked from a short list, plus optional free text.
+Every edit made while resolving an item is written to `corrections` with before and after values (see `docs/06-rules-and-ai.md`): one row per changed field (`lines[0].modifiers`, `priorAuthNumber`), with the user and the work item. The edit itself is a new claim version (`packages/claims` `editClaim`); "Apply fix" applies one finding's `suggestedFix` (`applyFix` in `packages/domain`), and fixes that need a choice (`setPayer`, `reorderDiagnoses`, `splitClaim`) open the editor instead. An edit may change codes, modifiers, units, diagnosis pointers, diagnoses, prior authorization, place of service and the referring NPI; the patient, coverage, payer, providers, dates and charge amounts come from the PM and are fixed there (`checkEdit`). In Mode A the change is written back to the PM (`docs/04-modes.md`). Resolution reasons are picked from a short list, plus optional free text.
 
 ## Auto-resolution
 
