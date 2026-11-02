@@ -21,6 +21,7 @@ import {
   users,
 } from '@cleanpost/db';
 import { memoryMailer } from '@cleanpost/email';
+import { seedReference } from './reference';
 import { CLIENTS, HARBOR_RCM, NORTHWIND, PAYERS, npi, pmLocationId, pmMockSecretRef } from './world';
 
 export { HARBOR_RCM, NORTHWIND } from './world';
@@ -71,6 +72,7 @@ export const SEED_USERS: SeedUser[] = [
 
 export async function seed(systemDb: Database, password: string): Promise<{ created: string[] }> {
   const created: string[] = [];
+  await seedReference(systemDb);
 
   for (const payer of PAYERS) {
     await systemDb

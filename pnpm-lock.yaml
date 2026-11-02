@@ -184,6 +184,9 @@ importers:
       '@cleanpost/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
+      '@cleanpost/claims':
+        specifier: workspace:*
+        version: link:../../packages/claims
       '@cleanpost/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -357,6 +360,10 @@ importers:
         version: 4.23.15
 
   packages/domain:
+    dependencies:
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@cleanpost/testing':
         specifier: workspace:*

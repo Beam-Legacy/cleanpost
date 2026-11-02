@@ -111,13 +111,9 @@
         "accounts_user_id_users_id_fk": {
           "name": "accounts_user_id_users_id_fk",
           "tableFrom": "accounts",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -222,13 +218,9 @@
         "passkeys_user_id_users_id_fk": {
           "name": "passkeys_user_id_users_id_fk",
           "tableFrom": "passkeys",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -328,13 +320,9 @@
         "sessions_user_id_users_id_fk": {
           "name": "sessions_user_id_users_id_fk",
           "tableFrom": "sessions",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -343,9 +331,7 @@
       "uniqueConstraints": {
         "sessions_token_unique": {
           "name": "sessions_token_unique",
-          "columns": [
-            "token"
-          ],
+          "columns": ["token"],
           "nullsNotDistinct": false
         }
       },
@@ -424,13 +410,9 @@
         "two_factors_user_id_users_id_fk": {
           "name": "two_factors_user_id_users_id_fk",
           "tableFrom": "two_factors",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -532,9 +514,7 @@
       "uniqueConstraints": {
         "users_email_unique": {
           "name": "users_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "nullsNotDistinct": false
         }
       },
@@ -732,13 +712,9 @@
         "audit_events_tenant_id_tenants_id_fk": {
           "name": "audit_events_tenant_id_tenants_id_fk",
           "tableFrom": "audit_events",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -878,13 +854,9 @@
         "clients_tenant_id_tenants_id_fk": {
           "name": "clients_tenant_id_tenants_id_fk",
           "tableFrom": "clients",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1001,26 +973,18 @@
         "memberships_tenant_id_tenants_id_fk": {
           "name": "memberships_tenant_id_tenants_id_fk",
           "tableFrom": "memberships",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "memberships_user_id_users_id_fk": {
           "name": "memberships_user_id_users_id_fk",
           "tableFrom": "memberships",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1029,10 +993,7 @@
       "uniqueConstraints": {
         "memberships_tenant_user_key": {
           "name": "memberships_tenant_user_key",
-          "columns": [
-            "tenant_id",
-            "user_id"
-          ],
+          "columns": ["tenant_id", "user_id"],
           "nullsNotDistinct": false
         }
       },
@@ -1236,26 +1197,18 @@
         "user_preferences_tenant_id_tenants_id_fk": {
           "name": "user_preferences_tenant_id_tenants_id_fk",
           "tableFrom": "user_preferences",
-          "columnsFrom": [
-            "tenant_id"
-          ],
+          "columnsFrom": ["tenant_id"],
           "tableTo": "tenants",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "user_preferences_user_id_users_id_fk": {
           "name": "user_preferences_user_id_users_id_fk",
           "tableFrom": "user_preferences",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1264,10 +1217,7 @@
       "uniqueConstraints": {
         "user_preferences_tenant_user_key": {
           "name": "user_preferences_tenant_user_key",
-          "columns": [
-            "tenant_id",
-            "user_id"
-          ],
+          "columns": ["tenant_id", "user_id"],
           "nullsNotDistinct": false
         }
       },
@@ -1337,11 +1287,7 @@
       "uniqueConstraints": {
         "code_sets_type_code_from_key": {
           "name": "code_sets_type_code_from_key",
-          "columns": [
-            "type",
-            "code",
-            "effective_from"
-          ],
+          "columns": ["type", "code", "effective_from"],
           "nullsNotDistinct": false
         }
       },
@@ -1516,9 +1462,7 @@
       "uniqueConstraints": {
         "payers_stedi_payer_id_unique": {
           "name": "payers_stedi_payer_id_unique",
-          "columns": [
-            "stedi_payer_id"
-          ],
+          "columns": ["stedi_payer_id"],
           "nullsNotDistinct": false
         }
       },
@@ -1614,26 +1558,18 @@
         "client_payer_settings_client_id_clients_id_fk": {
           "name": "client_payer_settings_client_id_clients_id_fk",
           "tableFrom": "client_payer_settings",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "client_payer_settings_payer_id_payers_id_fk": {
           "name": "client_payer_settings_payer_id_payers_id_fk",
           "tableFrom": "client_payer_settings",
-          "columnsFrom": [
-            "payer_id"
-          ],
+          "columnsFrom": ["payer_id"],
           "tableTo": "payers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1642,10 +1578,7 @@
       "uniqueConstraints": {
         "client_payer_settings_client_payer_key": {
           "name": "client_payer_settings_client_payer_key",
-          "columns": [
-            "client_id",
-            "payer_id"
-          ],
+          "columns": ["client_id", "payer_id"],
           "nullsNotDistinct": false
         }
       },
@@ -1742,13 +1675,9 @@
         "locations_client_id_clients_id_fk": {
           "name": "locations_client_id_clients_id_fk",
           "tableFrom": "locations",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1843,13 +1772,9 @@
         "providers_client_id_clients_id_fk": {
           "name": "providers_client_id_clients_id_fk",
           "tableFrom": "providers",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -1858,10 +1783,7 @@
       "uniqueConstraints": {
         "providers_client_npi_key": {
           "name": "providers_client_npi_key",
-          "columns": [
-            "client_id",
-            "npi"
-          ],
+          "columns": ["client_id", "npi"],
           "nullsNotDistinct": false
         }
       },
@@ -2002,39 +1924,27 @@
         "coverages_client_id_clients_id_fk": {
           "name": "coverages_client_id_clients_id_fk",
           "tableFrom": "coverages",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "coverages_patient_id_patients_id_fk": {
           "name": "coverages_patient_id_patients_id_fk",
           "tableFrom": "coverages",
-          "columnsFrom": [
-            "patient_id"
-          ],
+          "columnsFrom": ["patient_id"],
           "tableTo": "patients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "coverages_payer_id_payers_id_fk": {
           "name": "coverages_payer_id_payers_id_fk",
           "tableFrom": "coverages",
-          "columnsFrom": [
-            "payer_id"
-          ],
+          "columnsFrom": ["payer_id"],
           "tableTo": "payers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2146,26 +2056,18 @@
         "documents_client_id_clients_id_fk": {
           "name": "documents_client_id_clients_id_fk",
           "tableFrom": "documents",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "documents_patient_id_patients_id_fk": {
           "name": "documents_patient_id_patients_id_fk",
           "tableFrom": "documents",
-          "columnsFrom": [
-            "patient_id"
-          ],
+          "columnsFrom": ["patient_id"],
           "tableTo": "patients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2273,26 +2175,18 @@
         "eligibility_checks_client_id_clients_id_fk": {
           "name": "eligibility_checks_client_id_clients_id_fk",
           "tableFrom": "eligibility_checks",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "eligibility_checks_coverage_id_coverages_id_fk": {
           "name": "eligibility_checks_coverage_id_coverages_id_fk",
           "tableFrom": "eligibility_checks",
-          "columnsFrom": [
-            "coverage_id"
-          ],
+          "columnsFrom": ["coverage_id"],
           "tableTo": "coverages",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2418,13 +2312,9 @@
         "patients_client_id_clients_id_fk": {
           "name": "patients_client_id_clients_id_fk",
           "tableFrom": "patients",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2562,26 +2452,18 @@
         "charge_lines_client_id_clients_id_fk": {
           "name": "charge_lines_client_id_clients_id_fk",
           "tableFrom": "charge_lines",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "charge_lines_encounter_id_encounters_id_fk": {
           "name": "charge_lines_encounter_id_encounters_id_fk",
           "tableFrom": "charge_lines",
-          "columnsFrom": [
-            "encounter_id"
-          ],
+          "columnsFrom": ["encounter_id"],
           "tableTo": "encounters",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2700,39 +2582,27 @@
         "claim_events_client_id_clients_id_fk": {
           "name": "claim_events_client_id_clients_id_fk",
           "tableFrom": "claim_events",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "claim_events_claim_id_claims_id_fk": {
           "name": "claim_events_claim_id_claims_id_fk",
           "tableFrom": "claim_events",
-          "columnsFrom": [
-            "claim_id"
-          ],
+          "columnsFrom": ["claim_id"],
           "tableTo": "claims",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "claim_events_claim_version_id_claim_versions_id_fk": {
           "name": "claim_events_claim_version_id_claim_versions_id_fk",
           "tableFrom": "claim_events",
-          "columnsFrom": [
-            "claim_version_id"
-          ],
+          "columnsFrom": ["claim_version_id"],
           "tableTo": "claim_versions",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2843,39 +2713,27 @@
         "claim_lines_client_id_clients_id_fk": {
           "name": "claim_lines_client_id_clients_id_fk",
           "tableFrom": "claim_lines",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "claim_lines_claim_version_id_claim_versions_id_fk": {
           "name": "claim_lines_claim_version_id_claim_versions_id_fk",
           "tableFrom": "claim_lines",
-          "columnsFrom": [
-            "claim_version_id"
-          ],
+          "columnsFrom": ["claim_version_id"],
           "tableTo": "claim_versions",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "claim_lines_charge_line_id_charge_lines_id_fk": {
           "name": "claim_lines_charge_line_id_charge_lines_id_fk",
           "tableFrom": "claim_lines",
-          "columnsFrom": [
-            "charge_line_id"
-          ],
+          "columnsFrom": ["charge_line_id"],
           "tableTo": "charge_lines",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -2884,10 +2742,7 @@
       "uniqueConstraints": {
         "claim_lines_version_line_key": {
           "name": "claim_lines_version_line_key",
-          "columns": [
-            "claim_version_id",
-            "line_number"
-          ],
+          "columns": ["claim_version_id", "line_number"],
           "nullsNotDistinct": false
         }
       },
@@ -2987,26 +2842,18 @@
         "claim_versions_client_id_clients_id_fk": {
           "name": "claim_versions_client_id_clients_id_fk",
           "tableFrom": "claim_versions",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "claim_versions_claim_id_claims_id_fk": {
           "name": "claim_versions_claim_id_claims_id_fk",
           "tableFrom": "claim_versions",
-          "columnsFrom": [
-            "claim_id"
-          ],
+          "columnsFrom": ["claim_id"],
           "tableTo": "claims",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3015,10 +2862,7 @@
       "uniqueConstraints": {
         "claim_versions_claim_version_key": {
           "name": "claim_versions_claim_version_key",
-          "columns": [
-            "claim_id",
-            "version"
-          ],
+          "columns": ["claim_id", "version"],
           "nullsNotDistinct": false
         }
       },
@@ -3184,65 +3028,45 @@
         "claims_client_id_clients_id_fk": {
           "name": "claims_client_id_clients_id_fk",
           "tableFrom": "claims",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "claims_patient_id_patients_id_fk": {
           "name": "claims_patient_id_patients_id_fk",
           "tableFrom": "claims",
-          "columnsFrom": [
-            "patient_id"
-          ],
+          "columnsFrom": ["patient_id"],
           "tableTo": "patients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "claims_encounter_id_encounters_id_fk": {
           "name": "claims_encounter_id_encounters_id_fk",
           "tableFrom": "claims",
-          "columnsFrom": [
-            "encounter_id"
-          ],
+          "columnsFrom": ["encounter_id"],
           "tableTo": "encounters",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "claims_payer_id_payers_id_fk": {
           "name": "claims_payer_id_payers_id_fk",
           "tableFrom": "claims",
-          "columnsFrom": [
-            "payer_id"
-          ],
+          "columnsFrom": ["payer_id"],
           "tableTo": "payers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "claims_coverage_id_coverages_id_fk": {
           "name": "claims_coverage_id_coverages_id_fk",
           "tableFrom": "claims",
-          "columnsFrom": [
-            "coverage_id"
-          ],
+          "columnsFrom": ["coverage_id"],
           "tableTo": "coverages",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3251,10 +3075,7 @@
       "uniqueConstraints": {
         "claims_client_pcn_key": {
           "name": "claims_client_pcn_key",
-          "columns": [
-            "client_id",
-            "patient_control_number"
-          ],
+          "columns": ["client_id", "patient_control_number"],
           "nullsNotDistinct": false
         }
       },
@@ -3332,26 +3153,18 @@
         "diagnoses_client_id_clients_id_fk": {
           "name": "diagnoses_client_id_clients_id_fk",
           "tableFrom": "diagnoses",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "diagnoses_encounter_id_encounters_id_fk": {
           "name": "diagnoses_encounter_id_encounters_id_fk",
           "tableFrom": "diagnoses",
-          "columnsFrom": [
-            "encounter_id"
-          ],
+          "columnsFrom": ["encounter_id"],
           "tableTo": "encounters",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3360,10 +3173,7 @@
       "uniqueConstraints": {
         "diagnoses_encounter_sequence_key": {
           "name": "diagnoses_encounter_sequence_key",
-          "columns": [
-            "encounter_id",
-            "sequence"
-          ],
+          "columns": ["encounter_id", "sequence"],
           "nullsNotDistinct": false
         }
       },
@@ -3492,65 +3302,45 @@
         "encounters_client_id_clients_id_fk": {
           "name": "encounters_client_id_clients_id_fk",
           "tableFrom": "encounters",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "encounters_patient_id_patients_id_fk": {
           "name": "encounters_patient_id_patients_id_fk",
           "tableFrom": "encounters",
-          "columnsFrom": [
-            "patient_id"
-          ],
+          "columnsFrom": ["patient_id"],
           "tableTo": "patients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "encounters_rendering_provider_id_providers_id_fk": {
           "name": "encounters_rendering_provider_id_providers_id_fk",
           "tableFrom": "encounters",
-          "columnsFrom": [
-            "rendering_provider_id"
-          ],
+          "columnsFrom": ["rendering_provider_id"],
           "tableTo": "providers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "encounters_referring_provider_id_providers_id_fk": {
           "name": "encounters_referring_provider_id_providers_id_fk",
           "tableFrom": "encounters",
-          "columnsFrom": [
-            "referring_provider_id"
-          ],
+          "columnsFrom": ["referring_provider_id"],
           "tableTo": "providers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "encounters_location_id_locations_id_fk": {
           "name": "encounters_location_id_locations_id_fk",
           "tableFrom": "encounters",
-          "columnsFrom": [
-            "location_id"
-          ],
+          "columnsFrom": ["location_id"],
           "tableTo": "locations",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3646,26 +3436,18 @@
         "scrub_results_client_id_clients_id_fk": {
           "name": "scrub_results_client_id_clients_id_fk",
           "tableFrom": "scrub_results",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "scrub_results_claim_version_id_claim_versions_id_fk": {
           "name": "scrub_results_claim_version_id_claim_versions_id_fk",
           "tableFrom": "scrub_results",
-          "columnsFrom": [
-            "claim_version_id"
-          ],
+          "columnsFrom": ["claim_version_id"],
           "tableTo": "claim_versions",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3749,13 +3531,9 @@
         "adjustment_mappings_client_id_clients_id_fk": {
           "name": "adjustment_mappings_client_id_clients_id_fk",
           "tableFrom": "adjustment_mappings",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3764,13 +3542,7 @@
       "uniqueConstraints": {
         "adjustment_mappings_key": {
           "name": "adjustment_mappings_key",
-          "columns": [
-            "tenant_id",
-            "client_id",
-            "pm_type",
-            "group_code",
-            "carc"
-          ],
+          "columns": ["tenant_id", "client_id", "pm_type", "group_code", "carc"],
           "nullsNotDistinct": true
         }
       },
@@ -3872,26 +3644,18 @@
         "postings_client_id_clients_id_fk": {
           "name": "postings_client_id_clients_id_fk",
           "tableFrom": "postings",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "postings_remittance_id_remittances_id_fk": {
           "name": "postings_remittance_id_remittances_id_fk",
           "tableFrom": "postings",
-          "columnsFrom": [
-            "remittance_id"
-          ],
+          "columnsFrom": ["remittance_id"],
           "tableTo": "remittances",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -3969,26 +3733,18 @@
         "provider_adjustments_client_id_clients_id_fk": {
           "name": "provider_adjustments_client_id_clients_id_fk",
           "tableFrom": "provider_adjustments",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "provider_adjustments_remittance_id_remittances_id_fk": {
           "name": "provider_adjustments_remittance_id_remittances_id_fk",
           "tableFrom": "provider_adjustments",
-          "columnsFrom": [
-            "remittance_id"
-          ],
+          "columnsFrom": ["remittance_id"],
           "tableTo": "remittances",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4078,39 +3834,27 @@
         "remit_adjustments_client_id_clients_id_fk": {
           "name": "remit_adjustments_client_id_clients_id_fk",
           "tableFrom": "remit_adjustments",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "remit_adjustments_remit_claim_id_remit_claims_id_fk": {
           "name": "remit_adjustments_remit_claim_id_remit_claims_id_fk",
           "tableFrom": "remit_adjustments",
-          "columnsFrom": [
-            "remit_claim_id"
-          ],
+          "columnsFrom": ["remit_claim_id"],
           "tableTo": "remit_claims",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "remit_adjustments_remit_line_id_remit_lines_id_fk": {
           "name": "remit_adjustments_remit_line_id_remit_lines_id_fk",
           "tableFrom": "remit_adjustments",
-          "columnsFrom": [
-            "remit_line_id"
-          ],
+          "columnsFrom": ["remit_line_id"],
           "tableTo": "remit_lines",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4266,39 +4010,27 @@
         "remit_claims_client_id_clients_id_fk": {
           "name": "remit_claims_client_id_clients_id_fk",
           "tableFrom": "remit_claims",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "remit_claims_remittance_id_remittances_id_fk": {
           "name": "remit_claims_remittance_id_remittances_id_fk",
           "tableFrom": "remit_claims",
-          "columnsFrom": [
-            "remittance_id"
-          ],
+          "columnsFrom": ["remittance_id"],
           "tableTo": "remittances",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "remit_claims_claim_id_claims_id_fk": {
           "name": "remit_claims_claim_id_claims_id_fk",
           "tableFrom": "remit_claims",
-          "columnsFrom": [
-            "claim_id"
-          ],
+          "columnsFrom": ["claim_id"],
           "tableTo": "claims",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4408,39 +4140,27 @@
         "remit_lines_client_id_clients_id_fk": {
           "name": "remit_lines_client_id_clients_id_fk",
           "tableFrom": "remit_lines",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "remit_lines_remit_claim_id_remit_claims_id_fk": {
           "name": "remit_lines_remit_claim_id_remit_claims_id_fk",
           "tableFrom": "remit_lines",
-          "columnsFrom": [
-            "remit_claim_id"
-          ],
+          "columnsFrom": ["remit_claim_id"],
           "tableTo": "remit_claims",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "remit_lines_claim_line_id_claim_lines_id_fk": {
           "name": "remit_lines_claim_line_id_claim_lines_id_fk",
           "tableFrom": "remit_lines",
-          "columnsFrom": [
-            "claim_line_id"
-          ],
+          "columnsFrom": ["claim_line_id"],
           "tableTo": "claim_lines",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4512,39 +4232,27 @@
         "remit_remarks_client_id_clients_id_fk": {
           "name": "remit_remarks_client_id_clients_id_fk",
           "tableFrom": "remit_remarks",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "remit_remarks_remit_claim_id_remit_claims_id_fk": {
           "name": "remit_remarks_remit_claim_id_remit_claims_id_fk",
           "tableFrom": "remit_remarks",
-          "columnsFrom": [
-            "remit_claim_id"
-          ],
+          "columnsFrom": ["remit_claim_id"],
           "tableTo": "remit_claims",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "remit_remarks_remit_line_id_remit_lines_id_fk": {
           "name": "remit_remarks_remit_line_id_remit_lines_id_fk",
           "tableFrom": "remit_remarks",
-          "columnsFrom": [
-            "remit_line_id"
-          ],
+          "columnsFrom": ["remit_line_id"],
           "tableTo": "remit_lines",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4658,26 +4366,18 @@
         "remittances_client_id_clients_id_fk": {
           "name": "remittances_client_id_clients_id_fk",
           "tableFrom": "remittances",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "remittances_payer_id_payers_id_fk": {
           "name": "remittances_payer_id_payers_id_fk",
           "tableFrom": "remittances",
-          "columnsFrom": [
-            "payer_id"
-          ],
+          "columnsFrom": ["payer_id"],
           "tableTo": "payers",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -4686,13 +4386,7 @@
       "uniqueConstraints": {
         "remittances_idempotency_key": {
           "name": "remittances_idempotency_key",
-          "columns": [
-            "client_id",
-            "payer_name",
-            "trace_number",
-            "payment_amount_cents",
-            "payment_date"
-          ],
+          "columns": ["client_id", "payer_name", "trace_number", "payment_amount_cents", "payment_date"],
           "nullsNotDistinct": false
         }
       },
@@ -4790,39 +4484,27 @@
         "corrections_client_id_clients_id_fk": {
           "name": "corrections_client_id_clients_id_fk",
           "tableFrom": "corrections",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "corrections_work_item_id_work_items_id_fk": {
           "name": "corrections_work_item_id_work_items_id_fk",
           "tableFrom": "corrections",
-          "columnsFrom": [
-            "work_item_id"
-          ],
+          "columnsFrom": ["work_item_id"],
           "tableTo": "work_items",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "corrections_user_id_users_id_fk": {
           "name": "corrections_user_id_users_id_fk",
           "tableFrom": "corrections",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5001,13 +4683,9 @@
         "notifications_user_id_users_id_fk": {
           "name": "notifications_user_id_users_id_fk",
           "tableFrom": "notifications",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5237,13 +4915,9 @@
         "saved_views_user_id_users_id_fk": {
           "name": "saved_views_user_id_users_id_fk",
           "tableFrom": "saved_views",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5456,26 +5130,18 @@
         "work_items_client_id_clients_id_fk": {
           "name": "work_items_client_id_clients_id_fk",
           "tableFrom": "work_items",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "work_items_assignee_id_users_id_fk": {
           "name": "work_items_assignee_id_users_id_fk",
           "tableFrom": "work_items",
-          "columnsFrom": [
-            "assignee_id"
-          ],
+          "columnsFrom": ["assignee_id"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5613,13 +5279,9 @@
         "connections_client_id_clients_id_fk": {
           "name": "connections_client_id_clients_id_fk",
           "tableFrom": "connections",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5702,26 +5364,18 @@
         "external_refs_client_id_clients_id_fk": {
           "name": "external_refs_client_id_clients_id_fk",
           "tableFrom": "external_refs",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "external_refs_connection_id_connections_id_fk": {
           "name": "external_refs_connection_id_connections_id_fk",
           "tableFrom": "external_refs",
-          "columnsFrom": [
-            "connection_id"
-          ],
+          "columnsFrom": ["connection_id"],
           "tableTo": "connections",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5730,11 +5384,7 @@
       "uniqueConstraints": {
         "external_refs_key": {
           "name": "external_refs_key",
-          "columns": [
-            "connection_id",
-            "entity_type",
-            "external_id"
-          ],
+          "columns": ["connection_id", "entity_type", "external_id"],
           "nullsNotDistinct": false
         }
       },
@@ -5835,26 +5485,18 @@
         "manual_tasks_client_id_clients_id_fk": {
           "name": "manual_tasks_client_id_clients_id_fk",
           "tableFrom": "manual_tasks",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "manual_tasks_connection_id_connections_id_fk": {
           "name": "manual_tasks_connection_id_connections_id_fk",
           "tableFrom": "manual_tasks",
-          "columnsFrom": [
-            "connection_id"
-          ],
+          "columnsFrom": ["connection_id"],
           "tableTo": "connections",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -5981,26 +5623,18 @@
         "sync_runs_client_id_clients_id_fk": {
           "name": "sync_runs_client_id_clients_id_fk",
           "tableFrom": "sync_runs",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "sync_runs_connection_id_connections_id_fk": {
           "name": "sync_runs_connection_id_connections_id_fk",
           "tableFrom": "sync_runs",
-          "columnsFrom": [
-            "connection_id"
-          ],
+          "columnsFrom": ["connection_id"],
           "tableTo": "connections",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6156,26 +5790,18 @@
         "exports_client_id_clients_id_fk": {
           "name": "exports_client_id_clients_id_fk",
           "tableFrom": "exports",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         },
         "exports_requested_by_users_id_fk": {
           "name": "exports_requested_by_users_id_fk",
           "tableFrom": "exports",
-          "columnsFrom": [
-            "requested_by"
-          ],
+          "columnsFrom": ["requested_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6262,13 +5888,9 @@
         "integration_requests_created_by_users_id_fk": {
           "name": "integration_requests_created_by_users_id_fk",
           "tableFrom": "integration_requests",
-          "columnsFrom": [
-            "created_by"
-          ],
+          "columnsFrom": ["created_by"],
           "tableTo": "users",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6560,13 +6182,9 @@
         "usage_records_client_id_clients_id_fk": {
           "name": "usage_records_client_id_clients_id_fk",
           "tableFrom": "usage_records",
-          "columnsFrom": [
-            "client_id"
-          ],
+          "columnsFrom": ["client_id"],
           "tableTo": "clients",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "no action"
         }
@@ -6575,10 +6193,7 @@
       "uniqueConstraints": {
         "usage_records_client_date_key": {
           "name": "usage_records_client_date_key",
-          "columns": [
-            "client_id",
-            "date"
-          ],
+          "columns": ["client_id", "date"],
           "nullsNotDistinct": false
         }
       },
@@ -6666,10 +6281,7 @@
       "uniqueConstraints": {
         "webhook_events_source_external_key": {
           "name": "webhook_events_source_external_key",
-          "columns": [
-            "source",
-            "external_id"
-          ],
+          "columns": ["source", "external_id"],
           "nullsNotDistinct": false
         }
       },

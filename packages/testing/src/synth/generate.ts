@@ -293,9 +293,16 @@ export function generatePractice(input: PracticeInput): SynthPractice {
   }
   drafts.sort((a, b) => a.dos.getTime() - b.dos.getTime());
 
+  // A patient has at most one visit a day, so the only same-day repeats are the planted duplicates.
+  const booked = new Set<string>();
   const encounters: SynthEncounter[] = drafts.map((d, i) => {
     const externalId = `${input.idPrefix}-E${String(i + 10_001)}`;
-    const patient = rng.pick(patients);
+    const day = iso(d.dos);
+    let patient = rng.pick(patients);
+    for (let tries = 0; booked.has(`${patient.externalId}|${day}`) && tries < 20; tries++) {
+      patient = rng.pick(patients);
+    }
+    booked.add(`${patient.externalId}|${day}`);
     const dxCount = rng.int(...d.template.diagnoses.count);
     const pool = rng.shuffle(d.template.diagnoses.pool);
     const diagnoses = pool.slice(0, Math.min(dxCount, pool.length)).map((icd10, k) => ({
@@ -353,13 +360,15 @@ export function generatePractice(input: PracticeInput): SynthPractice {
   // Duplicates: the same visit entered twice under a new encounter number.
   const dupRng = root.fork('duplicates');
   for (let k = 0; k < duplicates && encounters.length; k++) {
-    const original = dupRng.pick(encounters.slice(0, originals));
+    // A duplicate of a voided visit is a re-entry, not a duplicate, so only live visits are copied.
+    const original = dupRng.pick(encounters.slice(0, originals).filter((e) => e.status !== 'void'));
     const externalId = `${input.idPrefix}-E${String(encounters.length + 10_001)}`;
     encounters.push({
       ...original,
       externalId,
       lines: original.lines.map((l, n) => ({ ...l, externalId: `${externalId}-${n + 1}` })),
-      status: original.status === 'void' ? 'ready' : original.status,
+      // Entered again and waiting to be billed, so it reaches Cleanpost's scrub.
+      status: 'ready',
       updatedAt: new Date(new Date(original.updatedAt).getTime() + 3_600_000).toISOString(),
     });
     answerKey.encounters[externalId] = ['duplicate'];

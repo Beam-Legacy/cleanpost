@@ -18,6 +18,7 @@ const { adminUrl: TEST_DATABASE_ADMIN_URL, url: TEST_DATABASE_URL } = testDataba
 const GLOBAL_TABLES = [
   'accounts',
   'code_sets',
+  'mue_limits',
   'ncci_edits',
   'passkeys',
   'payers',

@@ -1,0 +1,51 @@
+{
+  "$comment": "Starter coding rules (docs/06-rules-and-ai.md). Codes only, no descriptions. Julia's specialty and payer rules join these in rules/seed/. Each rule is validated against packages/domain/src/rules/dsl.ts when seeded.",
+  "rules": [
+    {
+      "id": "seed.coding.em_with_minor_procedure_needs_25",
+      "name": "Modifier 25 on an E/M billed with a minor procedure the same day",
+      "scope": "global",
+      "kind": "validate",
+      "severity": "block",
+      "condition": {
+        "all": [
+          { "anyLine": { "codeInGroup": "em_office", "modifierNotIn": ["25", "57"] } },
+          { "anyLine": { "codeInGroup": "minor_procedures" } }
+        ]
+      },
+      "action": {
+        "finding": "Add modifier 25 to the E/M line: it is billed with a minor procedure the same day.",
+        "field": "lines",
+        "suggestedFix": { "op": "addModifier", "lineMatch": { "codeInGroup": "em_office", "modifierNotIn": ["25", "57"] }, "modifier": "25" }
+      }
+    },
+    {
+      "id": "seed.coding.preventive_with_problem_em_needs_25",
+      "name": "Modifier 25 on a problem visit billed with a preventive visit",
+      "scope": "global",
+      "kind": "validate",
+      "severity": "block",
+      "condition": {
+        "all": [
+          { "anyLine": { "codeInGroup": "em_preventive" } },
+          { "anyLine": { "codeInGroup": "em_office", "modifierNotIn": ["25"] } }
+        ]
+      },
+      "action": {
+        "finding": "Add modifier 25 to the problem-oriented E/M: it is billed with a preventive visit the same day.",
+        "field": "lines",
+        "suggestedFix": { "op": "addModifier", "lineMatch": { "codeInGroup": "em_office", "modifierNotIn": ["25"] }, "modifier": "25" }
+      }
+    },
+    {
+      "id": "seed.coding.laterality",
+      "name": "Side of the body on lateral procedures",
+      "scope": "global",
+      "kind": "validate",
+      "severity": "warn",
+      "weight": 15,
+      "condition": { "anyLine": { "codeInGroup": "lateral_procedures", "modifierNotIn": ["RT", "LT", "50"] } },
+      "action": { "finding": "Add RT, LT or 50 to show which side was treated.", "field": "lines" }
+    }
+  ]
+}

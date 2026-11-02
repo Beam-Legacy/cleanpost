@@ -79,7 +79,12 @@ export type SyncResult =
       status: 'skipped';
       reason: 'not_found' | 'paused' | 'failed' | 'setup' | 'running' | 'no_automatic_pulls';
     }
-  | { status: 'done'; connectionStatus: state.ConnectionState; operations: OperationOutcome[] };
+  | {
+      status: 'done';
+      clientId: string;
+      connectionStatus: state.ConnectionState;
+      operations: OperationOutcome[];
+    };
 
 const OVERLAP_MS = 10 * 60_000;
 const INTERRUPTED_AFTER_MS = 15 * 60_000;
@@ -367,5 +372,5 @@ export async function runSync(deps: SyncDeps, req: SyncRequest): Promise<SyncRes
     },
     'sync cycle finished',
   );
-  return { status: 'done', connectionStatus, operations: outcomes };
+  return { status: 'done', clientId: conn.clientId, connectionStatus, operations: outcomes };
 }

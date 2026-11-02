@@ -1,0 +1,23 @@
+{
+  "$comment": "Starter payer rules. Prior authorization lists differ by payer and plan; these are a conservative default that payer-scoped rules refine.",
+  "rules": [
+    {
+      "id": "seed.payer.prior_auth_common",
+      "name": "Prior authorization number for procedures payers usually authorize",
+      "scope": "global",
+      "kind": "validate",
+      "severity": "block",
+      "condition": {
+        "all": [
+          { "anyLine": { "codeInGroup": "prior_auth_common" } },
+          { "field": "priorAuthNumber", "exists": false }
+        ]
+      },
+      "action": {
+        "finding": "Add the prior authorization number: most payers require one for this procedure.",
+        "field": "priorAuthNumber",
+        "suggestedFix": { "op": "setField", "field": "priorAuthNumber", "value": null }
+      }
+    }
+  ]
+}

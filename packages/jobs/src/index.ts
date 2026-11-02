@@ -15,6 +15,21 @@ export const JOB_SCHEMA = 'pgboss';
 export const JOBS = {
   syncPull: 'sync.pull',
   syncTick: 'sync.tick',
+  claimBuild: 'claim.build',
+  claimScrub: 'claim.scrub',
+  deadLetter: 'system.dead_letter',
+} as const;
+
+export const claimBuildPayload = z.object({ tenantId: z.uuid(), clientId: z.uuid() });
+export type ClaimBuildPayload = z.infer<typeof claimBuildPayload>;
+
+export const claimScrubPayload = z.object({ tenantId: z.uuid(), claimVersionId: z.uuid() });
+export type ClaimScrubPayload = z.infer<typeof claimScrubPayload>;
+
+const RETRIES = {
+  retryLimit: 4,
+  retryDelay: 30,
+  retryBackoff: true,
   deadLetter: 'system.dead_letter',
 } as const;
 
@@ -42,6 +57,10 @@ export const QUEUES: { name: string; options: Parameters<PgBoss['createQueue']>[
     },
   },
   { name: JOBS.syncTick, options: { policy: 'singleton', retryLimit: 0, expireInSeconds: 5 * 60 } },
+  // One queued and one running build per client (singletonKey = client ID).
+  { name: JOBS.claimBuild, options: { policy: 'stately', expireInSeconds: 30 * 60, ...RETRIES } },
+  // One queued scrub per claim version (singletonKey = version ID).
+  { name: JOBS.claimScrub, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
 ];
 
 export type Role = 'web' | 'worker';
@@ -104,6 +123,16 @@ export async function installJobSchema(adminUrl: string, appRole = 'cleanpost_ap
 function omitFixed(options: Parameters<PgBoss['createQueue']>[1]) {
   const { policy: _policy, deadLetter: _deadLetter, ...rest } = options ?? {};
   return rest;
+}
+
+export async function sendClaimBuild(boss: PgBoss, payload: ClaimBuildPayload): Promise<string | null> {
+  const data = claimBuildPayload.parse(payload);
+  return boss.send(JOBS.claimBuild, data, { singletonKey: data.clientId });
+}
+
+export async function sendClaimScrub(boss: PgBoss, payload: ClaimScrubPayload): Promise<string | null> {
+  const data = claimScrubPayload.parse(payload);
+  return boss.send(JOBS.claimScrub, data, { singletonKey: data.claimVersionId });
 }
 
 /** Sending side, used by the web app (Run now) and the scheduler. */

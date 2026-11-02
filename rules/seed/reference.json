@@ -1,0 +1,16 @@
+{
+  "$comment": "Synthetic reference subset used until the full CMS files are loaded at deploy time (docs/17-decisions.md open question on NCCI and the AMA license). Codes only. NCCI pairs and MUE values here cover the synthetic profiles and are checked against the CMS tables before production.",
+  "icd10": {
+    "billable": ["I10", "E11.9", "E78.5", "K21.9", "M54.50", "J45.909", "E03.9", "F41.1", "J06.9", "J02.9", "R05.9", "N39.0", "J01.90", "R51.9", "Z00.00", "Z00.01", "M17.11", "M17.12", "M25.561", "M25.562", "M25.511", "R00.2", "I48.91", "R07.9", "H66.90", "L20.9", "R50.9", "B34.9", "Z00.129", "Z00.121", "Z13.31", "Z23", "J02.0", "M75.101", "M65.4", "M77.11", "S83.241A", "S83.242A", "M23.221"],
+    "headers": ["M17.1", "M25.56", "M54.5", "E11", "J45.90", "S83.24", "M75.10"]
+  },
+  "procedures": ["99202", "99203", "99204", "99205", "99211", "99212", "99213", "99214", "99215", "99394", "99396", "90460", "90471", "90651", "90686", "96127", "87880", "20550", "20610", "20611", "29881", "73030", "73562", "76942", "93000", "J1030", "J3301"],
+  "ncci": [
+    { "column1": "20610", "column2": "76942", "modifierIndicator": "0" },
+    { "column1": "20611", "column2": "76942", "modifierIndicator": "0" },
+    { "column1": "90460", "column2": "90471", "modifierIndicator": "0" },
+    { "column1": "97140", "column2": "97530", "modifierIndicator": "1" },
+    { "column1": "29881", "column2": "20610", "modifierIndicator": "1" }
+  ],
+  "mue": { "20610": 2, "20611": 2, "99213": 1, "99214": 1, "99215": 1, "99203": 1, "99394": 1, "99396": 1, "73030": 2, "73562": 2, "J3301": 40, "J1030": 4, "96127": 4, "29881": 1 }
+}

@@ -1,5 +1,5 @@
 /** Global reference data: no tenant, no PHI (docs/02-data-model.md). */
-import { boolean, date, index, jsonb, pgTable, text, unique } from 'drizzle-orm/pg-core';
+import { boolean, date, index, integer, jsonb, pgTable, text, unique } from 'drizzle-orm/pg-core';
 import { id, timestamps } from './_columns';
 
 export const payers = pgTable(
@@ -46,4 +46,18 @@ export const ncciEdits = pgTable(
     ...timestamps,
   },
   (t) => [index('ncci_edits_pair_idx').on(t.column1Code, t.column2Code)],
+);
+
+/** Medically unlikely edits: the most units of a code billable per day (CMS MUE tables). */
+export const mueLimits = pgTable(
+  'mue_limits',
+  {
+    id: id(),
+    code: text('code').notNull(),
+    maxUnits: integer('max_units').notNull(),
+    effectiveFrom: date('effective_from').notNull(),
+    effectiveTo: date('effective_to'),
+    ...timestamps,
+  },
+  (t) => [unique('mue_limits_code_from_key').on(t.code, t.effectiveFrom)],
 );

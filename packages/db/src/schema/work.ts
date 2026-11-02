@@ -72,6 +72,8 @@ export const rules = pgTable(
     tenantId: uuid('tenant_id'),
     /** global | tenant | client | payer | client_payer */
     scope: text('scope').notNull(),
+    /** Stable key for rules that come from files, e.g. "seed.coding.laterality"; null for user rules. */
+    key: text('key'),
     clientId: uuid('client_id'),
     payerId: uuid('payer_id'),
     name: text('name').notNull(),

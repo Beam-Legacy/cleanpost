@@ -3,9 +3,9 @@
  * queues at most one job per connection, and a job that ran out of retries becomes a system work
  * item. Connects as the app role, like production.
  */
-import { and, eq } from 'drizzle-orm';
+import { and, count, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { connections, createDatabase, syncRuns, workItems } from '@cleanpost/db';
+import { claims, connections, createDatabase, scrubResults, syncRuns, workItems } from '@cleanpost/db';
 import { testDatabaseUrls } from '@cleanpost/db/testing';
 import { createBoss, JOBS, sendSyncPull } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
@@ -81,6 +81,19 @@ describe('schedule', () => {
     for (const c of mockClients) {
       await waitFor(async () => (await statusOf(c.id)).status === 'healthy');
     }
+  });
+
+  it('turns synced charges into scrubbed claims: sync.pull -> claim.build -> claim.scrub', async () => {
+    const ids = mockClients.map((c) => c.id);
+    await waitFor(async () => {
+      const rows = await admin.db
+        .select({ status: claims.status })
+        .from(claims)
+        .where(inArray(claims.clientId, ids));
+      return rows.length > 0 && rows.every((r) => ['ready', 'needs_review', 'blocked'].includes(r.status));
+    }, 60_000);
+    const results = await admin.db.select({ n: count() }).from(scrubResults);
+    expect(results[0]!.n).toBeGreaterThan(0);
   });
 
   it('queues nothing until the next run is due', async () => {

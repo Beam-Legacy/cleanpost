@@ -7,7 +7,9 @@
     ".": "./src/index.ts",
     "./policy": "./src/policy/index.ts",
     "./state": "./src/state/index.ts",
-    "./claims": "./src/claims/index.ts"
+    "./claims": "./src/claims/index.ts",
+    "./rules": "./src/rules/index.ts",
+    "./scrub": "./src/scrub/index.ts"
   },
   "scripts": {
     "lint": "eslint .",
@@ -16,5 +18,8 @@
   },
   "devDependencies": {
     "@cleanpost/testing": "workspace:*"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
   }
 }

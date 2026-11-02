@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/seed.ts",
-    "./world": "./src/world.ts"
+    "./world": "./src/world.ts",
+    "./reference": "./src/reference.ts"
   },
   "scripts": {
     "lint": "eslint .",

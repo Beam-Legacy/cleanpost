@@ -53,6 +53,23 @@ Supported actions: `finding`, `suggestedFix` (`addModifier`, `removeModifier`, `
 
 Seed rules: structural, NCCI, and a starter set Julia writes for the first specialty and top payers (`rules/seed/*.json`).
 
+How it is built (M2):
+- **Code.** The DSL is `packages/domain/src/rules`: a Zod schema for rules, conditions and fixes, plus a pure evaluator. Named code groups (`em_office`, `minor_procedures`, `lateral_procedures`, `prior_auth_common`, ...) hold codes only.
+- **Steps.** Steps 1–7 are pure functions in `packages/domain/src/scrub`. NCCI, structural, eligibility, code and history checks are code. Payer and client rules are data. Global, tenant and payer rules report as step 5; client and client-payer rules report as step 6. `transform` rules show as `info` suggestions until auto-transforms exist.
+- **Seed files.** `rules/seed/coding.json` and `payers.json` hold the starter rules:
+  - modifier 25 with a minor procedure;
+  - modifier 25 on a problem visit billed with a preventive visit;
+  - laterality;
+  - prior authorization for the common list.
+
+  `pnpm seed` loads them as global rules, keyed by `rules.key`. Julia's specialty rules are added as new files.
+- **Reference data.** `rules/seed/reference.json` is a synthetic subset of code sets, NCCI pairs and MUE limits. The full CMS files replace it at deploy time once the open AMA question is settled.
+- **Duplicates.** The duplicate check compares with the patient's other live visits that day, entered earlier or already billed by the PM, so it also catches a duplicate of a visit the PM sent without Cleanpost.
+- **Saving results.** `packages/claims` runs the steps, scores the claim and saves `scrub_results`: findings, routes, the score deductions (shown in C-03) and the threshold.
+- **Routing.** The claim goes to `ready`, `needs_review` or `blocked` through the claim state machine. A `claim_review` or `claim_blocked` work item opens, and an earlier one is resolved when a re-scrub supersedes it.
+- **Jobs.** The worker chain is `sync.pull` → `claim.build` → `claim.scrub`.
+- **Accuracy.** Measured against the generator's answer key: on 1,800 synthetic claims across three specialties every planted defect is caught with no false blocks (`packages/domain/test/scrub.test.ts`). The M2 bar is at least 95% and at most 5%; the same check runs end to end on synced mock-PM data.
+
 ## Learning from corrections
 
 When a biller edits a claim in review, each field change is saved to `corrections`. A nightly job groups identical corrections (same client-payer, same condition pattern, same change). When a pattern repeats N times (default 5) with no reversals, it proposes a rule. A tenant admin approves it in Settings › Rules (S-05, S-07); approved rules are `source: promoted`. Nothing is promoted without human approval.
