@@ -19,6 +19,7 @@ import {
   type ExtClaimStatus,
   type ExtEncounter,
   type ExtPatient,
+  type ExtRemittance,
   type Operation,
   type Page,
   type PmAdapter,
@@ -47,7 +48,7 @@ import {
 
 /** Pulls sync always runs. Claim status joins when an applier is given (packages/claims). */
 export const SYNC_OPERATIONS = ['pullPatientsAndCoverage', 'pullCharges'] as const;
-export type SyncOperation = (typeof SYNC_OPERATIONS)[number] | 'pullClaimsAndStatus';
+export type SyncOperation = (typeof SYNC_OPERATIONS)[number] | 'pullClaimsAndStatus' | 'pullRemittances';
 
 /**
  * Appliers for pulls whose records belong to another package, so sync does not depend on it.
@@ -58,6 +59,12 @@ export interface SyncAppliers {
     tx: Tx,
     ctx: { tenantId: string; clientId: string; connectionId: string; actor: AuditActor },
     items: ExtClaimStatus[],
+  ) => Promise<Counts>;
+  /** 835s the PM holds (Modes A and C), ingested by packages/remit. */
+  pullRemittances?: (
+    tx: Tx,
+    ctx: { tenantId: string; clientId: string; connectionId: string; actor: AuditActor },
+    items: ExtRemittance[],
   ) => Promise<Counts>;
 }
 
@@ -131,6 +138,7 @@ export function automaticPulls(caps: Partial<CapabilityMap>, appliers: SyncAppli
   const ops: SyncOperation[] = [
     ...SYNC_OPERATIONS,
     ...(appliers.pullClaimsAndStatus ? (['pullClaimsAndStatus'] as const) : []),
+    ...(appliers.pullRemittances ? (['pullRemittances'] as const) : []),
   ];
   return ops.filter((op) => {
     const level = caps[op];
@@ -228,7 +236,9 @@ async function runOperation(
           ? adapter.pullPatientsAndCoverage(ac, since, cursor)
           : op === 'pullClaimsAndStatus'
             ? adapter.pullClaimsAndStatus(ac, since, cursor)
-            : adapter.pullCharges(ac, since, cursor);
+            : op === 'pullRemittances'
+              ? adapter.pullRemittances(ac, since, cursor)
+              : adapter.pullCharges(ac, since, cursor);
       const page = await withRetry(pull, delays);
       const valid: unknown[] = [];
       for (const item of page.items) {
@@ -253,6 +263,9 @@ async function runOperation(
           if (op === 'pullPatientsAndCoverage') return upsertPatients(tx, ctx, valid as ExtPatient[], payers);
           if (op === 'pullClaimsAndStatus') {
             return deps.appliers!.pullClaimsAndStatus!(tx, ctx, valid as ExtClaimStatus[]);
+          }
+          if (op === 'pullRemittances') {
+            return deps.appliers!.pullRemittances!(tx, ctx, valid as ExtRemittance[]);
           }
           const res = await upsertEncounters(tx, ctx, valid as ExtEncounter[]);
           rejected.push(...res.rejected);

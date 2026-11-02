@@ -21,7 +21,19 @@ import {
   type ClaimReviewer,
 } from '@cleanpost/claims';
 import { eq, inArray } from 'drizzle-orm';
-import { claims, claimVersions, withTenant, workItems, recordAudit, type Database } from '@cleanpost/db';
+import type { ExtRemittance } from '@cleanpost/adapters';
+import { fromExtRemittance, ingestInTx } from '@cleanpost/remit';
+import { parse835 } from '@cleanpost/x12';
+import {
+  claims,
+  claimVersions,
+  recordAudit,
+  withTenant,
+  workItems,
+  type AuditActor,
+  type Database,
+  type Tx,
+} from '@cleanpost/db';
 import {
   checkCoverage,
   coveragesNeedingCheck,
@@ -86,14 +98,36 @@ export function buildRegistry(opts: {
   });
 }
 
+/** Each remittance the PM holds: its own 835 when it has one, else the PM's structured copy. */
+async function applyRemittances(
+  tx: Tx,
+  ctx: { tenantId: string; clientId: string; connectionId: string; actor: AuditActor },
+  items: ExtRemittance[],
+) {
+  const counts = { new: 0, changed: 0, unchanged: 0, failed: 0 };
+  for (const item of items) {
+    const r = item.raw835 ? parse835(item.raw835) : fromExtRemittance(item);
+    const res = await ingestInTx(
+      tx,
+      { tenantId: ctx.tenantId, clientId: ctx.clientId, source: 'pm' },
+      r,
+      new Date(),
+    );
+    if (res.status === 'duplicate') counts.unchanged++;
+    else counts.new++;
+  }
+  return counts;
+}
+
 const syncDeps = (deps: WorkerDeps): SyncDeps => ({
   db: deps.db,
   registry: deps.registry,
   log: deps.log,
   ...(deps.now ? { now: deps.now } : {}),
   ...(deps.retryDelaysMs ? { retryDelaysMs: deps.retryDelaysMs } : {}),
-  // Claim status from the PM is applied to claims (Mode A tracking, docs/04).
-  appliers: { pullClaimsAndStatus: applyClaimStatuses },
+  // Claim status from the PM is applied to claims (Mode A tracking, docs/04); the 835s the PM
+  // holds are ingested and matched (docs/07).
+  appliers: { pullClaimsAndStatus: applyClaimStatuses, pullRemittances: applyRemittances },
 });
 
 export async function handleSyncPull(deps: WorkerDeps, data: unknown) {

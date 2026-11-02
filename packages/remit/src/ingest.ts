@@ -210,278 +210,284 @@ async function applyPayment(
   return outcome.event;
 }
 
-export async function ingestRemittance(
-  deps: IngestDeps,
-  ctx: {
-    tenantId: string;
-    clientId: string;
-    source: 'pm' | 'file' | 'stedi';
-    actor?: AuditActor;
-    rawRef?: string | null;
-  },
+export interface IngestContext {
+  tenantId: string;
+  clientId: string;
+  source: 'pm' | 'file' | 'stedi';
+  actor?: AuditActor;
+  rawRef?: string | null;
+}
+
+/** The ingestion itself, inside the caller's tenant transaction (sync runs it per page). */
+export async function ingestInTx(
+  tx: Tx,
+  ctx: IngestContext,
   r: remit.Remittance835,
+  now: Date,
 ): Promise<IngestOutcome> {
-  const now = deps.now?.() ?? new Date();
   const actor: AuditActor = ctx.actor ?? 'automation:remit.ingest';
-  const outcome = await withTenant(
-    deps.db,
-    { tenantId: ctx.tenantId },
-    async (tx): Promise<IngestOutcome> => {
-      const payerId = await payerOf(tx, r);
-      const [row] = await tx
-        .insert(remittances)
+  const payerId = await payerOf(tx, r);
+  const [row] = await tx
+    .insert(remittances)
+    .values({
+      tenantId: ctx.tenantId,
+      clientId: ctx.clientId,
+      payerId,
+      payerName: r.payer.name,
+      source: ctx.source,
+      traceNumber: r.payment.traceNumber,
+      paymentMethod: r.payment.method,
+      paymentAmountCents: r.payment.amountCents,
+      paymentDate: r.payment.paymentDate,
+      rawRef: ctx.rawRef ?? null,
+      status: 'received',
+    })
+    .onConflictDoNothing()
+    .returning({ id: remittances.id });
+  if (!row) {
+    const [existing] = await tx
+      .select({ id: remittances.id })
+      .from(remittances)
+      .where(
+        and(
+          eq(remittances.clientId, ctx.clientId),
+          eq(remittances.payerName, r.payer.name),
+          eq(remittances.traceNumber, r.payment.traceNumber),
+          eq(remittances.paymentAmountCents, r.payment.amountCents),
+          eq(remittances.paymentDate, r.payment.paymentDate),
+        ),
+      );
+    await recordAudit(tx, {
+      actor,
+      action: 'remittance.duplicate_ignored',
+      entityType: 'remittance',
+      entityId: existing!.id,
+      clientId: ctx.clientId,
+      metadata: { source: ctx.source },
+    });
+    return { status: 'duplicate', remittanceId: existing!.id };
+  }
+  const remittanceId = row.id;
+  let status = await move(tx, remittanceId, 'received', 'parse');
+
+  // Store every claim, line, adjustment and remark as received.
+  const stored: { id: string; payment: remit.ClaimPayment; lineIds: string[] }[] = [];
+  for (const c of r.claims) {
+    const [rc] = await tx
+      .insert(remitClaims)
+      .values({
+        tenantId: ctx.tenantId,
+        clientId: ctx.clientId,
+        remittanceId,
+        patientControlNumber: c.patientControlNumber,
+        payerClaimControlNumber: c.payerClaimControlNumber,
+        claimStatusCode: c.statusCode,
+        chargeCents: c.chargeCents,
+        paidCents: c.paidCents,
+        patientRespCents: c.patientRespCents,
+      })
+      .returning({ id: remitClaims.id });
+    const lineIds: string[] = [];
+    for (const l of c.lines) {
+      const [rl] = await tx
+        .insert(remitLines)
         .values({
           tenantId: ctx.tenantId,
           clientId: ctx.clientId,
-          payerId,
-          payerName: r.payer.name,
-          source: ctx.source,
-          traceNumber: r.payment.traceNumber,
-          paymentMethod: r.payment.method,
-          paymentAmountCents: r.payment.amountCents,
-          paymentDate: r.payment.paymentDate,
-          rawRef: ctx.rawRef ?? null,
-          status: 'received',
+          remitClaimId: rc!.id,
+          code: l.code,
+          modifiers: l.modifiers,
+          chargeCents: l.chargeCents,
+          allowedCents: l.allowedCents,
+          paidCents: l.paidCents,
+          units: l.units,
+          lineControlNumber: l.lineControlNumber,
         })
-        .onConflictDoNothing()
-        .returning({ id: remittances.id });
-      if (!row) {
-        const [existing] = await tx
-          .select({ id: remittances.id })
-          .from(remittances)
-          .where(
-            and(
-              eq(remittances.clientId, ctx.clientId),
-              eq(remittances.payerName, r.payer.name),
-              eq(remittances.traceNumber, r.payment.traceNumber),
-              eq(remittances.paymentAmountCents, r.payment.amountCents),
-              eq(remittances.paymentDate, r.payment.paymentDate),
-            ),
-          );
-        await recordAudit(tx, {
-          actor,
-          action: 'remittance.duplicate_ignored',
-          entityType: 'remittance',
-          entityId: existing!.id,
-          clientId: ctx.clientId,
-          metadata: { source: ctx.source },
-        });
-        return { status: 'duplicate', remittanceId: existing!.id };
-      }
-      const remittanceId = row.id;
-      let status = await move(tx, remittanceId, 'received', 'parse');
-
-      // Store every claim, line, adjustment and remark as received.
-      const stored: { id: string; payment: remit.ClaimPayment; lineIds: string[] }[] = [];
-      for (const c of r.claims) {
-        const [rc] = await tx
-          .insert(remitClaims)
-          .values({
-            tenantId: ctx.tenantId,
-            clientId: ctx.clientId,
-            remittanceId,
-            patientControlNumber: c.patientControlNumber,
-            payerClaimControlNumber: c.payerClaimControlNumber,
-            claimStatusCode: c.statusCode,
-            chargeCents: c.chargeCents,
-            paidCents: c.paidCents,
-            patientRespCents: c.patientRespCents,
-          })
-          .returning({ id: remitClaims.id });
-        const lineIds: string[] = [];
-        for (const l of c.lines) {
-          const [rl] = await tx
-            .insert(remitLines)
-            .values({
-              tenantId: ctx.tenantId,
-              clientId: ctx.clientId,
-              remitClaimId: rc!.id,
-              code: l.code,
-              modifiers: l.modifiers,
-              chargeCents: l.chargeCents,
-              allowedCents: l.allowedCents,
-              paidCents: l.paidCents,
-              units: l.units,
-              lineControlNumber: l.lineControlNumber,
-            })
-            .returning({ id: remitLines.id });
-          lineIds.push(rl!.id);
-          for (const a of l.adjustments)
-            await tx.insert(remitAdjustments).values({
-              tenantId: ctx.tenantId,
-              clientId: ctx.clientId,
-              remitLineId: rl!.id,
-              groupCode: a.group,
-              carc: a.carc,
-              amountCents: a.amountCents,
-              quantity: a.quantity ?? null,
-            });
-          for (const rarc of l.remarks)
-            await tx
-              .insert(remitRemarks)
-              .values({ tenantId: ctx.tenantId, clientId: ctx.clientId, remitLineId: rl!.id, rarc });
-        }
-        for (const a of c.adjustments)
-          await tx.insert(remitAdjustments).values({
-            tenantId: ctx.tenantId,
-            clientId: ctx.clientId,
-            remitClaimId: rc!.id,
-            groupCode: a.group,
-            carc: a.carc,
-            amountCents: a.amountCents,
-            quantity: a.quantity ?? null,
-          });
-        for (const rarc of c.remarks)
-          await tx
-            .insert(remitRemarks)
-            .values({ tenantId: ctx.tenantId, clientId: ctx.clientId, remitClaimId: rc!.id, rarc });
-        stored.push({ id: rc!.id, payment: c, lineIds });
-      }
-      for (const p of r.providerAdjustments)
-        await tx.insert(providerAdjustments).values({
+        .returning({ id: remitLines.id });
+      lineIds.push(rl!.id);
+      for (const a of l.adjustments)
+        await tx.insert(remitAdjustments).values({
           tenantId: ctx.tenantId,
           clientId: ctx.clientId,
-          remittanceId,
-          reasonCode: p.reasonCode,
-          reference: p.reference,
-          amountCents: p.amountCents,
+          remitLineId: rl!.id,
+          groupCode: a.group,
+          carc: a.carc,
+          amountCents: a.amountCents,
+          quantity: a.quantity ?? null,
         });
+      for (const rarc of l.remarks)
+        await tx
+          .insert(remitRemarks)
+          .values({ tenantId: ctx.tenantId, clientId: ctx.clientId, remitLineId: rl!.id, rarc });
+    }
+    for (const a of c.adjustments)
+      await tx.insert(remitAdjustments).values({
+        tenantId: ctx.tenantId,
+        clientId: ctx.clientId,
+        remitClaimId: rc!.id,
+        groupCode: a.group,
+        carc: a.carc,
+        amountCents: a.amountCents,
+        quantity: a.quantity ?? null,
+      });
+    for (const rarc of c.remarks)
+      await tx
+        .insert(remitRemarks)
+        .values({ tenantId: ctx.tenantId, clientId: ctx.clientId, remitClaimId: rc!.id, rarc });
+    stored.push({ id: rc!.id, payment: c, lineIds });
+  }
+  for (const p of r.providerAdjustments)
+    await tx.insert(providerAdjustments).values({
+      tenantId: ctx.tenantId,
+      clientId: ctx.clientId,
+      remittanceId,
+      reasonCode: p.reasonCode,
+      reference: p.reference,
+      amountCents: p.amountCents,
+    });
 
-      // Check 1: the 835 must balance before anything is matched.
-      const balance = remit.balance835(r);
-      if (!balance.balanced) {
-        await move(tx, remittanceId, status, 'balance_fail');
-        const difference =
-          balance.remittanceDifferenceCents || balance.claims.reduce((s, c) => s + c.differenceCents, 0);
+  // Check 1: the 835 must balance before anything is matched.
+  const balance = remit.balance835(r);
+  if (!balance.balanced) {
+    await move(tx, remittanceId, status, 'balance_fail');
+    const difference =
+      balance.remittanceDifferenceCents || balance.claims.reduce((s, c) => s + c.differenceCents, 0);
+    await workItem(
+      tx,
+      {
+        tenantId: ctx.tenantId,
+        clientId: ctx.clientId,
+        type: 'out_of_balance',
+        priority: 1,
+        hours: 24,
+        reasonCode: 'BALANCE_835',
+        summary: `835 does not balance: off by ${formatCents(Math.abs(difference))}${balance.claims.length ? ` on ${balance.claims.length} ${balance.claims.length === 1 ? 'claim' : 'claims'}` : ''}.`,
+        amountCents: Math.abs(difference),
+        remittanceId,
+        now,
+      },
+      actor,
+    );
+    return { status: 'out_of_balance', remittanceId, differenceCents: difference };
+  }
+  status = await move(tx, remittanceId, status, 'balance_ok');
+
+  let matched = 0;
+  let unmatched = 0;
+  let denied = 0;
+  for (const s of stored) {
+    const c = s.payment;
+    const m = await matchClaim(tx, ctx.clientId, c);
+    if (!m) {
+      unmatched++;
+      await workItem(
+        tx,
+        {
+          tenantId: ctx.tenantId,
+          clientId: ctx.clientId,
+          type: 'remit_unmatched',
+          priority: 2,
+          hours: 24,
+          reasonCode: 'NO_MATCH',
+          summary: `Payment for control number ${c.patientControlNumber} matches no claim.`,
+          amountCents: c.paidCents,
+          remittanceId,
+          now,
+        },
+        actor,
+      );
+      continue;
+    }
+    matched++;
+    await tx
+      .update(remitClaims)
+      .set({ claimId: m.claim.id, matchStatus: 'matched', matchedBy: m.by, updatedAt: now })
+      .where(eq(remitClaims.id, s.id));
+    const lines = m.claim.currentVersionId
+      ? await tx.select().from(claimLines).where(eq(claimLines.claimVersionId, m.claim.currentVersionId))
+      : [];
+    const lineMatches = matchLines(lines, c.lines);
+    for (let i = 0; i < s.lineIds.length; i++)
+      if (lineMatches[i])
+        await tx
+          .update(remitLines)
+          .set({ claimLineId: lineMatches[i] })
+          .where(eq(remitLines.id, s.lineIds[i]!));
+
+    const outcome = remit.paymentOutcome(c);
+    await applyPayment(tx, m.claim, c, outcome, {
+      remittanceId,
+      traceNumber: r.payment.traceNumber,
+      actor,
+      now,
+    });
+    if (outcome.denials.length) {
+      denied++;
+      const worst = outcome.denials.reduce<remit.DenialCategory>(
+        (w, d) => (remit.DENIAL_PRIORITY[d.category] < remit.DENIAL_PRIORITY[w] ? d.category : w),
+        'other',
+      );
+      const codes = [...new Set(outcome.denials.map((d) => `${d.group}-${d.carc}`))].join(', ');
+      const open = await tx
+        .select({ id: workItems.id })
+        .from(workItems)
+        .where(
+          and(
+            eq(workItems.claimId, m.claim.id),
+            eq(workItems.type, 'denial'),
+            ne(workItems.status, 'resolved'),
+          ),
+        );
+      if (!open.length)
         await workItem(
           tx,
           {
             tenantId: ctx.tenantId,
             clientId: ctx.clientId,
-            type: 'out_of_balance',
-            priority: 1,
-            hours: 24,
-            reasonCode: 'BALANCE_835',
-            summary: `835 does not balance: off by ${formatCents(Math.abs(difference))}${balance.claims.length ? ` on ${balance.claims.length} ${balance.claims.length === 1 ? 'claim' : 'claims'}` : ''}.`,
-            amountCents: Math.abs(difference),
+            type: 'denial',
+            priority: remit.DENIAL_PRIORITY[worst],
+            hours: 48,
+            reasonCode: outcome.denials[0]!.carc,
+            summary: `${c.statusCode === '4' || c.paidCents === 0 ? 'Denied' : 'Partly denied'}: ${codes}`,
+            amountCents: outcome.denials.reduce((t, d) => t + d.amountCents, 0),
+            claimId: m.claim.id,
             remittanceId,
             now,
           },
           actor,
         );
-        return { status: 'out_of_balance', remittanceId, differenceCents: difference };
-      }
-      status = await move(tx, remittanceId, status, 'balance_ok');
+    }
+  }
+  await tx
+    .update(remitClaims)
+    .set({ matchStatus: 'unmatched' })
+    .where(and(eq(remitClaims.remittanceId, remittanceId), sql`${remitClaims.claimId} is null`));
+  const final = await move(tx, remittanceId, status, unmatched ? 'match_some' : 'match_all');
+  await recordAudit(tx, {
+    actor,
+    action: 'remittance.ingested',
+    entityType: 'remittance',
+    entityId: remittanceId,
+    clientId: ctx.clientId,
+    metadata: { source: ctx.source, claims: r.claims.length, matched, unmatched, denied },
+  });
+  return {
+    status: 'ingested',
+    remittanceId,
+    matched,
+    unmatched,
+    denied,
+    remittanceStatus: final as 'matched' | 'partially_matched',
+  };
+}
 
-      let matched = 0;
-      let unmatched = 0;
-      let denied = 0;
-      for (const s of stored) {
-        const c = s.payment;
-        const m = await matchClaim(tx, ctx.clientId, c);
-        if (!m) {
-          unmatched++;
-          await workItem(
-            tx,
-            {
-              tenantId: ctx.tenantId,
-              clientId: ctx.clientId,
-              type: 'remit_unmatched',
-              priority: 2,
-              hours: 24,
-              reasonCode: 'NO_MATCH',
-              summary: `Payment for control number ${c.patientControlNumber} matches no claim.`,
-              amountCents: c.paidCents,
-              remittanceId,
-              now,
-            },
-            actor,
-          );
-          continue;
-        }
-        matched++;
-        await tx
-          .update(remitClaims)
-          .set({ claimId: m.claim.id, matchStatus: 'matched', matchedBy: m.by, updatedAt: now })
-          .where(eq(remitClaims.id, s.id));
-        const lines = m.claim.currentVersionId
-          ? await tx.select().from(claimLines).where(eq(claimLines.claimVersionId, m.claim.currentVersionId))
-          : [];
-        const lineMatches = matchLines(lines, c.lines);
-        for (let i = 0; i < s.lineIds.length; i++)
-          if (lineMatches[i])
-            await tx
-              .update(remitLines)
-              .set({ claimLineId: lineMatches[i] })
-              .where(eq(remitLines.id, s.lineIds[i]!));
-
-        const outcome = remit.paymentOutcome(c);
-        await applyPayment(tx, m.claim, c, outcome, {
-          remittanceId,
-          traceNumber: r.payment.traceNumber,
-          actor,
-          now,
-        });
-        if (outcome.denials.length) {
-          denied++;
-          const worst = outcome.denials.reduce<remit.DenialCategory>(
-            (w, d) => (remit.DENIAL_PRIORITY[d.category] < remit.DENIAL_PRIORITY[w] ? d.category : w),
-            'other',
-          );
-          const codes = [...new Set(outcome.denials.map((d) => `${d.group}-${d.carc}`))].join(', ');
-          const open = await tx
-            .select({ id: workItems.id })
-            .from(workItems)
-            .where(
-              and(
-                eq(workItems.claimId, m.claim.id),
-                eq(workItems.type, 'denial'),
-                ne(workItems.status, 'resolved'),
-              ),
-            );
-          if (!open.length)
-            await workItem(
-              tx,
-              {
-                tenantId: ctx.tenantId,
-                clientId: ctx.clientId,
-                type: 'denial',
-                priority: remit.DENIAL_PRIORITY[worst],
-                hours: 48,
-                reasonCode: outcome.denials[0]!.carc,
-                summary: `${c.statusCode === '4' || c.paidCents === 0 ? 'Denied' : 'Partly denied'}: ${codes}`,
-                amountCents: outcome.denials.reduce((t, d) => t + d.amountCents, 0),
-                claimId: m.claim.id,
-                remittanceId,
-                now,
-              },
-              actor,
-            );
-        }
-      }
-      await tx
-        .update(remitClaims)
-        .set({ matchStatus: 'unmatched' })
-        .where(and(eq(remitClaims.remittanceId, remittanceId), sql`${remitClaims.claimId} is null`));
-      const final = await move(tx, remittanceId, status, unmatched ? 'match_some' : 'match_all');
-      await recordAudit(tx, {
-        actor,
-        action: 'remittance.ingested',
-        entityType: 'remittance',
-        entityId: remittanceId,
-        clientId: ctx.clientId,
-        metadata: { source: ctx.source, claims: r.claims.length, matched, unmatched, denied },
-      });
-      return {
-        status: 'ingested',
-        remittanceId,
-        matched,
-        unmatched,
-        denied,
-        remittanceStatus: final as 'matched' | 'partially_matched',
-      };
-    },
-  );
+export async function ingestRemittance(
+  deps: IngestDeps,
+  ctx: IngestContext,
+  r: remit.Remittance835,
+): Promise<IngestOutcome> {
+  const now = deps.now?.() ?? new Date();
+  const outcome = await withTenant(deps.db, { tenantId: ctx.tenantId }, (tx) => ingestInTx(tx, ctx, r, now));
   deps.log.info({ remittanceId: outcome.remittanceId, status: outcome.status }, 'remittance ingested');
   return outcome;
 }
