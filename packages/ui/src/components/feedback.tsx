@@ -23,13 +23,25 @@ export function EmptyState({
       </div>
       <h2>{title}</h2>
       {children && <p>{children}</p>}
-      {action && <div className="row" style={{ justifyContent: 'center', marginTop: 8 }}>{action}</div>}
+      {action && (
+        <div className="row" style={{ justifyContent: 'center', marginTop: 8 }}>
+          {action}
+        </div>
+      )}
     </div>
   );
 }
 
 /** G-22 Error: what failed, whether data is safe, and the next action. Never raw error text. */
-export function ErrorState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+export function ErrorState({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+}) {
   return (
     <div className="empty" role="alert">
       <div className="glyph bad" aria-hidden>
@@ -37,13 +49,25 @@ export function ErrorState({ title, children, action }: { title: string; childre
       </div>
       <h2>{title}</h2>
       {children && <p>{children}</p>}
-      {action && <div className="row" style={{ justifyContent: 'center', marginTop: 8 }}>{action}</div>}
+      {action && (
+        <div className="row" style={{ justifyContent: 'center', marginTop: 8 }}>
+          {action}
+        </div>
+      )}
     </div>
   );
 }
 
 /** G-20 Loading: skeletons, never full-page spinners. */
-export function Skeleton({ width, height, style }: { width?: number | string; height?: number; style?: CSSProperties }) {
+export function Skeleton({
+  width,
+  height,
+  style,
+}: {
+  width?: number | string;
+  height?: number;
+  style?: CSSProperties;
+}) {
   return <div className="skeleton" aria-hidden style={{ width, height, ...style }} />;
 }
 

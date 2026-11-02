@@ -25,7 +25,11 @@ export const Kpis: StoryObj = {
       <KpiTile label="Due today" value="18" />
       <KpiTile label="Overdue" value="3" tone="bad" />
       <KpiTile label="Posted today" value="$38,214" tone="good" />
-      <KpiTile label="Released without review today" value="71%" delta={{ text: '+4 pts vs last week', tone: 'good' }} />
+      <KpiTile
+        label="Released without review today"
+        value="71%"
+        delta={{ text: '+4 pts vs last week', tone: 'good' }}
+      />
     </KpiRow>
   ),
 };

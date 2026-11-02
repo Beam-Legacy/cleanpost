@@ -10,6 +10,9 @@ export {
   voidClaim,
   addClaimNote,
   VOID_REASONS,
+  holdClaim,
+  releaseHold,
+  HOLD_REASONS,
   type ReleaseDeps,
   type ReleaseOutcome,
 } from './release';

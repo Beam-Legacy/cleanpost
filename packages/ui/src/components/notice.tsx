@@ -17,7 +17,10 @@ export function Banner({
 }) {
   const Icon = BANNER_ICON[tone];
   return (
-    <div className={cx('banner', tone !== 'info' && tone, edge && 'edge')} role={tone === 'bad' ? 'alert' : 'status'}>
+    <div
+      className={cx('banner', tone !== 'info' && tone, edge && 'edge')}
+      role={tone === 'bad' ? 'alert' : 'status'}
+    >
       <Icon aria-hidden />
       <span>{children}</span>
       {action && <span className="spacer" />}
@@ -98,7 +101,15 @@ export function ConfidenceMeter({ score, threshold }: { score: number; threshold
   );
 }
 
-export function BalanceBar({ balanced, label, children }: { balanced: boolean; label: string; children: ReactNode }) {
+export function BalanceBar({
+  balanced,
+  label,
+  children,
+}: {
+  balanced: boolean;
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <div className={cx('balance', !balanced && 'bad')}>
       {balanced ? <CircleCheck aria-hidden /> : <CircleX aria-hidden />}

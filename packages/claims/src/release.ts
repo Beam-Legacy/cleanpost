@@ -453,3 +453,114 @@ export async function addClaimNote(
     return { ok: true };
   });
 }
+
+export const HOLD_REASONS = [
+  'Waiting for records',
+  'Waiting for prior authorization',
+  'Waiting for coverage information',
+  'Provider credentialing',
+  'Other',
+] as const;
+
+/**
+ * C-12: hold a claim that has not been sent until something it needs arrives. Its open review or
+ * blocked item is snoozed until then (at most 30 days); the hold itself stays until released.
+ */
+export async function holdClaim(
+  db: Database,
+  ctx: {
+    tenantId: string;
+    userId: string;
+    claimId: string;
+    reason: string;
+    until?: string | null;
+    note?: string | null;
+    now?: Date;
+  },
+): Promise<
+  | { ok: true }
+  | { ok: false; reason: 'not_found' | 'not_holdable' | 'unknown_reason' | 'note_required' | 'past_deadline' }
+> {
+  if (!(HOLD_REASONS as readonly string[]).includes(ctx.reason))
+    return { ok: false, reason: 'unknown_reason' };
+  if (ctx.reason === 'Other' && !ctx.note?.trim()) return { ok: false, reason: 'note_required' };
+  const now = ctx.now ?? new Date();
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId)).for('update');
+    if (!claim) return { ok: false, reason: 'not_found' };
+    if (!state.nextClaimState(claim.status as state.ClaimState, 'hold').ok)
+      return { ok: false, reason: 'not_holdable' };
+    // Holding past the filing deadline less 14 days would risk a timely-filing denial.
+    if (ctx.until && claim.filingDeadline) {
+      const latest = new Date(Date.parse(`${claim.filingDeadline}T00:00:00Z`) - 14 * 86_400_000);
+      if (Date.parse(`${ctx.until}T00:00:00Z`) > latest.getTime())
+        return { ok: false, reason: 'past_deadline' };
+    }
+    const actor: AuditActor = `user:${ctx.userId}`;
+    await applyClaimEvent(tx, claim, 'hold', {
+      actor,
+      versionId: claim.currentVersionId,
+      payload: {
+        reason: ctx.reason,
+        ...(ctx.until ? { until: ctx.until } : {}),
+        ...(ctx.note?.trim() ? { note: ctx.note.trim() } : {}),
+      },
+      now,
+    });
+    const wake = new Date(
+      Math.min(
+        ctx.until ? Date.parse(`${ctx.until}T15:00:00Z`) : Number.POSITIVE_INFINITY,
+        now.getTime() + 30 * 86_400_000,
+      ),
+    );
+    const open = await tx
+      .select()
+      .from(workItems)
+      .where(
+        and(
+          eq(workItems.claimId, claim.id),
+          inArray(workItems.type, ['claim_review', 'claim_blocked']),
+          ne(workItems.status, 'resolved'),
+        ),
+      );
+    for (const item of open) {
+      const next = state.nextWorkItemState(item.status as state.WorkItemState, 'snooze');
+      if (!next.ok) continue;
+      await tx
+        .update(workItems)
+        .set({ status: next.value, snoozedUntil: wake, updatedAt: now })
+        .where(eq(workItems.id, item.id));
+    }
+    await recordAudit(tx, {
+      actor,
+      action: 'claim.held',
+      entityType: 'claim',
+      entityId: claim.id,
+      clientId: claim.clientId,
+      metadata: { reason: ctx.reason, until: ctx.until ?? null },
+    });
+    return { ok: true };
+  });
+}
+
+/** C-12 Release hold: back to built; the caller queues a fresh scrub of the current version. */
+export async function releaseHold(
+  db: Database,
+  ctx: { tenantId: string; userId: string; claimId: string },
+): Promise<{ ok: true; versionId: string } | { ok: false; reason: 'not_found' | 'not_on_hold' }> {
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId)).for('update');
+    if (!claim?.currentVersionId) return { ok: false, reason: 'not_found' };
+    if (claim.status !== 'on_hold') return { ok: false, reason: 'not_on_hold' };
+    const actor: AuditActor = `user:${ctx.userId}`;
+    await applyClaimEvent(tx, claim, 'unhold', { actor, versionId: claim.currentVersionId });
+    await recordAudit(tx, {
+      actor,
+      action: 'claim.hold_released',
+      entityType: 'claim',
+      entityId: claim.id,
+      clientId: claim.clientId,
+    });
+    return { ok: true, versionId: claim.currentVersionId };
+  });
+}

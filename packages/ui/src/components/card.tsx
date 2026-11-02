@@ -5,7 +5,15 @@ export function Card({ flush, className, ...props }: HTMLAttributes<HTMLElement>
   return <section className={cx('card', flush && 'flush', className)} {...props} />;
 }
 
-export function CardHead({ title, children, level = 2 }: { title: ReactNode; children?: ReactNode; level?: 2 | 3 }) {
+export function CardHead({
+  title,
+  children,
+  level = 2,
+}: {
+  title: ReactNode;
+  children?: ReactNode;
+  level?: 2 | 3;
+}) {
   const H = level === 2 ? 'h2' : 'h3';
   return (
     <div className="card-head">

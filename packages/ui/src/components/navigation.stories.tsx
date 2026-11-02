@@ -40,7 +40,10 @@ export const TabsAndFilters: StoryObj = {
 export const Progress: StoryObj = {
   render: () => (
     <div className="grid-2">
-      <Stepper steps={['Practice', 'Providers and locations', 'PM system', 'Connect', 'Dry run']} current={3} />
+      <Stepper
+        steps={['Practice', 'Providers and locations', 'PM system', 'Connect', 'Dry run']}
+        current={3}
+      />
       <div className="stack">
         <Timeline
           label="Claim timeline"
@@ -53,7 +56,12 @@ export const Progress: StoryObj = {
         <KeyValue
           items={[
             ['Payer', 'UnitedHealthcare'],
-            ['Control number', <span key="c" className="code">LFM-26-004812</span>],
+            [
+              'Control number',
+              <span key="c" className="code">
+                LFM-26-004812
+              </span>,
+            ],
           ]}
         />
         <KeyValue

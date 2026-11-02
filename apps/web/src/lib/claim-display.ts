@@ -6,6 +6,7 @@ export const CLAIM_STATUS: Record<string, Status> = {
   built: 'Built',
   needs_review: 'Needs review',
   blocked: 'Blocked',
+  on_hold: 'On hold',
   ready: 'Ready',
   submitted: 'Submitted',
   accepted: 'Accepted',
@@ -93,6 +94,13 @@ export function describeEvent(e: EventLike, pmName: string): { title: string; to
       return { title: `Correction task opened: make the change in ${pmName}`, tone: 'warn' };
     case 'voided':
       return { title: `Voided${p.reason ? `: ${String(p.reason)}` : ''}`, tone: undefined };
+    case 'held':
+      return {
+        title: `On hold: ${String(p.reason ?? '')}${p.until ? ` until ${String(p.until)}` : ''}`,
+        tone: 'warn',
+      };
+    case 'hold_released':
+      return { title: 'Hold released; checked again', tone: undefined };
     case 'note':
       return { title: `Note: ${String(p.text ?? '')}`, tone: undefined };
     case 'closed':
@@ -118,6 +126,8 @@ export const LAST_EVENT: Record<string, string> = {
   voided: 'Voided',
   closed: 'Closed',
   note: 'Note added',
+  held: 'On hold',
+  hold_released: 'Hold released',
 };
 
 /** "Dana Reyes", "Automation (claim.scrub)" or "System" (docs/09 actor attribution). */

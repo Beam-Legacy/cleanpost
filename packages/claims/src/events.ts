@@ -28,6 +28,8 @@ const EVENT_TYPE: Record<state.ClaimEvent, string> = {
   block: 'scrubbed',
   approve: 'approved',
   unapprove: 'unapproved',
+  hold: 'held',
+  unhold: 'hold_released',
   release: 'released',
   reject: 'rejected',
   accept: 'ack_277ca',

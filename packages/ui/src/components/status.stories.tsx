@@ -1,5 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Avatar, CodeChip, CountBadge, Dot, DueChip, Kbd, ModeBadge, PriorityMarker, STATUS, StatusChip, Tag, type Status } from './status';
+import {
+  Avatar,
+  CodeChip,
+  CountBadge,
+  Dot,
+  DueChip,
+  Kbd,
+  ModeBadge,
+  PriorityMarker,
+  STATUS,
+  StatusChip,
+  Tag,
+  type Status,
+} from './status';
 
 const meta: Meta = { title: 'Base/Status' };
 export default meta;

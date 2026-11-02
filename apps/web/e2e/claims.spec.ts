@@ -118,3 +118,18 @@ test('C-13: voids a claim that was never sent', async () => {
   await expect(page.getByText('Claim voided. Its open items are closed.')).toBeVisible();
   await expect(page.locator('.chip', { hasText: 'Voided' }).first()).toBeVisible();
 });
+
+test('C-12: holds a claim in review, then releases the hold', async () => {
+  await page.goto('/claims?view=review');
+  await page.getByRole('table', { name: 'Claims' }).getByRole('link').nth(2).click();
+  await page.getByRole('button', { name: 'Hold', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Hold claim' });
+  await dialog.getByLabel('Waiting for records').check();
+  await expectAccessible(page, 'C-12');
+  await dialog.getByRole('button', { name: 'Hold claim' }).click();
+  await expect(page.getByText('On hold until you release it.')).toBeVisible();
+  await expect(page.locator('.chip', { hasText: 'On hold' }).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Release hold' }).click();
+  await expect(page.getByText('Hold released. The claim was checked again.')).toBeVisible();
+  await expect(page.locator('.chip', { hasText: 'On hold' })).toHaveCount(0);
+});

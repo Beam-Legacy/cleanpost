@@ -27,9 +27,18 @@ export const ClaimReview: StoryObj = {
       <Suggestion evidence={'Rule "UHC E/M with same-day procedure": 31 hits, 0 overrides in 90 days.'}>
         Visit billed with a same-day minor procedure. UnitedHealthcare requires modifier 25 on the visit line.
       </Suggestion>
-      <FindingRow severity="warn" title="Add modifier 25 to line 1 (99213)" meta="Payer rule · −15" action={<Button size="sm">Apply fix</Button>} />
+      <FindingRow
+        severity="warn"
+        title="Add modifier 25 to line 1 (99213)"
+        meta="Payer rule · −15"
+        action={<Button size="sm">Apply fix</Button>}
+      />
       <FindingRow severity="block" title="Diagnosis pointer 3 has no diagnosis" meta="Structural" />
-      <FindingRow severity="info" title="First claim for this client and payer in 60 days" meta="History · −20" />
+      <FindingRow
+        severity="info"
+        title="First claim for this client and payer in 60 days"
+        meta="History · −20"
+      />
       <BalanceBar balanced label="835 balances">
         Payment $6,482.37 = claims paid $6,470.17 + interest $12.20
       </BalanceBar>

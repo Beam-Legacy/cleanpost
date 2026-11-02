@@ -1,4 +1,13 @@
-import { CircleCheck, CircleDashed, CircleX, Clock, RotateCcw, Send, TriangleAlert, type LucideIcon } from 'lucide-react';
+import {
+  CircleCheck,
+  CircleDashed,
+  CircleX,
+  Clock,
+  RotateCcw,
+  Send,
+  TriangleAlert,
+  type LucideIcon,
+} from 'lucide-react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { cx } from '../cx';
 
@@ -22,6 +31,7 @@ export const STATUS = {
   Ready: ['ready', Send],
   'Needs review': ['warn', TriangleAlert],
   Blocked: ['warn', TriangleAlert],
+  'On hold': ['warn', TriangleAlert],
   'Partially paid': ['warn', TriangleAlert],
   'Due soon': ['warn', TriangleAlert],
   Degraded: ['warn', TriangleAlert],
@@ -81,7 +91,11 @@ export function DueChip({ children, state }: { children: ReactNode; state?: 'soo
 
 export function PriorityMarker({ priority }: { priority: 1 | 2 | 3 | 4 }) {
   return (
-    <span className={cx('prio', priority <= 3 && `p${priority}`)} role="img" aria-label={`Priority ${priority}`} />
+    <span
+      className={cx('prio', priority <= 3 && `p${priority}`)}
+      role="img"
+      aria-label={`Priority ${priority}`}
+    />
   );
 }
 

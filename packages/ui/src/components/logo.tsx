@@ -11,7 +11,13 @@ export function LogoMark({ size = 22 }: { size?: number }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M9 22.6h14M9 26h14" fill="none" stroke="var(--on-cobalt)" strokeWidth="1.8" strokeLinecap="round" />
+      <path
+        d="M9 22.6h14M9 26h14"
+        fill="none"
+        stroke="var(--on-cobalt)"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

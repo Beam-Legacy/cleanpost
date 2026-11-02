@@ -28,7 +28,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const next = useRef(1);
   const dismiss = useCallback((id: number) => setItems((all) => all.filter((t) => t.id !== id)), []);
-  const show = useCallback((t: ToastOptions) => setItems((all) => [...all.slice(-2), { ...t, id: next.current++ }]), []);
+  const show = useCallback(
+    (t: ToastOptions) => setItems((all) => [...all.slice(-2), { ...t, id: next.current++ }]),
+    [],
+  );
   return (
     <ToastContext.Provider value={show}>
       {children}

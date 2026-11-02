@@ -10,7 +10,15 @@ export interface TabDef {
   content: ReactNode;
 }
 
-export function Tabs({ tabs, defaultValue, label }: { tabs: TabDef[]; defaultValue?: string; label: string }) {
+export function Tabs({
+  tabs,
+  defaultValue,
+  label,
+}: {
+  tabs: TabDef[];
+  defaultValue?: string;
+  label: string;
+}) {
   return (
     <T.Root defaultValue={defaultValue ?? tabs[0]?.value}>
       <T.List className="tabs" aria-label={label}>
@@ -69,7 +77,12 @@ export function FilterChip({
   onClick?: () => void;
 }) {
   return (
-    <button type="button" className={cx('filter-chip', on && 'on')} aria-pressed={on ?? false} onClick={onClick}>
+    <button
+      type="button"
+      className={cx('filter-chip', on && 'on')}
+      aria-pressed={on ?? false}
+      onClick={onClick}
+    >
       {label}
       {count !== undefined && <span className="n">{count}</span>}
     </button>

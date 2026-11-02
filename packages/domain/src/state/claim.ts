@@ -5,6 +5,7 @@
  *                        |        |  `-edit-> built          (new scrub)
  *                        |        `-block-> blocked -fix-> built
  *                        `-scrub(auto)-> ready
+ *   built|needs_review|blocked|ready -hold-> on_hold -unhold-> built (re-scrubbed)
  *   ready -release-> submitted
  *   submitted -999/277CA reject-> rejected -fix-> built        (new version, frequency 1)
  *   submitted -277CA accept-> accepted (-277 status-> accepted)
@@ -24,6 +25,7 @@ export type ClaimState =
   | 'built'
   | 'needs_review'
   | 'blocked'
+  | 'on_hold'
   | 'ready'
   | 'submitted'
   | 'rejected'
@@ -44,6 +46,9 @@ export type ClaimEvent =
   | 'approve'
   /** Undo of a person's approval within 10 seconds, before the release went out (docs/09). */
   | 'unapprove'
+  /** C-12: stop a claim from releasing until something it needs arrives; unhold re-scrubs it. */
+  | 'hold'
+  | 'unhold'
   | 'edit'
   | 'block'
   | 'fix'
@@ -61,7 +66,7 @@ export type ClaimEvent =
   | 'reverse'
   | 'readjudicate';
 
-const editable = { edit: 'built', void: 'voided' } as const;
+const editable = { edit: 'built', void: 'voided', hold: 'on_hold' } as const;
 
 const TABLE: TransitionTable<ClaimState, ClaimEvent> = {
   draft: { build: 'built', void: 'voided' },
@@ -69,6 +74,8 @@ const TABLE: TransitionTable<ClaimState, ClaimEvent> = {
   needs_review: { approve: 'ready', block: 'blocked', ...editable },
   blocked: { fix: 'built', ...editable },
   ready: { release: 'submitted', unapprove: 'needs_review', ...editable },
+  // A held claim keeps its hold through new versions (a PM change, a person's edit).
+  on_hold: { unhold: 'built', edit: 'on_hold', void: 'voided' },
   submitted: { reject: 'rejected', accept: 'accepted', status: 'submitted', void: 'voided' },
   rejected: { fix: 'built', void: 'voided' },
   accepted: {
@@ -94,6 +101,7 @@ export const isPreRelease = (s: ClaimState) =>
   s === 'built' ||
   s === 'needs_review' ||
   s === 'blocked' ||
+  s === 'on_hold' ||
   s === 'ready' ||
   s === 'corrected';
 

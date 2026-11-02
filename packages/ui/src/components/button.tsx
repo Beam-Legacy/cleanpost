@@ -13,7 +13,15 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 /** Button. Labels name the outcome ("Release claim"), docs/10-design-system.md. */
-export function Button({ variant = 'secondary', size = 'md', block, asChild, className, type, ...props }: ButtonProps) {
+export function Button({
+  variant = 'secondary',
+  size = 'md',
+  block,
+  asChild,
+  className,
+  type,
+  ...props
+}: ButtonProps) {
   const Comp = asChild ? Slot.Root : 'button';
   return (
     <Comp
@@ -24,7 +32,10 @@ export function Button({ variant = 'secondary', size = 'md', block, asChild, cla
   );
 }
 
-export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'aria-label' | 'children'> {
+export interface IconButtonProps extends Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'aria-label' | 'children'
+> {
   /** Required: becomes aria-label and the tooltip text. */
   label: string;
   icon: ReactNode;
@@ -35,7 +46,12 @@ export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonEle
 export function IconButton({ label, icon, ghost, className, type, ...props }: IconButtonProps) {
   return (
     <Tooltip content={label}>
-      <button type={type ?? 'button'} aria-label={label} className={cx('icon-btn', ghost && 'ghost', className)} {...props}>
+      <button
+        type={type ?? 'button'}
+        aria-label={label}
+        className={cx('icon-btn', ghost && 'ghost', className)}
+        {...props}
+      >
         {icon}
       </button>
     </Tooltip>

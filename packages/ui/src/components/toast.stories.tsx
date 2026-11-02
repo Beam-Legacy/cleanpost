@@ -14,7 +14,9 @@ export const ToastTrigger: StoryObj = {
       <div className="row">
         <Logo />
         <Button onClick={() => toast({ message: 'Claim released.', onUndo: () => {} })}>Show toast</Button>
-        <Button onClick={() => toast({ message: "Couldn't save. Try again.", tone: 'bad' })}>Show error</Button>
+        <Button onClick={() => toast({ message: "Couldn't save. Try again.", tone: 'bad' })}>
+          Show error
+        </Button>
       </div>
     );
   },

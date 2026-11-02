@@ -10,7 +10,9 @@ import {
   addClaimNote,
   approveClaim,
   editClaim,
+  holdClaim,
   previewScrub,
+  releaseHold,
   scrubVersion,
   voidClaim,
   type PreviewOutcome,
@@ -252,4 +254,51 @@ export async function addNoteAction(claimId: string, text: string): Promise<Work
   });
   revalidatePath(`/claims/${id}`);
   return res.ok ? { ok: true, message: 'Note added.' } : { ok: false, message: 'Write a note first.' };
+}
+
+/** C-12 Hold claim. */
+export async function holdAction(
+  claimId: string,
+  reason: string,
+  until: string | null,
+  note: string | null,
+): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(claimId);
+  await claimInScope(ctx, id, 'claim.edit');
+  const res = await holdClaim(getDb(), {
+    tenantId: ctx.tenantId,
+    userId: ctx.user.id,
+    claimId: id,
+    reason: z.string().max(100).parse(reason),
+    until: until === null ? null : z.iso.date().parse(until),
+    note: note === null ? null : z.string().max(1000).parse(note),
+  });
+  revalidatePath(`/claims/${id}`);
+  revalidatePath('/work');
+  if (res.ok)
+    return { ok: true, message: until ? `On hold until ${until}.` : 'On hold until you release it.' };
+  const msg: Record<string, string> = {
+    past_deadline: 'Pick a date at least 14 days before the filing deadline.',
+    note_required: 'Add a note for "Other".',
+    not_holdable: 'This claim cannot be held now.',
+  };
+  return { ok: false, message: msg[res.reason] ?? 'Not held.' };
+}
+
+/** C-12 Release hold: back to built, scrubbed again with what is on file now. */
+export async function releaseHoldAction(claimId: string): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(claimId);
+  await claimInScope(ctx, id, 'claim.edit');
+  const res = await releaseHold(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id, claimId: id });
+  if (!res.ok) return { ok: false, message: 'This claim is not on hold.' };
+  await scrubVersion(
+    { db: getDb(), log },
+    { tenantId: ctx.tenantId, claimVersionId: res.versionId },
+    `user:${ctx.user.id}`,
+  );
+  revalidatePath(`/claims/${id}`);
+  revalidatePath('/work');
+  return { ok: true, message: 'Hold released. The claim was checked again.' };
 }

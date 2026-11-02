@@ -20,7 +20,7 @@ import { formatDate, formatMoney, formatWhen } from '@/lib/format';
 import { getClaim, getClaimCoverage, type ClaimDetail } from '@/lib/queries/claims';
 import { requireActiveContext } from '@/lib/session';
 import { ClaimActions } from './claim-actions';
-import { AddNote, VoidClaimButton } from './claim-more';
+import { AddNote, HoldButton, VoidClaimButton } from './claim-more';
 import { RevealField } from './reveal-field';
 import { ClaimEditor } from './claim-editor';
 
@@ -114,6 +114,10 @@ export default async function ClaimPage({
                 canEdit={canEdit}
                 inReview={c.status === 'needs_review'}
               />
+              {(canEdit || c.status === 'on_hold') &&
+                policy.authorize(ctx.actor, 'claim.edit', { clientId: c.clientId }).allowed && (
+                  <HoldButton claimId={c.id} onHold={c.status === 'on_hold'} />
+                )}
               {canEdit && <VoidClaimButton claimId={c.id} pmName={d.pmName} />}
             </div>
           )}

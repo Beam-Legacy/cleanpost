@@ -167,17 +167,35 @@ export interface MenuItem {
 }
 
 /** Dropdown menu with keyboard navigation (Radix DropdownMenu). */
-export function Menu({ trigger, items, label }: { trigger: ReactElement; items: (MenuItem | 'separator')[]; label: string }) {
+export function Menu({
+  trigger,
+  items,
+  label,
+}: {
+  trigger: ReactElement;
+  items: (MenuItem | 'separator')[];
+  label: string;
+}) {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>{trigger}</DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content className="popover menu cp-floating" sideOffset={6} align="end" aria-label={label}>
+        <DropdownMenu.Content
+          className="popover menu cp-floating"
+          sideOffset={6}
+          align="end"
+          aria-label={label}
+        >
           {items.map((item, i) =>
             item === 'separator' ? (
               <DropdownMenu.Separator key={i} className="menu-sep" />
             ) : (
-              <DropdownMenu.Item key={i} className="menu-item" disabled={item.disabled} onSelect={item.onSelect}>
+              <DropdownMenu.Item
+                key={i}
+                className="menu-item"
+                disabled={item.disabled}
+                onSelect={item.onSelect}
+              >
                 {item.icon}
                 {item.label}
                 {item.meta && <span className="meta">{item.meta}</span>}

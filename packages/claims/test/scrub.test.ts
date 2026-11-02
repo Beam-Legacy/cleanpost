@@ -9,7 +9,14 @@ import { pmSchema } from '@cleanpost/pm-mock';
 import { seedReference } from '@cleanpost/seed/reference';
 import { scanForPhi } from '@cleanpost/testing';
 import type { ClaimPayload } from '@cleanpost/domain';
-import { buildClaimsForClient, previewScrub, scrubVersion, versionsAwaitingScrub } from '../src';
+import {
+  buildClaimsForClient,
+  holdClaim,
+  previewScrub,
+  releaseHold,
+  scrubVersion,
+  versionsAwaitingScrub,
+} from '../src';
 import { admin, app, client, closeAll, log, NORTHWIND, pm, syncedWorld, userIdOf } from './helpers';
 
 // Each test file owns its practices (Lakeside: build, Willamette: release); files run in any order.
@@ -251,5 +258,37 @@ describe('claim.scrub on synced data', () => {
     expect((await admin.db.select({ id: scrubResults.id }).from(scrubResults)).length).toBe(before);
     const [after] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
     expect(after!.status).toBe('needs_review');
+  });
+
+  it('holds a claim in review, snoozes its item, and re-scrubs it when the hold is released (C-12)', async () => {
+    const user = await userIdOf();
+    const [c] = await admin.db
+      .select()
+      .from(claims)
+      .where(and(inArray(claims.clientId, clientIds()), eq(claims.status, 'needs_review')))
+      .limit(1);
+    const ctx = { tenantId: NORTHWIND, userId: user, claimId: c!.id };
+    expect(await holdClaim(app.db, { ...ctx, reason: 'Waiting for records', until: '2099-01-01' })).toEqual({
+      ok: false,
+      reason: 'past_deadline',
+    });
+    expect(await holdClaim(app.db, { ...ctx, reason: 'Waiting for records' })).toEqual({ ok: true });
+    const [held] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
+    expect(held!.status).toBe('on_hold');
+    const [item] = await admin.db
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.claimId, c!.id), eq(workItems.type, 'claim_review')));
+    expect(item!.status).toBe('snoozed');
+    const released = await releaseHold(app.db, ctx);
+    expect(released.ok).toBe(true);
+    if (!released.ok) return;
+    expect(
+      await scrubVersion({ db: app.db, log }, { tenantId: NORTHWIND, claimVersionId: released.versionId }),
+    ).toMatchObject({
+      status: 'scrubbed',
+    });
+    const [after] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
+    expect(['needs_review', 'ready', 'blocked']).toContain(after!.status);
   });
 });

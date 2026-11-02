@@ -1,7 +1,13 @@
 'use client';
 import { CircleX } from 'lucide-react';
 import { Switch as S } from 'radix-ui';
-import { useId, type ComponentProps, type InputHTMLAttributes, type ReactElement, type ReactNode } from 'react';
+import {
+  useId,
+  type ComponentProps,
+  type InputHTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import { cx } from '../cx';
 
 export interface FieldControlProps {
@@ -45,7 +51,10 @@ export function Field({ label, help, error, children }: FieldProps) {
 
 export function Input({ className, mono, ...props }: ComponentProps<'input'> & { mono?: boolean }) {
   return (
-    <input className={cx('input', mono && 'mono', props['aria-invalid'] && 'invalid', className)} {...props} />
+    <input
+      className={cx('input', mono && 'mono', props['aria-invalid'] && 'invalid', className)}
+      {...props}
+    />
   );
 }
 
@@ -77,7 +86,13 @@ export function Switch({ label, checked, onCheckedChange, disabled }: SwitchProp
   const id = useId();
   return (
     <span className="row">
-      <S.Root id={id} className="switch" checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
+      <S.Root
+        id={id}
+        className="switch"
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        disabled={disabled}
+      />
       <label htmlFor={id} className="dense">
         {label}
       </label>
