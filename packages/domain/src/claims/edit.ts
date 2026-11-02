@@ -8,6 +8,7 @@
  *
  * Pure functions: codes and field paths only, never patient identifiers.
  */
+import { z } from 'zod';
 import type { SuggestedFix } from '../rules/dsl';
 import { lineMatches } from '../rules/dsl';
 import type { Result } from '../state/machine';
@@ -93,7 +94,18 @@ export function applyFix(
   return { ok: true, value: { payload: next, changes } };
 }
 
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+/** Deep equality that ignores object key order (Postgres jsonb and Zod both reorder keys). */
+function canonical(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonical);
+  if (v && typeof v === 'object')
+    return Object.fromEntries(
+      Object.keys(v as object)
+        .sort()
+        .map((k) => [k, canonical((v as Record<string, unknown>)[k])]),
+    );
+  return v;
+}
+const same = (a: unknown, b: unknown) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 
 function modifierLabel(n: number, before: string[], after: string[]): string {
   const added = after.filter((m) => !before.includes(m));
@@ -253,3 +265,39 @@ export function checkEdit(before: ClaimPayload, after: ClaimPayload): Result<Cla
     },
   };
 }
+
+/** The claim payload as it comes back from the C-08 editor: shape only; `checkEdit` judges content. */
+export const claimPayloadSchema = z.object({
+  frequencyCode: z.enum(['1', '7', '8']),
+  patientId: z.string(),
+  coverageId: z.string().nullable(),
+  payerId: z.string().nullable(),
+  payerName: z.string().nullable(),
+  billing: z.object({ npi: z.string().nullable(), taxonomy: z.string().nullable() }),
+  rendering: z
+    .object({ providerId: z.string(), npi: z.string(), taxonomy: z.string().nullable() })
+    .nullable(),
+  referringNpi: z.string().nullable(),
+  facility: z
+    .object({ locationId: z.string(), placeOfService: z.string().max(2), npi: z.string().nullable() })
+    .nullable(),
+  dateOfService: z.string(),
+  priorAuthNumber: z.string().max(50).nullable(),
+  diagnoses: z.array(z.object({ sequence: z.number().int(), icd10: z.string().max(8) })).max(12),
+  lines: z
+    .array(
+      z.object({
+        lineNumber: z.number().int(),
+        chargeLineId: z.string(),
+        code: z.string().max(5),
+        modifiers: z.array(z.string().max(2)).max(4),
+        units: z.number().int(),
+        chargeCents: z.number().int(),
+        dxPointers: z.array(z.number().int()).max(4),
+        ndc: z.string().nullable(),
+        dateOfService: z.string(),
+      }),
+    )
+    .max(50),
+  totalChargeCents: z.number().int(),
+}) satisfies z.ZodType<ClaimPayload>;

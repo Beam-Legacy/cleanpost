@@ -8,8 +8,9 @@ import { chargeLines, claims, claimVersions, externalRefs, scrubResults, workIte
 import { pmSchema } from '@cleanpost/pm-mock';
 import { seedReference } from '@cleanpost/seed/reference';
 import { scanForPhi } from '@cleanpost/testing';
-import { buildClaimsForClient, scrubVersion, versionsAwaitingScrub } from '../src';
-import { admin, app, client, closeAll, log, NORTHWIND, pm, syncedWorld } from './helpers';
+import type { ClaimPayload } from '@cleanpost/domain';
+import { buildClaimsForClient, previewScrub, scrubVersion, versionsAwaitingScrub } from '../src';
+import { admin, app, client, closeAll, log, NORTHWIND, pm, syncedWorld, userIdOf } from './helpers';
 
 // Each test file owns its practices (Lakeside: build, Willamette: release); files run in any order.
 const NAMES = ['Cascade'] as const;
@@ -213,5 +214,42 @@ describe('claim.scrub on synced data', () => {
       expect.arrayContaining(['first_claim_for_client_payer', 'eligibility.not_checked']),
     );
     expect(r!.rulesVersion).toMatch(/^rules-[0-9a-f]{12}$/);
+  });
+
+  it('previews findings for an unsaved edit without writing anything (C-08)', async () => {
+    const [c] = await admin.db
+      .select()
+      .from(claims)
+      .where(and(inArray(claims.clientId, clientIds()), eq(claims.status, 'needs_review')))
+      .limit(1);
+    const [v] = await admin.db.select().from(claimVersions).where(eq(claimVersions.id, c!.currentVersionId!));
+    const payload = v!.payload as ClaimPayload;
+    const before = (await admin.db.select({ id: scrubResults.id }).from(scrubResults)).length;
+    const ctx = { tenantId: NORTHWIND, userId: await userIdOf(), claimId: c!.id, versionId: v!.id };
+
+    const same = await previewScrub(app.db, ctx, payload);
+    expect(same).toMatchObject({ status: 'scored', threshold: 90 });
+    // A modifier that does not exist blocks in the preview, as it would in the scrub.
+    const bad = structuredClone(payload);
+    bad.lines[0]!.modifiers = [...bad.lines[0]!.modifiers.slice(0, 3), 'ZZ'];
+    const scored = await previewScrub(app.db, ctx, bad);
+    expect(scored).toMatchObject({ status: 'scored', decision: 'blocked' });
+    expect(scored.status === 'scored' && scored.findings.map((f) => f.ruleId)).toContain(
+      'codes.modifier_invalid',
+    );
+    // Fields from the PM cannot be changed in the editor.
+    const payer = structuredClone(payload);
+    payer.payerId = null;
+    expect(await previewScrub(app.db, ctx, payer)).toEqual({
+      status: 'refused',
+      reason: 'locked_field_changed',
+    });
+    expect(await previewScrub(app.db, { ...ctx, versionId: c!.id }, payload)).toEqual({
+      status: 'refused',
+      reason: 'stale',
+    });
+    expect((await admin.db.select({ id: scrubResults.id }).from(scrubResults)).length).toBe(before);
+    const [after] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
+    expect(after!.status).toBe('needs_review');
   });
 });

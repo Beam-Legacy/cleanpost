@@ -1,0 +1,163 @@
+'use server';
+/**
+ * C-02 and C-08 actions: preview an edit's findings, save an edit as a new version, and approve and
+ * release (with the same 10-second Undo as W-10). Role and client scope are checked on every call.
+ */
+import { revalidatePath } from 'next/cache';
+import { and, eq, inArray, ne } from 'drizzle-orm';
+import { z } from 'zod';
+import { approveClaim, editClaim, previewScrub, scrubVersion, type PreviewOutcome } from '@cleanpost/claims';
+import { claims, withTenant, workItems } from '@cleanpost/db';
+import { claimPayloadSchema, policy, type ClaimPayload } from '@cleanpost/domain';
+import { sendClaimCorrect, sendClaimRelease } from '@cleanpost/jobs';
+import { createLogger } from '@cleanpost/log';
+import { getBoss } from '@/lib/jobs';
+import { getDb } from '@/lib/server';
+import { requireActiveContext, type ActiveContext } from '@/lib/session';
+import type { WorkActionResult } from '../../work/actions';
+
+const log = createLogger({ name: 'web-claims' });
+const Id = z.uuid();
+
+async function claimInScope(
+  ctx: ActiveContext,
+  claimId: string,
+  action: Parameters<typeof policy.assertAllowed>[1],
+) {
+  const [claim] = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    tx.select().from(claims).where(eq(claims.id, claimId)),
+  );
+  policy.assertAllowed(ctx.actor, action, { clientId: claim?.clientId ?? null });
+  return claim ?? null;
+}
+
+const EDIT_REFUSED: Record<string, string> = {
+  stale: 'This claim changed since you opened it. Reload to see the latest version.',
+  not_editable: 'This claim can no longer be changed here.',
+  locked_field_changed: 'Patient, payer, providers, dates and charges come from the PM; change them there.',
+  line_added: 'New lines are added in the PM.',
+  no_lines: 'A claim needs at least one line.',
+  invalid_value:
+    'A value is not valid: codes are 5 characters, modifiers 2, units 1 to 999, pointers 1 to 4.',
+  no_change: 'Nothing changed.',
+  not_found: 'Claim not found.',
+};
+
+export async function previewEdit(
+  claimId: string,
+  versionId: string,
+  payload: ClaimPayload,
+): Promise<PreviewOutcome> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(claimId);
+  await claimInScope(ctx, id, 'claim.edit');
+  return previewScrub(
+    getDb(),
+    { tenantId: ctx.tenantId, userId: ctx.user.id, claimId: id, versionId: Id.parse(versionId) },
+    claimPayloadSchema.parse(payload),
+  );
+}
+
+/** Opens the claim's review item, if any, so corrections rows link to it (docs/08). */
+async function reviewItemOf(ctx: ActiveContext, claimId: string) {
+  const [item] = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    tx
+      .select({ id: workItems.id })
+      .from(workItems)
+      .where(
+        and(
+          eq(workItems.claimId, claimId),
+          inArray(workItems.type, ['claim_review', 'claim_blocked']),
+          ne(workItems.status, 'resolved'),
+        ),
+      )
+      .limit(1),
+  );
+  return item?.id;
+}
+
+async function release(ctx: ActiveContext, claimId: string): Promise<WorkActionResult> {
+  const claim = await claimInScope(ctx, claimId, 'claim.release');
+  if (!claim) return { ok: false, message: 'Claim not found.' };
+  if (claim.status === 'needs_review') {
+    const approved = await approveClaim(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id, claimId });
+    if (!approved.ok) return { ok: false, message: 'This claim is no longer in review.' };
+  } else if (claim.status !== 'ready') {
+    return { ok: false, message: 'This claim cannot be released now.' };
+  }
+  const jobId = await sendClaimRelease(
+    await getBoss(),
+    { tenantId: ctx.tenantId, claimId, userId: ctx.user.id },
+    { delaySeconds: 10 },
+  );
+  return jobId
+    ? {
+        ok: true,
+        done: true,
+        message: 'Approved. Releasing in 10 seconds.',
+        undo: { kind: 'approve', claimId, jobId },
+      }
+    : { ok: true, done: true, message: 'Approved. A release for this claim is already queued.' };
+}
+
+/** C-11 from the claim page: approve (if in review) and release, with Undo. */
+export async function approveAndReleaseClaim(claimId: string): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(claimId);
+  const res = await release(ctx, id);
+  revalidatePath(`/claims/${id}`);
+  revalidatePath('/work');
+  return res;
+}
+
+/**
+ * C-08 Save: a new version with one corrections row per change, written back to the PM by the
+ * worker (Mode A), then scrubbed in place. "Save and release" also approves and releases.
+ */
+export async function saveEdit(
+  claimId: string,
+  versionId: string,
+  payload: ClaimPayload,
+  andRelease: boolean,
+): Promise<WorkActionResult & { versionId?: string }> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(claimId);
+  await claimInScope(ctx, id, 'claim.edit');
+  if (andRelease) policy.assertAllowed(ctx.actor, 'claim.release');
+  const itemId = await reviewItemOf(ctx, id);
+  const res = await editClaim(
+    getDb(),
+    {
+      tenantId: ctx.tenantId,
+      userId: ctx.user.id,
+      claimId: id,
+      expectedVersionId: Id.parse(versionId),
+      ...(itemId ? { workItemId: itemId } : {}),
+    },
+    { kind: 'payload', payload: claimPayloadSchema.parse(payload) },
+  );
+  if (res.status === 'refused') return { ok: false, message: EDIT_REFUSED[res.reason] ?? 'Not saved.' };
+  if (res.writeBack)
+    await sendClaimCorrect(await getBoss(), {
+      tenantId: ctx.tenantId,
+      claimId: id,
+      versionId: res.versionId,
+    });
+  const scrub = await scrubVersion(
+    { db: getDb(), log },
+    { tenantId: ctx.tenantId, claimVersionId: res.versionId },
+    `user:${ctx.user.id}`,
+  );
+  revalidatePath(`/claims/${id}`);
+  revalidatePath('/work');
+  const saved = `Saved as version ${res.version} with ${res.changes.length === 1 ? '1 change' : `${res.changes.length} changes`}.`;
+  if (!andRelease) return { ok: true, message: saved, versionId: res.versionId };
+  if (scrub.status === 'scrubbed' && scrub.decision === 'blocked')
+    return {
+      ok: false,
+      message: `${saved} A blocking problem remains, so it was not released.`,
+      versionId: res.versionId,
+    };
+  const released = await release(ctx, id);
+  return { ...released, message: `${saved} ${released.message}`, versionId: res.versionId };
+}

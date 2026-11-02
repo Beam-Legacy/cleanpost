@@ -64,6 +64,11 @@ export const SEED_USERS: SeedUser[] = [
     memberships: [{ tenantId: NORTHWIND, role: 'biller' }],
   },
   {
+    name: 'Lena Ortiz',
+    email: 'lena@northwind.test',
+    memberships: [{ tenantId: NORTHWIND, role: 'biller' }],
+  },
+  {
     name: 'Hana Okoye',
     email: 'hana@harbor-rcm.test',
     memberships: [{ tenantId: HARBOR_RCM, role: 'biller' }],

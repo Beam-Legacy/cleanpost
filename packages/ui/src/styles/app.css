@@ -33,3 +33,7 @@ button.switch { border: 0; padding: 0; cursor: pointer; }
   .cp-scrim, .cp-center > .modal, .drawer.cp-fixed, .popover.cp-floating, .toast { animation: cp-fade 150ms ease-out; }
 }
 @keyframes cp-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Segmented control made of links (C-04 timeline filter): same look as its buttons. */
+.segmented a { font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 4px; color: var(--ink-muted); text-decoration: none; }
+.segmented a.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(11, 21, 38, 0.08); }

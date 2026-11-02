@@ -18,6 +18,7 @@ import {
   Suggestion,
   type Status,
 } from '@cleanpost/ui';
+import { CLAIM_STATUS } from '@/lib/claim-display';
 import { formatDate, formatMoney } from '@/lib/format';
 import type { WorkDetail } from '@/lib/queries/work';
 import type { Permissions } from './work-queue';
@@ -37,24 +38,6 @@ const SCORE_NOTES: Record<string, { title: string; step: string }> = {
   first_claim_for_client_payer: { title: 'First claim for this client and payer', step: 'History' },
   payer_first_pass_below_90: { title: 'This payer accepted under 90% first time lately', step: 'History' },
   ai_concern: { title: 'The AI review raised a concern (see warnings)', step: 'AI review' },
-};
-
-const CLAIM_CHIP: Record<string, Status> = {
-  draft: 'Draft',
-  built: 'Built',
-  needs_review: 'Needs review',
-  blocked: 'Blocked',
-  ready: 'Ready',
-  submitted: 'Submitted',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-  paid: 'Paid',
-  partially_paid: 'Partially paid',
-  denied: 'Denied',
-  corrected: 'Corrected',
-  closed: 'Closed',
-  voided: 'Voided',
-  reversed: 'Reversed',
 };
 
 /** Warnings with a fix that needs no choice: "Apply fix and release" applies them first. */
@@ -138,7 +121,7 @@ export function WorkPanel({
   const chip: Status | null = c
     ? d.item.type === 'claim_blocked'
       ? 'Blocked'
-      : (CLAIM_CHIP[c.status] ?? null)
+      : (CLAIM_STATUS[c.status] ?? null)
     : d.item.type === 'sync_failure'
       ? 'Failed'
       : null;

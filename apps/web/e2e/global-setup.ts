@@ -6,7 +6,13 @@ import pg from 'pg';
  */
 export const E2E_EMAIL = 'julia@northwind.test';
 /** Every user the e2e specs sign in as; each is reset to first sign-in. */
-export const E2E_USERS = [E2E_EMAIL, 'priya@northwind.test', 'dana@northwind.test', 'marcus@northwind.test'];
+export const E2E_USERS = [
+  E2E_EMAIL,
+  'priya@northwind.test',
+  'dana@northwind.test',
+  'marcus@northwind.test',
+  'lena@northwind.test',
+];
 
 export default async function globalSetup() {
   const url = process.env.DATABASE_ADMIN_URL ?? 'postgres://cleanpost:cleanpost@localhost:5432/cleanpost';

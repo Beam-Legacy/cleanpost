@@ -11,7 +11,14 @@ export {
   type ReleaseOutcome,
 } from './release';
 export type { ClaimReview, ClaimReviewer } from './review';
-export { scrubVersion, versionsAwaitingScrub, type ScrubDeps, type ScrubOutcome } from './scrub';
+export {
+  previewScrub,
+  scrubVersion,
+  versionsAwaitingScrub,
+  type PreviewOutcome,
+  type ScrubDeps,
+  type ScrubOutcome,
+} from './scrub';
 export { applyClaimStatuses, type StatusContext, type StatusCounts } from './status';
 export {
   editClaim,

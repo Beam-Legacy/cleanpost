@@ -1,0 +1,470 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
+import { z } from 'zod';
+import { policy, work } from '@cleanpost/domain';
+import {
+  Banner,
+  ConfidenceMeter,
+  DueChip,
+  FindingRow,
+  ModeBadge,
+  StatusChip,
+  Suggestion,
+  Timeline,
+} from '@cleanpost/ui';
+import { actorLabel, CLAIM_STATUS, describeEvent, FREQUENCY_LABEL } from '@/lib/claim-display';
+import { formatDate, formatMoney, formatWhen } from '@/lib/format';
+import { getClaim, type ClaimDetail } from '@/lib/queries/claims';
+import { requireActiveContext } from '@/lib/session';
+import { ClaimActions } from './claim-actions';
+import { ClaimEditor } from './claim-editor';
+
+export const metadata: Metadata = { title: 'Claim' };
+
+const TABS = [
+  { key: 'summary', label: 'Summary' },
+  { key: 'lines', label: 'Lines' },
+  { key: 'timeline', label: 'Timeline' },
+  { key: 'versions', label: 'Versions' },
+] as const;
+type Tab = (typeof TABS)[number]['key'];
+
+const EDITABLE = ['built', 'needs_review', 'blocked', 'ready'];
+
+/** C-02 to C-05 Claim detail, and C-08 the editor (?edit=1). */
+export default async function ClaimPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const ctx = await requireActiveContext();
+  const { id } = await params;
+  if (!z.uuid().safeParse(id).success) notFound();
+  const sp = await searchParams;
+  const d = await getClaim(ctx, id);
+  if (!d) notFound();
+  const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : 'summary';
+  const c = d.claim;
+  const canEdit =
+    policy.authorize(ctx.actor, 'claim.edit', { clientId: c.clientId }).allowed &&
+    EDITABLE.includes(c.status);
+  const canRelease =
+    policy.authorize(ctx.actor, 'claim.release', { clientId: c.clientId }).allowed &&
+    (c.status === 'needs_review' || c.status === 'ready') &&
+    !d.scrub?.findings.some((f) => f.severity === 'block') &&
+    !d.correctionPending;
+  const now = new Date();
+  const deadlineDays = c.filingDeadline
+    ? Math.ceil((Date.parse(`${c.filingDeadline}T00:00:00Z`) - now.getTime()) / 86_400_000)
+    : null;
+  const editing = sp.edit === '1' && canEdit;
+
+  return (
+    <>
+      <Link className="breadcrumb" href="/claims">
+        <ArrowLeft aria-hidden />
+        Claims
+      </Link>
+      <div className="card card-body stack">
+        <div className="row-between">
+          <div className="stack-sm">
+            <div className="row">
+              {CLAIM_STATUS[c.status] && <StatusChip status={CLAIM_STATUS[c.status]!} />}
+              <ModeBadge mode={c.mode as 'A' | 'B' | 'C'} long />
+              <span className="code muted">
+                {[c.patientControlNumber, `v${d.versionNumber}`, `freq ${d.payload.frequencyCode}`]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </div>
+            <h1 className="title-l">
+              {d.patient}
+              {d.ageYears !== null ? ` · ${d.ageYears} y` : ''} · DOS {formatDate(d.payload.dateOfService)}
+            </h1>
+            <div className="muted dense">
+              {d.clientName} · {d.payerName ?? 'No payer'}
+              {d.renderingNpi && (
+                <>
+                  {' · rendering NPI '}
+                  <span className="code">{d.renderingNpi}</span>
+                </>
+              )}
+              {d.payload.facility?.placeOfService && (
+                <>
+                  {' · POS '}
+                  <span className="code">{d.payload.facility.placeOfService}</span>
+                </>
+              )}
+            </div>
+          </div>
+          {!editing && (
+            <ClaimActions
+              claimId={c.id}
+              canRelease={canRelease}
+              canEdit={canEdit}
+              inReview={c.status === 'needs_review'}
+            />
+          )}
+        </div>
+        <dl className="dl" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
+          <div>
+            <dt>Charge</dt>
+            <dd className="fig">{formatMoney(c.totalChargeCents)}</dd>
+          </div>
+          <div>
+            <dt>Paid</dt>
+            <dd className="fig">—</dd>
+          </div>
+          <div>
+            <dt>Patient responsibility</dt>
+            <dd className="fig">—</dd>
+          </div>
+          <div>
+            <dt>Open balance</dt>
+            <dd className="fig">{formatMoney(c.balanceCents)}</dd>
+          </div>
+          <div>
+            <dt>Filing deadline</dt>
+            <dd
+              className="fig"
+              style={deadlineDays !== null && deadlineDays <= 14 ? { color: 'var(--warning)' } : undefined}
+            >
+              {formatDate(c.filingDeadline)}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      {deadlineDays !== null &&
+        deadlineDays <= 14 &&
+        !['submitted', 'accepted', 'paid', 'closed', 'voided'].includes(c.status) && (
+          <Banner tone="warn">
+            <b>Filing deadline in {Math.max(0, deadlineDays)} days.</b> Release or correct this claim before{' '}
+            {formatDate(c.filingDeadline)}.
+          </Banner>
+        )}
+      {d.correctionPending && (
+        <Banner tone="info">
+          <b>Waiting for the change in {d.pmName}.</b> Cleanpost releases the claim after the next sync shows
+          it.
+        </Banner>
+      )}
+
+      {editing ? (
+        <ClaimEditor
+          claimId={c.id}
+          versionId={d.versionId}
+          payload={d.payload}
+          threshold={d.threshold}
+          initial={
+            d.scrub
+              ? { confidence: d.scrub.confidence, findings: d.scrub.findings, deductions: d.scrub.deductions }
+              : null
+          }
+          mode={c.mode as 'A' | 'B' | 'C'}
+          pmName={d.pmName}
+          canRelease={policy.authorize(ctx.actor, 'claim.release', { clientId: c.clientId }).allowed}
+        />
+      ) : (
+        <>
+          <nav className="tabs" aria-label="Claim sections">
+            {TABS.map((t) => (
+              <Link
+                key={t.key}
+                href={t.key === 'summary' ? `/claims/${c.id}` : `/claims/${c.id}?tab=${t.key}`}
+                className={t.key === tab ? 'active' : undefined}
+                aria-current={t.key === tab ? 'page' : undefined}
+              >
+                {t.label}
+                {t.key === 'versions' ? ` (${d.versions.length})` : ''}
+              </Link>
+            ))}
+          </nav>
+          {tab === 'summary' && <Summary d={d} now={now} />}
+          {tab === 'lines' && <Lines d={d} />}
+          {tab === 'timeline' && <ClaimTimeline d={d} filter={sp.filter ?? 'all'} />}
+          {tab === 'versions' && <Versions d={d} />}
+        </>
+      )}
+    </>
+  );
+}
+
+function Summary({ d, now }: { d: ClaimDetail; now: Date }) {
+  const item = d.openItem;
+  const recent = d.events.slice(0, 4);
+  return (
+    <div className="split">
+      <div className="split-main stack">
+        {item && (
+          <div className="card">
+            <div className="card-head">
+              <h2>{work.WORK_TYPE_LABEL[item.type as work.WorkItemType] ?? item.type}</h2>
+              <span className="tag">Open item</span>
+              <span className="spacer" />
+              <DueChip
+                {...(work.dueState(item.dueAt, now) === 'ok'
+                  ? {}
+                  : { state: work.dueState(item.dueAt, now) as 'soon' | 'over' })}
+              >
+                {item.assigneeName ? `Assigned to ${item.assigneeName} · ` : ''}
+                {work.dueLabel(item.dueAt, now)}
+              </DueChip>
+            </div>
+            <div className="card-body row-between">
+              <span>{item.summary}</span>
+              <Link className="btn btn-secondary btn-sm" href={`/work?item=${item.id}`}>
+                Open in the queue
+              </Link>
+            </div>
+          </div>
+        )}
+        <div className="card">
+          <div className="card-head">
+            <h2>
+              {['submitted', 'accepted', 'paid', 'partially_paid', 'denied', 'closed'].includes(
+                d.claim.status,
+              )
+                ? 'Findings at release'
+                : 'Findings'}
+            </h2>
+            {d.scrub && (
+              <span className="muted dense">
+                Scrubbed {formatWhen(d.scrub.scrubbedAt)} · rule set{' '}
+                {d.scrub.rulesVersion.replace(/^rules-/, '')} · confidence {d.scrub.confidence}
+              </span>
+            )}
+          </div>
+          <div className="card-body stack-sm">
+            {!d.scrub && (
+              <span className="muted">
+                Not scrubbed yet. Cleanpost scrubs each version as soon as it is built.
+              </span>
+            )}
+            {d.scrub && <ConfidenceMeter score={d.scrub.confidence} threshold={d.threshold} />}
+            {d.scrub?.aiSummary && <Suggestion>{d.scrub.aiSummary}</Suggestion>}
+            {d.scrub?.findings.length === 0 && <span className="muted">No findings.</span>}
+            {d.scrub?.findings.map((f, i) => (
+              <FindingRow key={`${f.ruleId}-${i}`} severity={f.severity} title={f.message} meta={f.ruleId} />
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="card" style={{ width: 380, flex: 'none' }}>
+        <div className="card-head">
+          <h2>Recent activity</h2>
+          <Link href={`/claims/${d.claim.id}?tab=timeline`} className="dense" style={{ marginLeft: 'auto' }}>
+            Full timeline
+          </Link>
+        </div>
+        <div className="card-body">
+          <Timeline
+            label="Recent activity"
+            events={recent.map((e) => {
+              const x = describeEvent(e, d.pmName);
+              return {
+                title: x.title,
+                meta: `${actorLabel(e.actor, e.actorName)} · ${formatWhen(e.occurredAt)}`,
+                ...(x.tone ? { tone: x.tone } : {}),
+              };
+            })}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** C-03: codes only, never CPT descriptions (CLAUDE.md rule 11). Adjudication columns arrive in M3. */
+function Lines({ d }: { d: ClaimDetail }) {
+  const p = d.payload;
+  return (
+    <div className="stack">
+      <div className="card flush">
+        <div className="table-wrap">
+          <table className="table nowrap" aria-label="Claim lines">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Code</th>
+                <th>Modifiers</th>
+                <th className="num">Units</th>
+                <th>Diagnosis pointers</th>
+                <th className="num">Charge</th>
+                <th className="num">Allowed</th>
+                <th className="num">Paid</th>
+                <th>Adjustments</th>
+                <th className="num">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.lines.map((l) => (
+                <tr key={l.chargeLineId}>
+                  <td>{l.lineNumber}</td>
+                  <td className="code">{l.code}</td>
+                  <td className="code">{l.modifiers.join(', ') || '—'}</td>
+                  <td className="num">{l.units}</td>
+                  <td className="code">{l.dxPointers.join(', ') || '—'}</td>
+                  <td className="num">{formatMoney(l.chargeCents)}</td>
+                  <td className="num">—</td>
+                  <td className="num">—</td>
+                  <td>—</td>
+                  <td className="num">—</td>
+                </tr>
+              ))}
+              <tr>
+                <td colSpan={5}>
+                  <b>Total</b>
+                </td>
+                <td className="num">
+                  <b>{formatMoney(p.totalChargeCents)}</b>
+                </td>
+                <td className="num">—</td>
+                <td className="num">—</td>
+                <td />
+                <td className="num">{formatMoney(d.claim.balanceCents)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="table-foot">
+          <span>
+            Allowed, paid and adjustments appear when the payer's 835 is read (not yet adjudicated).
+          </span>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-head">
+          <h2>Diagnoses</h2>
+        </div>
+        <div className="card-body">
+          <table className="table" aria-label="Diagnoses">
+            <thead>
+              <tr>
+                <th>Pointer</th>
+                <th>ICD-10</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.diagnoses.map((x) => (
+                <tr key={x.sequence}>
+                  <td>{x.sequence}</td>
+                  <td className="code">{x.icd10}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const SEGMENTS = [
+  { key: 'all', label: 'All' },
+  { key: 'payer', label: 'Payer responses' },
+  { key: 'people', label: 'People' },
+  { key: 'automation', label: 'Automation' },
+] as const;
+
+function ClaimTimeline({ d, filter }: { d: ClaimDetail; filter: string }) {
+  const events = d.events.filter((e) =>
+    filter === 'payer'
+      ? ['ack_277ca', 'rejected', 'status_277', 'ack_999'].includes(e.type)
+      : filter === 'people'
+        ? e.actor.startsWith('user:')
+        : filter === 'automation'
+          ? !e.actor.startsWith('user:')
+          : true,
+  );
+  return (
+    <div className="card">
+      <div className="card-head">
+        <div className="segmented" role="group" aria-label="Show events">
+          {SEGMENTS.map((s) => (
+            <Link
+              key={s.key}
+              href={`/claims/${d.claim.id}?tab=timeline${s.key === 'all' ? '' : `&filter=${s.key}`}`}
+              className={s.key === filter ? 'active' : undefined}
+              aria-current={s.key === filter ? 'true' : undefined}
+            >
+              {s.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+      <div className="card-body">
+        {events.length === 0 ? (
+          <span className="muted">No events of this kind yet.</span>
+        ) : (
+          <Timeline
+            label="Claim timeline"
+            events={events.map((e) => {
+              const x = describeEvent(e, d.pmName);
+              return {
+                title: x.title,
+                meta: `${actorLabel(e.actor, e.actorName)} · ${formatWhen(e.occurredAt)}${e.versionNumber ? ` · v${e.versionNumber}` : ''}`,
+                ...(x.tone ? { tone: x.tone } : {}),
+              };
+            })}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Versions({ d }: { d: ClaimDetail }) {
+  return (
+    <div className="card flush">
+      <div className="table-wrap">
+        <table className="table" aria-label="Claim versions">
+          <thead>
+            <tr>
+              <th>Version</th>
+              <th>Frequency</th>
+              <th>Made by</th>
+              <th>Created</th>
+              <th>Scrub</th>
+              <th>Released</th>
+              <th className="num">Charge</th>
+              <th>What changed</th>
+            </tr>
+          </thead>
+          <tbody>
+            {d.versions.map((v) => (
+              <tr key={v.id}>
+                <td>
+                  v{v.version}
+                  {v.id === d.versionId && (
+                    <span className="tag" style={{ marginLeft: 6 }}>
+                      Current
+                    </span>
+                  )}
+                </td>
+                <td>{FREQUENCY_LABEL[v.frequencyCode] ?? v.frequencyCode}</td>
+                <td>
+                  {v.createdBy.startsWith('user:') ? (v.createdByName ?? 'A user') : `Built from ${d.pmName}`}
+                </td>
+                <td>{formatWhen(v.createdAt)}</td>
+                <td>{v.confidence !== null ? `${v.confidence}` : '—'}</td>
+                <td>{v.releasedAt ? formatWhen(v.releasedAt) : '—'}</td>
+                <td className="num">{formatMoney(v.totalChargeCents)}</td>
+                <td>{v.changes.length ? v.changes.join('; ') : v.version === 1 ? 'First version' : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="table-foot">
+        <span>
+          Released versions never change; a correction after release is a new version (frequency 7).
+        </span>
+      </div>
+    </div>
+  );
+}

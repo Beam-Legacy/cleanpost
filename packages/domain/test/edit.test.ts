@@ -146,4 +146,15 @@ describe('checkEdit', () => {
     b.lines.push({ ...b.lines[0]!, chargeLineId: 'new' });
     expect(checkEdit(payload(), b)).toEqual({ ok: false, error: 'line_added' });
   });
+
+  it('ignores key order, as the payload comes back from jsonb and Zod in different orders', () => {
+    const before = payload();
+    const after = payload();
+    after.rendering = { taxonomy: null, providerId: 'prov-1', npi: '1932204415' } as typeof after.rendering;
+    after.billing = { taxonomy: null, npi: '1487726595' } as typeof after.billing;
+    after.priorAuthNumber = 'PA1';
+    const res = checkEdit(before, after);
+    expect(res.ok).toBe(true);
+    expect(diffPayload(before, after).map((c) => c.fieldPath)).toEqual(['priorAuthNumber']);
+  });
 });

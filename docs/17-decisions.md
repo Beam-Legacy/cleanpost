@@ -113,6 +113,9 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 | Assignee filter | Defaults to Anyone in the user's client scope | Auto-assignment by client ownership arrives with settings (M5); "Me" would show an empty queue until then. |
 | Snooze | Presets (3 hours, tomorrow 8 am, next Monday 8 am, Pacific) and a date and time; at most 30 days. Woken lazily as automation when the queue loads. | W-06 condition snoozes (next sync, payment, eligibility) need those events first (M3, M4). |
 | Not yet in the panel | Hold (C-12), bulk bar (W-04), save view (W-08), assign (W-05) | Second pass of M2-F. |
+| C-08 editor scope | Codes, modifiers, units, pointers, diagnoses, prior authorization and place of service; lines can be removed, not added; charges, patient, payer, providers and dates are read-only | Mode A: the PM holds the charge; a new line or a new amount is entered there and arrives by sync. |
+| C-08 live findings | The deterministic scrub steps on the unsaved payload (`previewScrub`), 400 ms after the last change; nothing is written until Save | The editor shows the effect of a change before it becomes a version. |
+| C-05 "What changed" | Each version diffed against the one before (`diffPayload`), for person and PM versions alike | Exact and complete; the `corrections` rows remain the record of who changed what. |
 
 ## Open questions
 

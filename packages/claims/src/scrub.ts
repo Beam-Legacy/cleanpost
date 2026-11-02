@@ -31,11 +31,13 @@ import {
   type Tx,
 } from '@cleanpost/db';
 import {
+  checkEdit,
   runScrubSteps,
   ruleSchema,
   scoreClaim,
   state,
   type ClaimPayload,
+  type EditError,
   type Finding,
   type RuleDef,
   type ScrubInput,
@@ -107,14 +109,20 @@ interface Loaded {
   rulesVersion: string;
 }
 
-async function load(tx: Tx, claimVersionId: string, today: string): Promise<Loaded | ScrubOutcome> {
+async function load(
+  tx: Tx,
+  claimVersionId: string,
+  today: string,
+  /** C-08 preview: score an unsaved payload against the current version's context. */
+  preview?: ClaimPayload,
+): Promise<Loaded | ScrubOutcome> {
   const [version] = await tx.select().from(claimVersions).where(eq(claimVersions.id, claimVersionId));
   if (!version) return { status: 'skipped', reason: 'not_found' };
   const [claim] = await tx.select().from(claims).where(eq(claims.id, version.claimId));
   if (!claim) return { status: 'skipped', reason: 'not_found' };
   if (claim.currentVersionId !== version.id) return { status: 'skipped', reason: 'stale' };
-  if (claim.status !== 'built') return { status: 'skipped', reason: 'not_built' };
-  const payload = version.payload as ClaimPayload;
+  if (!preview && claim.status !== 'built') return { status: 'skipped', reason: 'not_built' };
+  const payload = preview ?? (version.payload as ClaimPayload);
   const [client] = await tx.select().from(clients).where(eq(clients.id, claim.clientId));
   const [patient] = await tx
     .select({ dob: patients.dob, sex: patients.sex })
@@ -459,5 +467,53 @@ export async function versionsAwaitingScrub(
       .from(claims)
       .where(and(eq(claims.clientId, clientId), eq(claims.status, 'built')));
     return rows.map((r) => r.id).filter((id): id is string => Boolean(id));
+  });
+}
+
+export type PreviewOutcome =
+  | {
+      status: 'scored';
+      confidence: number;
+      decision: state.ScrubDecision;
+      findings: Finding[];
+      deductions: { reason: string; points: number }[];
+      threshold: number;
+    }
+  | { status: 'refused'; reason: 'not_found' | 'stale' | EditError };
+
+/**
+ * C-08 live findings: runs the deterministic scrub steps on an edited payload without saving
+ * anything (no AI step; the saved version is scrubbed in full). Only edits `checkEdit` accepts.
+ */
+export async function previewScrub(
+  db: Database,
+  ctx: { tenantId: string; userId: string; claimId: string; versionId: string },
+  payload: ClaimPayload,
+  opts: { now?: Date } = {},
+): Promise<PreviewOutcome> {
+  const today = (opts.now ?? new Date()).toISOString().slice(0, 10);
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId));
+    if (!claim?.currentVersionId) return { status: 'refused', reason: 'not_found' };
+    if (claim.currentVersionId !== ctx.versionId) return { status: 'refused', reason: 'stale' };
+    const [version] = await tx.select().from(claimVersions).where(eq(claimVersions.id, ctx.versionId));
+    const checked = checkEdit(version!.payload as ClaimPayload, payload);
+    if (!checked.ok) return { status: 'refused', reason: checked.error };
+    const loaded = await load(tx, ctx.versionId, today, checked.value);
+    if ('status' in loaded) return { status: 'refused', reason: 'stale' };
+    const steps = runScrubSteps(loaded.input);
+    const score = scoreClaim(steps.findings, {
+      threshold: loaded.threshold,
+      firstClaimForClientPayer: loaded.firstClaimForClientPayer,
+      payerFirstPassRate: null,
+    });
+    return {
+      status: 'scored',
+      confidence: score.confidence,
+      decision: score.decision,
+      findings: steps.findings,
+      deductions: score.deductions,
+      threshold: loaded.threshold,
+    };
   });
 }
