@@ -269,3 +269,11 @@ export const answerKey = pm.table(
   },
   (t) => [primaryKey({ columns: [t.practiceId, t.recordType, t.recordId] })],
 );
+
+/** The clearinghouse's read position in payer-sim's 277CA feed, per practice. */
+export const clearinghouseState = pm.table('clearinghouse_state', {
+  practiceId: text('practice_id')
+    .primaryKey()
+    .references(() => practices.id),
+  acksSince: ts('acks_since'),
+});

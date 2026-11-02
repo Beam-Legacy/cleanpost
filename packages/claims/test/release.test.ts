@@ -25,7 +25,9 @@ import {
   workItems,
 } from '@cleanpost/db';
 import type { ClaimPayload, Finding } from '@cleanpost/domain';
-import { pmSchema } from '@cleanpost/pm-mock';
+import { pmSchema, runClearinghouse } from '@cleanpost/pm-mock';
+import { createPayerSimApp, createSimDb } from '@cleanpost/payer-sim';
+import { testDatabaseUrls } from '@cleanpost/db/testing';
 import { createPgRateLimiter, runSync } from '@cleanpost/sync';
 import {
   applyClaimStatuses,
@@ -142,8 +144,10 @@ beforeAll(async () => {
   }
 }, 240_000);
 
+const simDb = createSimDb(testDatabaseUrls().adminUrl, 2);
+
 afterAll(async () => {
-  await closeAll();
+  await Promise.all([closeAll(), simDb.close()]);
 });
 
 describe('release (Mode A, Tebra profile)', () => {
@@ -244,6 +248,42 @@ describe('release (Mode A, Tebra profile)', () => {
       expect(res.operations.map((o) => o.operation)).toContain('pullClaimsAndStatus');
     const [after] = await admin.db.select().from(claims).where(eq(claims.id, released!.id));
     expect(after).toMatchObject({ status: 'accepted', patientControlNumber: pmEnc.id });
+  });
+
+  it('goes through the PM clearinghouse to payer-sim, and the 277CA comes back through sync', async () => {
+    const [c] = await inReview();
+    await approveClaim(app.db, { tenantId: NORTHWIND, userId: USER, claimId: c!.id });
+    expect(await releaseClaim(deps, { tenantId: NORTHWIND, claimId: c!.id }, `user:${USER}`)).toMatchObject({
+      status: 'released',
+    });
+    const sim = createPayerSimApp({ db: simDb.db, log });
+    const simFetch = ((input: string | URL | Request, init?: RequestInit) =>
+      Promise.resolve(sim.request(String(input).replace('http://payer-sim.test', ''), init))) as typeof fetch;
+    const ch = { db: pm.db, log, payerSimUrl: 'http://payer-sim.test', fetch: simFetch };
+    const first = await runClearinghouse(ch);
+    expect(first.sent).toBeGreaterThanOrEqual(1);
+    const pmEnc = await pmEncounterOf(c!.id);
+    const sent = async () =>
+      (await pm.db.select().from(pmSchema.claims).where(eq(pmSchema.claims.encounterId, pmEnc.id)))[0]!;
+    expect((await sent()).status).toBe('sent');
+    // The payer answers within 30 minutes of simulated time.
+    await sim.request('/clock/advance?minutes=31', { method: 'POST' });
+    await runClearinghouse(ch);
+    const acked = await sent();
+    expect(['accepted', 'rejected']).toContain(acked.status);
+    const conn = await connectionOf('Willamette');
+    await runSync(
+      {
+        db: app.db,
+        registry,
+        log,
+        retryDelaysMs: [10],
+        appliers: { pullClaimsAndStatus: applyClaimStatuses },
+      },
+      { tenantId: NORTHWIND, connectionId: conn.id, trigger: 'manual' },
+    );
+    const [after] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
+    expect(after!.status).toBe(acked.status);
   });
 
   it('turns a 277CA rejection into a rejected claim and one rejection work item', async () => {

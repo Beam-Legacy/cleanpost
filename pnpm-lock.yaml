@@ -36,6 +36,49 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(@opentelemetry/api@1.10.0)(@types/node@22.20.5)(@vitest/browser-playwright@5.0.5)(@vitest/ui@5.0.5)(vite@8.3.5(@types/node@22.20.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15))
 
+  apps/payer-sim:
+    dependencies:
+      '@cleanpost/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@cleanpost/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@cleanpost/log':
+        specifier: workspace:*
+        version: link:../../packages/log
+      '@hono/node-server':
+        specifier: 2.1.5
+        version: 2.1.5(hono@4.13.16)
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
+      hono:
+        specifier: 4.13.16
+        version: 4.13.16
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@cleanpost/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@cleanpost/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+      drizzle-kit:
+        specifier: ^0.31.11
+        version: 0.31.11
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
+
   apps/pm-mock:
     dependencies:
       '@cleanpost/config':
@@ -327,6 +370,9 @@ importers:
         specifier: ^4.6.7
         version: 4.6.7
     devDependencies:
+      '@cleanpost/payer-sim':
+        specifier: workspace:*
+        version: link:../../apps/payer-sim
       '@cleanpost/pm-mock':
         specifier: workspace:*
         version: link:../../apps/pm-mock

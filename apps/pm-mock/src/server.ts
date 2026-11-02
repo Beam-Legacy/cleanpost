@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { parseEnv } from '@cleanpost/config';
 import { createLogger } from '@cleanpost/log';
 import { createPmMockApp } from './app';
+import { runClearinghouse, type ClearinghouseRun } from './clearinghouse';
 import { createPmDb, migratePmDb } from './db';
 
 const log = createLogger({ name: 'pm-mock' });
@@ -13,6 +14,10 @@ const env = parseEnv(
     PM_MOCK_DATABASE_URL: z.string().min(1),
     PM_MOCK_ADMIN_PASSWORD: z.string().min(12).optional(),
     PORT: z.coerce.number().int().default(4010),
+    /** payer-sim for the clearinghouse (docs/12-testing.md); claims stay queued without it. */
+    PAYER_SIM_URL: z.url().optional(),
+    PAYER_SIM_TOKEN: z.string().min(24).optional(),
+    CLEARINGHOUSE_INTERVAL_SECONDS: z.coerce.number().int().min(5).default(60),
   }),
 );
 if (env.CLEANPOST_ENV === 'staging' || env.CLEANPOST_ENV === 'production') {
@@ -22,7 +27,30 @@ if (env.CLEANPOST_ENV === 'staging' || env.CLEANPOST_ENV === 'production') {
 
 await migratePmDb(env.PM_MOCK_DATABASE_URL);
 const handle = createPmDb(env.PM_MOCK_DATABASE_URL);
-const app = createPmMockApp({ db: handle.db, log, adminPassword: env.PM_MOCK_ADMIN_PASSWORD });
+// The clearinghouse sends queued claims to payer-sim and reads 277CAs back, one run at a time.
+let running: Promise<ClearinghouseRun> | null = null;
+const clearinghouse = env.PAYER_SIM_URL
+  ? () =>
+      (running ??= runClearinghouse({
+        db: handle.db,
+        log,
+        payerSimUrl: env.PAYER_SIM_URL!,
+        ...(env.PAYER_SIM_TOKEN ? { token: env.PAYER_SIM_TOKEN } : {}),
+      }).finally(() => {
+        running = null;
+      }))
+  : undefined;
+const app = createPmMockApp({
+  db: handle.db,
+  log,
+  adminPassword: env.PM_MOCK_ADMIN_PASSWORD,
+  ...(clearinghouse ? { clearinghouse } : {}),
+});
+const timer = clearinghouse
+  ? setInterval(() => {
+      clearinghouse().catch((err: unknown) => log.warn({ err }, 'clearinghouse run failed'));
+    }, env.CLEARINGHOUSE_INTERVAL_SECONDS * 1000)
+  : undefined;
 // Listen on IPv6 (Railway's private network needs it) where the host has it, else IPv4.
 function listen(hostname: string): ReturnType<typeof serve> {
   const server = serve({ fetch: app.fetch, port: env.PORT, hostname }, (info) =>
@@ -37,6 +65,7 @@ function listen(hostname: string): ReturnType<typeof serve> {
 let current = listen('::');
 
 const stop = () => {
+  if (timer) clearInterval(timer);
   current.close();
   void handle.close().then(() => process.exit(0));
 };

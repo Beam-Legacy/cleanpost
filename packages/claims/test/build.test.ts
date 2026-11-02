@@ -327,7 +327,7 @@ describe('edits by a person (Mode A, a PM that takes charge corrections)', () =>
   it('refuses edits to fields that come from the PM, and edits after release', async () => {
     const { payload } = await current(claimId);
     const payer = structuredClone(payload);
-    payer.payerId = '01a00000-0000-7000-8000-0000000000a5';
+    payer.payerId = '01a00000-0000-7000-8000-0000000000ff'; // no such payer: always a change
     expect(
       await editClaim(
         app.db,

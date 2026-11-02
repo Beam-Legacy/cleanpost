@@ -4,3 +4,4 @@ export { apiKeyFor, hashApiKey } from './keys';
 export { addVisits, loadPractice, upsertAccount, upsertPractice } from './load';
 export { PROFILE_RULES } from './profiles';
 export * as pmSchema from './schema';
+export { runClearinghouse, type ClearinghouseDeps, type ClearinghouseRun } from './clearinghouse';

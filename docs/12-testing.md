@@ -29,6 +29,8 @@ Accepts claims (from pm-mock in Mode A; Stedi-shaped JSON from Cleanpost in Mode
 
 Stedi's own sandbox is used to verify request shapes and 277CA handling; it does not return test 835s, which is why the simulator exists.
 
+Built so far (M2): claim intake (`POST /claims`), the 277CA front-end edits (subscriber not found A7:33, invalid rendering NPI A7:562, billing NPI A7:85, missing diagnosis A7:254, bad pointer A7:255, total mismatch A7:178; otherwise A2:20), acknowledgments 1 to 30 simulated minutes after receipt (`GET /acks`), and the clock (`POST /clock/advance`). pm-mock's clearinghouse (`apps/pm-mock/src/clearinghouse.ts`) sends queued claims every minute (or `POST /admin/api/clearinghouse/run`) and writes the 277CA onto the PM's claim, where sync reads it. The payer's view of each member comes from the generator's answer key: inactive coverage is accepted here and denied at adjudication; coverage that belongs to another payer is "subscriber not found". Adjudication and 835s follow in M3.
+
 ## Test layers
 
 | Layer | Tool | Covers |

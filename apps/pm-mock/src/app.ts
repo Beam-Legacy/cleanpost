@@ -14,6 +14,8 @@ export interface PmMockOptions {
   /** Multiplies every rate limit (tests). Default 1. */
   rateScale?: number;
   now?: () => Date;
+  /** The clearinghouse run, exposed at POST /admin/api/clearinghouse/run. */
+  clearinghouse?: () => Promise<unknown>;
 }
 
 export function createPmMockApp(opts: PmMockOptions) {
@@ -34,7 +36,15 @@ export function createPmMockApp(opts: PmMockOptions) {
     apiRoutes({ db: opts.db, limiter: new RateLimiter(), rateScale: opts.rateScale ?? 1, now }),
   );
   if (opts.adminPassword)
-    app.route('/admin', adminRoutes({ db: opts.db, password: opts.adminPassword, now }));
+    app.route(
+      '/admin',
+      adminRoutes({
+        db: opts.db,
+        password: opts.adminPassword,
+        now,
+        ...(opts.clearinghouse ? { clearinghouse: opts.clearinghouse } : {}),
+      }),
+    );
   app.get('/', (c) => c.redirect(opts.adminPassword ? '/admin' : '/health'));
   app.onError((err, c) => {
     if (err instanceof HTTPException) return err.getResponse();

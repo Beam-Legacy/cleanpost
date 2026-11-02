@@ -1,0 +1,34 @@
+{
+  "name": "@cleanpost/payer-sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "@cleanpost/config": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "@hono/node-server": "2.1.5",
+    "drizzle-orm": "^0.45.4",
+    "hono": "4.13.16",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/testing": "workspace:*",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15"
+  }
+}

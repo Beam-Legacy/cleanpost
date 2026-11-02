@@ -77,7 +77,7 @@ Retry policy: exponential backoff, max 5 attempts; after that the job creates a 
 | Env | Data | Host | BAA |
 | --- | --- | --- | --- |
 | local | Synthetic only | Docker (Postgres, Mailpit for email) | n/a |
-| preview | Synthetic only | Railway project `cleanpost-preview`, all with `CLEANPOST_ENV=preview`: Postgres 16; `web` (Dockerfile `apps/web/Dockerfile`, pre-deploy `pnpm release:preview` which also seeds the mock PM, health check `/api/health`, `SMTP_HOST=log`); `worker` (`apps/worker/Dockerfile`, `/health`); `pm-mock` (`apps/pm-mock/Dockerfile`, reached by the worker at `pm-mock.railway.internal:4010`, admin page behind basic auth) | Not required |
+| preview | Synthetic only | Railway project `cleanpost-preview`, all with `CLEANPOST_ENV=preview`: Postgres 16; `web` (Dockerfile `apps/web/Dockerfile`, pre-deploy `pnpm release:preview` which also seeds the mock PM, health check `/api/health`, `SMTP_HOST=log`); `worker` (`apps/worker/Dockerfile`, `/health`); `pm-mock` (`apps/pm-mock/Dockerfile`, reached by the worker at `pm-mock.railway.internal:4010`, admin page behind basic auth; its clearinghouse sends queued claims to payer-sim every minute); `payer-sim` (`apps/payer-sim/Dockerfile`, `payer-sim.railway.internal:4030`, own `payer_sim` schema) | Not required |
 | staging | Synthetic plus de-identified golden files | AWS | Yes |
 | production | Real PHI | AWS (ECS Fargate, RDS Postgres, S3 with SSE-KMS, Secrets Manager) | Yes, signed before any PHI |
 
