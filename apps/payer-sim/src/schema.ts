@@ -31,8 +31,47 @@ export const submissions = sim.table(
     /** 277CA category:status pairs, e.g. "A2:20", "A7:33". */
     ackCodes: text('ack_codes').array().notNull(),
     ackReasons: text('ack_reasons').array().notNull(),
+    payerId: text('payer_id'),
+    memberId: text('member_id'),
+    dateOfService: text('date_of_service'),
+    /** When the payer decides (7 to 20 simulated days after acceptance); null when rejected. */
+    adjudicateAt: ts('adjudicate_at'),
+    /** The decision as an 835 claim payment, once made. */
+    adjudication: jsonb('adjudication'),
+    /** The 835 that carried the decision. */
+    remittanceId: text('remittance_id'),
+    /** A replacement (7) or void (8): the earlier processed submission whose payment it reverses. */
+    replaces: text('replaces'),
   },
-  (t) => [index('submissions_source_due_idx').on(t.source, t.ackDueAt)],
+  (t) => [
+    index('submissions_source_due_idx').on(t.source, t.ackDueAt),
+    index('submissions_adjudicate_idx').on(t.adjudicateAt),
+    index('submissions_member_idx').on(t.source, t.memberId, t.dateOfService),
+  ],
+);
+
+/**
+ * One 835 per payer, payee and payment run: the X12 text and its canonical form. The clearinghouse
+ * reads them in order of created_at (GET /remits).
+ */
+export const remittances = sim.table(
+  'remittances',
+  {
+    id: text('id').primaryKey(),
+    /** ISA13 / GS06 interchange control number. */
+    control: integer('control').notNull().unique(),
+    source: text('source').notNull(),
+    payerId: text('payer_id').notNull(),
+    payerName: text('payer_name').notNull(),
+    traceNumber: text('trace_number').notNull(),
+    method: text('method').notNull(),
+    amountCents: bigint('amount_cents', { mode: 'number' }).notNull(),
+    paymentDate: text('payment_date').notNull(),
+    claimCount: integer('claim_count').notNull(),
+    x12: text('x12').notNull(),
+    createdAt: ts('created_at').notNull(),
+  },
+  (t) => [index('remittances_source_created_idx').on(t.source, t.createdAt)],
 );
 
 /**

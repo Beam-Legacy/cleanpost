@@ -3,6 +3,8 @@
  *
  *   POST /claims            a submitter (pm-mock's clearinghouse) sends claims
  *   GET  /acks?source=&since=  277CA results whose time has come on the simulated clock
+ *   GET  /remits?source=&after=  835s for a submitter, after a control number (runs payments first)
+ *   POST /payments/run      decide the claims that are due and batch them into 835s
  *   GET  /clock, POST /clock/advance?minutes=&days=   time control for tests and demos
  */
 import { Hono } from 'hono';
@@ -12,9 +14,13 @@ import { and, asc, eq, gt, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Logger } from '@cleanpost/log';
 import { acknowledge, ackDelayMinutes, submittedClaimSchema } from './ack';
+import type { NcciPair } from './adjudicate';
 import type { SimDb } from './db';
 import { eligibilityRequestSchema, memberRosterSchema, respond271 } from './eligibility';
-import { clock, members, submissions } from './schema';
+import { adjudicationDelayDays, payerProfile } from './payers';
+import { runPayments } from './payments';
+import { loadNcci } from './reference';
+import { clock, members, remittances, submissions } from './schema';
 
 export interface SimDeps {
   db: SimDb;
@@ -22,6 +28,8 @@ export interface SimDeps {
   /** Shared secret for submitters; open when absent (local only). */
   token?: string;
   realNow?: () => Date;
+  /** The NCCI pairs payers edit with; read from rules/seed/reference.json when absent. */
+  ncci?: readonly NcciPair[];
 }
 
 export async function simNow(db: SimDb, realNow: () => Date): Promise<Date> {
@@ -36,6 +44,7 @@ const submitBody = z.object({
 
 export function createPayerSimApp(deps: SimDeps) {
   const realNow = deps.realNow ?? (() => new Date());
+  const ncci = deps.ncci ?? loadNcci();
   const app = new Hono();
   app.onError((err, c) => {
     if (err instanceof HTTPException) return err.getResponse();
@@ -47,6 +56,8 @@ export function createPayerSimApp(deps: SimDeps) {
     const auth = bearerAuth({ token: deps.token });
     app.use('/claims', auth);
     app.use('/acks', auth);
+    app.use('/remits', auth);
+    app.use('/payments/*', auth);
     app.use('/clock/*', auth);
     app.use('/members', auth);
     app.use('/2024-04-01/*', async (c, next) => {
@@ -68,6 +79,19 @@ export function createPayerSimApp(deps: SimDeps) {
       const ack = acknowledge(claim);
       if (ack.status === 'accepted') accepted++;
       else rejected++;
+      const ackDueAt = new Date(now.getTime() + ackDelayMinutes(id) * 60_000);
+      // A claim the payer already processed stays on file under another ID: the new one is a
+      // replacement or void (frequency 7 or 8) of it, or an exact duplicate (CO-18).
+      const [prior] = await deps.db
+        .select({ id: submissions.id, adjudication: submissions.adjudication })
+        .from(submissions)
+        .where(eq(submissions.id, id));
+      let replaces: string | null = null;
+      if (prior?.adjudication) {
+        const archived = `${id}#${now.getTime()}`;
+        await deps.db.update(submissions).set({ id: archived }).where(eq(submissions.id, id));
+        if (claim.frequencyCode === '7' || claim.frequencyCode === '8') replaces = archived;
+      }
       const row = {
         id,
         source: body.data.source,
@@ -75,10 +99,20 @@ export function createPayerSimApp(deps: SimDeps) {
         payerName: claim.payerName,
         claim,
         receivedAt: now,
-        ackDueAt: new Date(now.getTime() + ackDelayMinutes(id) * 60_000),
+        ackDueAt,
         ackStatus: ack.status,
         ackCodes: ack.codes,
         ackReasons: ack.reasons,
+        payerId: payerProfile(claim.payerId, claim.payerName).id,
+        memberId: claim.memberId ?? null,
+        dateOfService: claim.dateOfService,
+        adjudicateAt:
+          ack.status === 'accepted'
+            ? new Date(ackDueAt.getTime() + adjudicationDelayDays(id) * 86_400_000)
+            : null,
+        adjudication: null,
+        remittanceId: null,
+        replaces,
       };
       await deps.db.insert(submissions).values(row).onConflictDoUpdate({ target: submissions.id, set: row });
     }
@@ -115,6 +149,43 @@ export function createPayerSimApp(deps: SimDeps) {
         codes: r.ackCodes,
         reasons: r.ackReasons,
         at: r.ackDueAt.toISOString(),
+      })),
+    });
+  });
+
+  app.post('/payments/run', async (c) => {
+    const run = await runPayments(deps.db, await simNow(deps.db, realNow), ncci);
+    if (run.claims) deps.log.info(run, 'payment run');
+    return c.json(run);
+  });
+
+  app.get('/remits', async (c) => {
+    const q = z
+      .object({ source: z.string().min(1), after: z.coerce.number().int().min(0).default(0) })
+      .safeParse(c.req.query());
+    if (!q.success) return c.json({ error: 'source is required' }, 422);
+    const now = await simNow(deps.db, realNow);
+    const run = await runPayments(deps.db, now, ncci);
+    if (run.claims) deps.log.info(run, 'payment run');
+    const rows = await deps.db
+      .select()
+      .from(remittances)
+      .where(and(eq(remittances.source, q.data.source), gt(remittances.control, q.data.after)))
+      .orderBy(asc(remittances.control))
+      .limit(100);
+    return c.json({
+      now: now.toISOString(),
+      remits: rows.map((r) => ({
+        id: r.id,
+        control: r.control,
+        payerId: r.payerId,
+        payerName: r.payerName,
+        traceNumber: r.traceNumber,
+        method: r.method,
+        amountCents: r.amountCents,
+        paymentDate: r.paymentDate,
+        claimCount: r.claimCount,
+        x12: r.x12,
       })),
     });
   });

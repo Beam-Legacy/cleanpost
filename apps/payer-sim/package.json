@@ -18,6 +18,7 @@
     "@cleanpost/config": "workspace:*",
     "@cleanpost/domain": "workspace:*",
     "@cleanpost/log": "workspace:*",
+    "@cleanpost/x12": "workspace:*",
     "@hono/node-server": "2.1.5",
     "drizzle-orm": "^0.45.4",
     "hono": "4.13.16",

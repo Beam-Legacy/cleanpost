@@ -47,6 +47,9 @@ importers:
       '@cleanpost/log':
         specifier: workspace:*
         version: link:../../packages/log
+      '@cleanpost/x12':
+        specifier: workspace:*
+        version: link:../../packages/x12
       '@hono/node-server':
         specifier: 2.1.5
         version: 2.1.5(hono@4.13.16)

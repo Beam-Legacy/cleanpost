@@ -9,6 +9,15 @@ import { isValidNpi } from '@cleanpost/domain';
 export const submittedClaimSchema = z.object({
   patientControlNumber: z.string().min(1).max(38),
   payerName: z.string().min(1).max(100),
+  /** The payer's ID (Stedi trading partner ID); the name is matched when absent. */
+  payerId: z.string().max(20).nullish(),
+  /** Subscriber member ID, for the payer's member file and accumulators. */
+  memberId: z.string().max(80).nullish(),
+  priorAuthNumber: z.string().max(50).nullish(),
+  /** CLM05-3: 1 original, 7 replacement, 8 void. */
+  frequencyCode: z.enum(['1', '7', '8']).nullish(),
+  /** The billing provider's organization name, for the 835 payee. */
+  billingName: z.string().max(60).nullish(),
   dateOfService: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   renderingNpi: z.string().nullable(),
   billingNpi: z.string().nullable(),
@@ -19,6 +28,8 @@ export const submittedClaimSchema = z.object({
     .array(
       z.object({
         lineNumber: z.number().int(),
+        /** REF*6R: echoed on the 835 line when sent. */
+        lineControlNumber: z.string().max(50).nullish(),
         code: z.string(),
         modifiers: z.array(z.string()),
         units: z.number().int(),
