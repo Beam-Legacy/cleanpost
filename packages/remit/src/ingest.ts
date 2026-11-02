@@ -10,7 +10,7 @@
  * Patient names in the 835 are not stored here (matching by name is the heuristic step, later).
  */
 import { and, desc, eq, isNotNull, ne, or, sql } from 'drizzle-orm';
-import { applyClaimEvent } from '@cleanpost/claims';
+import { applyClaimEvent, resolveAnsweredDenials } from '@cleanpost/claims';
 import {
   claimLines,
   claims,
@@ -211,6 +211,9 @@ export async function applyMatch(
     actor: v.actor,
     now: v.now,
   });
+  // A payment on a corrected claim answers the denial it was built for (Flow 5).
+  if (outcome.event !== 'reverse')
+    await resolveAnsweredDenials(tx, v.claim, 'Corrected claim accepted', v.actor, v.now);
   if (!outcome.denials.length) return { denied: false };
   const worst = outcome.denials.reduce<remit.DenialCategory>(
     (w, d) => (remit.DENIAL_PRIORITY[d.category] < remit.DENIAL_PRIORITY[w] ? d.category : w),

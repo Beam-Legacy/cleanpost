@@ -135,6 +135,12 @@ export async function editClaim(
 
     const version = current.version + 1;
     const versionId = await insertVersion(tx, claim, version, next.payload, actor);
+    // A corrected claim keeps the payer's claim number it replaces (C-09: locked, from the payment).
+    if (current.originalRef)
+      await tx
+        .update(claimVersions)
+        .set({ originalRef: current.originalRef })
+        .where(eq(claimVersions.id, versionId));
     await tx
       .update(claims)
       .set({

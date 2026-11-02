@@ -176,6 +176,10 @@ export const claims = pm.table(
     patientControlNumber: text('patient_control_number').notNull(),
     status: text('status').notNull(),
     rejectionReasons: text('rejection_reasons').array().notNull().default([]),
+    /** 1 original, 7 corrected (resubmitted after a denial), 8 void. */
+    frequencyCode: text('frequency_code').notNull().default('1'),
+    /** The payer's claim number a corrected claim replaces. */
+    originalRef: text('original_ref'),
     updatedAt: ts('updated_at').notNull(),
   },
   (t) => [index('claims_paging_idx').on(t.practiceId, t.updatedAt, t.encounterId)],

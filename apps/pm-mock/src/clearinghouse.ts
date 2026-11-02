@@ -149,7 +149,7 @@ async function queued(db: PmDb, practiceId: string, practiceName: string) {
       payerId: policy ? (SIM_PAYER_IDS[policy.payerName] ?? null) : null,
       memberId: policy?.memberId ?? null,
       priorAuthNumber: e.priorAuthNumber,
-      frequencyCode: '1',
+      frequencyCode: claim.frequencyCode as '1' | '7' | '8',
       billingName: practiceName,
       dateOfService: e.dateOfService,
       renderingNpi: e.renderingNpi,

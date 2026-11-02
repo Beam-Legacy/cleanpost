@@ -7,9 +7,18 @@
  */
 import { and, eq, inArray, ne } from 'drizzle-orm';
 import type { ExtClaimStatus } from '@cleanpost/adapters';
-import { claims, externalRefs, recordAudit, workItems, type AuditActor, type Tx } from '@cleanpost/db';
+import {
+  claims,
+  claimVersions,
+  externalRefs,
+  recordAudit,
+  workItems,
+  type AuditActor,
+  type Tx,
+} from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
 import { applyClaimEvent } from './events';
+import { resolveAnsweredDenials } from './correct';
 import { markReleased } from './release';
 
 export interface StatusContext {
@@ -113,11 +122,24 @@ export async function applyClaimStatuses(
     }
     // The claim left without Cleanpost's release: a biller approved the charge in the PM directly,
     // or a PM with no hold billed it at its batch time while Cleanpost still had it in review.
+    // A corrected claim (frequency 7) left only once the PM shows it sent again; the old claim's
+    // denial or payment still on the PM's record does not count.
+    const [version] = current.currentVersionId
+      ? await tx
+          .select({ frequencyCode: claimVersions.frequencyCode, createdAt: claimVersions.createdAt })
+          .from(claimVersions)
+          .where(eq(claimVersions.id, current.currentVersionId))
+      : [];
+    const resent =
+      version?.frequencyCode !== '7' ||
+      ['sent', 'accepted', 'rejected'].includes(item.status) ||
+      new Date(item.updatedAt) > version.createdAt;
     if (
       OUTSIDE_FROM.has(current.status) &&
       current.currentVersionId &&
       item.status !== 'unknown' &&
-      item.status !== 'queued'
+      item.status !== 'queued' &&
+      resent
     ) {
       await markReleased(tx, current, 'pm_outside_cleanpost', ctx.actor, now);
       await closeReviewItems(tx, current, ctx.actor, now);
@@ -134,6 +156,8 @@ export async function applyClaimStatuses(
         payload: { source: 'pm' },
         now,
       });
+      // Flow 5: the denial a corrected claim answers closes when the payer accepts it.
+      await resolveAnsweredDenials(tx, current, 'Corrected claim accepted', ctx.actor, now);
       changed = true;
     } else if (current.status === 'submitted' && item.status === 'rejected') {
       await applyClaimEvent(tx, current, 'reject', {

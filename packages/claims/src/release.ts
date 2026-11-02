@@ -30,6 +30,7 @@ import {
 } from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
 import type { Logger } from '@cleanpost/log';
+import { resubmissionTask } from './correct';
 import { applyClaimEvent } from './events';
 import { correctionPending, ensureManualTask } from './tasks';
 
@@ -192,6 +193,24 @@ export async function releaseClaim(
   const loaded = await withTenant(deps.db, { tenantId: ctx.tenantId }, (tx) => load(tx, ctx.claimId));
   if ('status' in loaded) return loaded;
   const { claim, conn, encounterExternalId } = loaded;
+  // A corrected claim (frequency 7) is resubmitted from the PM by a person (none of the PMs takes a
+  // replacement claim through its API): a task with the changes and the original claim number.
+  const correction = await withTenant(deps.db, { tenantId: ctx.tenantId }, async (tx) => {
+    const [v] = await tx
+      .select({ frequencyCode: claimVersions.frequencyCode })
+      .from(claimVersions)
+      .where(eq(claimVersions.id, claim.currentVersionId!));
+    if (v?.frequencyCode !== '7') return null;
+    return resubmissionTask(tx, {
+      claim,
+      connectionId: conn.id,
+      pmName: (conn.settings.pmName as string | undefined) ?? 'the PM',
+      encounterExternalId,
+      actor,
+      now,
+    });
+  });
+  if (correction) return { status: 'manual_task', workItemId: correction };
   const adapter = deps.registry.get(conn.adapterKey);
   const caps = await adapter.capabilities(conn).catch(() => null);
   const level = caps?.releaseCharge;

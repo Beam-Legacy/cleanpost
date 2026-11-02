@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
-import { policy, work } from '@cleanpost/domain';
+import { policy, state, work } from '@cleanpost/domain';
 import {
   Banner,
   ConfidenceMeter,
@@ -57,6 +57,7 @@ export default async function ClaimPage({
   const d = await getClaim(ctx, id);
   if (!d) notFound();
   const tab: Tab = TABS.some((t) => t.key === sp.tab) ? (sp.tab as Tab) : 'summary';
+  const currentVersion = d.versions.find((v) => v.id === d.claim.currentVersionId) ?? null;
   const c = d.claim;
   const canEdit =
     policy.authorize(ctx.actor, 'claim.edit', { clientId: c.clientId }).allowed &&
@@ -168,6 +169,14 @@ export default async function ClaimPage({
         <Banner tone="info">
           <b>Waiting for the change in {d.pmName}.</b> Cleanpost releases the claim after the next sync shows
           it.
+        </Banner>
+      )}
+
+      {currentVersion?.frequencyCode === '7' && state.isPreRelease(c.status as state.ClaimState) && (
+        <Banner tone="info">
+          <b>Corrected claim.</b> Frequency 7, replacing the payer&apos;s claim{' '}
+          <span className="code">{currentVersion.originalRef ?? '(number missing)'}</span>. Both are set from
+          the payment and locked. Once it passes the checks and is released, {d.pmName} resubmits it.
         </Banner>
       )}
 

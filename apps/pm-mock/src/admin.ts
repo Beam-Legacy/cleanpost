@@ -14,6 +14,7 @@ import { addVisits } from './load';
 import {
   accounts,
   charges,
+  claims,
   encounters,
   patients,
   payments,
@@ -33,6 +34,14 @@ export interface AdminDeps {
    */
   clearinghouse?: (opts?: { bill?: boolean }) => Promise<unknown>;
 }
+
+const resubmitBody = z.object({
+  changes: z
+    .array(z.object({ lineNumber: z.number().int().min(1), modifiers: z.array(z.string().max(2)).max(4) }))
+    .max(50)
+    .optional(),
+  originalRef: z.string().max(50).optional(),
+});
 
 const faultBody = z.object({
   kind: z.enum(FAULT_KINDS as [AccountFault['kind'], ...AccountFault['kind'][]]),
@@ -116,6 +125,35 @@ export function adminRoutes(deps: AdminDeps) {
   app.post('/api/clearinghouse/run', async (c) => {
     if (!deps.clearinghouse) return c.json({ error: 'payer-sim is not configured' }, 409);
     return c.json(await deps.clearinghouse({ bill: c.req.query('bill') === '1' }));
+  });
+
+  // What a biller does in the PM after a denial (Tebra has no API for it): correct the charge and
+  // resubmit the claim as a corrected claim (frequency 7). Tests and demos stand in for that person.
+  app.post('/api/practices/:id/encounters/:eid/resubmit', async (c) => {
+    const body = resubmitBody.safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success) return c.json({ error: 'changes must list lineNumber and modifiers' }, 422);
+    const [claim] = await db
+      .select()
+      .from(claims)
+      .where(and(eq(claims.practiceId, c.req.param('id')), eq(claims.encounterId, c.req.param('eid'))));
+    if (!claim) return c.json({ error: 'no claim for that encounter' }, 404);
+    for (const ch of body.data.changes ?? []) {
+      await db
+        .update(charges)
+        .set({ modifiers: ch.modifiers })
+        .where(and(eq(charges.encounterId, claim.encounterId), eq(charges.lineNumber, ch.lineNumber)));
+    }
+    await db
+      .update(claims)
+      .set({
+        status: 'queued',
+        frequencyCode: '7',
+        originalRef: body.data.originalRef ?? null,
+        rejectionReasons: [],
+        updatedAt: deps.now(),
+      })
+      .where(eq(claims.encounterId, claim.encounterId));
+    return c.json({ ok: true, frequencyCode: '7' });
   });
 
   app.post('/api/accounts/:id/faults', async (c) => {

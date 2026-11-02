@@ -42,3 +42,17 @@ export {
   resolveCorrectionTasks,
 } from './tasks';
 export { insertVersion, lastPmVersion } from './versions';
+export {
+  buildCorrection,
+  correctionInFlight,
+  payerClaimNumber,
+  RESUBMIT_OPERATION,
+  resolveAnsweredDenials,
+  resubmissionTask,
+  WRITE_OFF_OPERATION,
+  WRITE_OFF_REASONS,
+  writeOffClaim,
+  type BuildCorrectionOutcome,
+  type CorrectionRefusal,
+  type WriteOffOutcome,
+} from './correct';

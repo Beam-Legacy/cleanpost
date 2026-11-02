@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +56,12 @@ export default async function globalSetup() {
         throw new Error('No claims in review: start the worker and pm-mock (pnpm dev) before the e2e run');
       await new Promise((r) => setTimeout(r, 2000));
     }
+    // Flow 5 needs a denial to work: made through the app's own code (e2e/fixtures/denial.ts).
+    const here = dirname(fileURLToPath(import.meta.url));
+    execFileSync(join(here, '..', 'node_modules', '.bin', 'tsx'), [join(here, 'fixtures', 'denial.ts')], {
+      env: process.env,
+      stdio: ['ignore', 'ignore', 'inherit'],
+    });
   } finally {
     await client.end();
   }

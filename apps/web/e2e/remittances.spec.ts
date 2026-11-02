@@ -78,7 +78,7 @@ test('R-04 shows the 835 check and the comparison with the PM', async () => {
     .getByRole('link')
     .click();
   await expect(page.getByRole('heading', { level: 1 })).toContainText('·');
-  await expect(page.getByText(/^835 (balances|does not balance)$/)).toBeVisible();
+  await expect(page.getByText(/^835 (balances|does not balance)$/).first()).toBeVisible();
   await expect(page.getByRole('heading', { name: /compared with what .* posted/ })).toBeVisible();
   await expectAccessible(page, 'R-04');
 });

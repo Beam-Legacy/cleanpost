@@ -7,10 +7,18 @@
 import { revalidatePath } from 'next/cache';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { approveClaim, editClaim, scrubVersion, unapproveClaim } from '@cleanpost/claims';
+import {
+  approveClaim,
+  buildCorrection,
+  editClaim,
+  scrubVersion,
+  unapproveClaim,
+  WRITE_OFF_REASONS,
+  writeOffClaim,
+} from '@cleanpost/claims';
 import { claims, claimVersions, savedViews, scrubResults, withTenant, workItems } from '@cleanpost/db';
 import { policy, type policy as P } from '@cleanpost/domain';
-import { cancelClaimRelease, sendClaimCorrect, sendClaimRelease } from '@cleanpost/jobs';
+import { cancelClaimRelease, sendClaimCorrect, sendClaimRelease, sendClaimScrub } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import {
   confirmPosting,
@@ -23,7 +31,7 @@ import {
   setAsidePayment,
 } from '@cleanpost/remit';
 import { assignItem, reopenItem, resolveItem, snoozeItem, wakeItem } from '@cleanpost/work';
-import { listAssignees, viewQuery, type Assignee } from '@/lib/queries/work';
+import { getWorkDetail, listAssignees, viewQuery, type Assignee } from '@/lib/queries/work';
 import { getBoss } from '@/lib/jobs';
 import { getDb } from '@/lib/server';
 import { requireActiveContext, type ActiveContext } from '@/lib/session';
@@ -540,4 +548,101 @@ export async function couldNotComplete(
   if (!res.ok)
     return { ok: false, message: POSTING_REFUSED[res.reason] ?? 'The task could not be escalated.' };
   return { ok: true, done: true, message: 'Sent to the owner with your reason.' };
+}
+
+const CORRECTION_REFUSED: Record<string, string> = {
+  not_found: 'Claim not found.',
+  not_denied: 'Only a denied or partly paid claim can be corrected this way.',
+  no_payer_claim_number:
+    'The payer’s claim number is missing from the payment, so a corrected claim cannot reference it.',
+  in_flight: 'A corrected claim is already on its way.',
+  needs_editor: 'This fix needs a value: open the claim to correct it.',
+  no_matching_line: 'The line the fix is for is no longer on the claim.',
+  no_change: 'Nothing to change.',
+};
+
+/**
+ * W-16 / D-02 Build correction: a new version with frequency 7 and the payer's claim number, with
+ * the suggested fix for the denied line applied (worked out again here, never taken from the
+ * browser). The scrub runs next; the editor (C-09) opens on it.
+ */
+export async function buildCorrectionFromItem(
+  itemId: string,
+  lineNumber: number | null,
+): Promise<WorkActionResult & { claimId?: string }> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(itemId);
+  const { item } = await scoped(ctx, 'claim.edit', { itemId: id });
+  if (!item?.claimId || item.type !== 'denial') return { ok: false, message: 'This is not a denial.' };
+  const detail = await getWorkDetail(ctx, id);
+  const advice = detail?.denial?.advice.find((a) => lineNumber !== null && a.lineNumber === lineNumber);
+  const suggestion =
+    advice?.advice.suggestion && !advice.advice.suggestion.needsInput ? advice.advice.suggestion : null;
+  const res = await buildCorrection(
+    getDb(),
+    { tenantId: ctx.tenantId, userId: ctx.user.id, claimId: item.claimId, workItemId: id },
+    suggestion ? { fix: { fix: suggestion.fix, lineNumbers: suggestion.lineNumbers } } : {},
+  );
+  if (res.status !== 'built')
+    return { ok: false, message: CORRECTION_REFUSED[res.reason] ?? 'The correction could not be built.' };
+  await sendClaimScrub(await getBoss(), { tenantId: ctx.tenantId, claimVersionId: res.versionId });
+  log.info({ claimId: item.claimId, version: res.version, fixed: res.fixed }, 'correction built');
+  revalidatePath('/work');
+  revalidatePath(`/claims/${item.claimId}`);
+  return {
+    ok: true,
+    message: res.fixed
+      ? 'Corrected claim built with the fix; it is being checked.'
+      : 'Corrected claim built; make the change in the editor.',
+    claimId: item.claimId,
+  };
+}
+
+/** The write-off limit a biller may approve alone (D-03 default); above it an admin decides. */
+const BILLER_WRITE_OFF_LIMIT_CENTS = 50_000;
+
+/** C-14 / D-03 Write off a claim's open balance with a reason; Mode A leaves a task for the PM. */
+export async function writeOffAction(
+  claimId: string,
+  input: { amountCents: number; reason: string; note: string; pmCode: string },
+): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(claimId);
+  const data = z
+    .object({
+      amountCents: z.number().int().positive(),
+      reason: z.enum(WRITE_OFF_REASONS),
+      note: z.string().max(500),
+      pmCode: z
+        .string()
+        .trim()
+        .min(1)
+        .max(20)
+        .regex(/^[A-Za-z0-9_.-]+$/),
+    })
+    .safeParse(input);
+  if (!data.success) return { ok: false, message: 'Choose a reason and the PM adjustment code.' };
+  const action = data.data.amountCents > BILLER_WRITE_OFF_LIMIT_CENTS ? 'denial.write_off' : 'work.resolve';
+  const { claim } = await scoped(ctx, 'work.resolve', { claimId: id });
+  if (!policy.authorize(ctx.actor, action, { clientId: claim?.clientId ?? null }).allowed)
+    return { ok: false, message: 'Write-offs over $500 need an admin.' };
+  const res = await writeOffClaim(
+    getDb(),
+    { tenantId: ctx.tenantId, userId: ctx.user.id, claimId: id },
+    { ...data.data, note: data.data.note.trim() || null },
+  );
+  revalidatePath('/work');
+  revalidatePath(`/claims/${id}`);
+  revalidatePath('/denials');
+  if (res.status !== 'written_off')
+    return {
+      ok: false,
+      message:
+        res.reason === 'amount'
+          ? 'The amount cannot be more than the open balance.'
+          : res.reason === 'note_required'
+            ? 'Add a note (needed for "Other" and for amounts over $100).'
+            : 'This claim has no open balance to write off.',
+    };
+  return { ok: true, done: true, message: 'Written off. A task posts the adjustment in the PM.' };
 }

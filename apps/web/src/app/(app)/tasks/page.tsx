@@ -55,10 +55,12 @@ export default async function TasksPage({
               ))}
             </tbody>
           </table>
-          <p className="muted dense">
-            An integration that does the operation removes these tasks.{' '}
-            <Link href="/integrations">See integrations</Link>
-          </p>
+          <div className="row" style={{ gap: 8 }}>
+            <span className="muted dense">An integration that does the operation removes these tasks.</span>
+            <Link className="btn btn-ghost btn-sm" href="/integrations">
+              See integrations
+            </Link>
+          </div>
         </div>
       )}
       {data.rows.length === 0 ? (

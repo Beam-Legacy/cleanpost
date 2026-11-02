@@ -116,6 +116,8 @@ test('snooze (W-06) and resolve with a reason (W-07), each with Undo', async () 
 });
 
 test('W-04 bulk bar: assign two items (W-05) and confirm a bulk release (C-17)', async () => {
+  // Three axe scans of a full queue page.
+  test.setTimeout(90_000);
   await page.goto('/work?type=review');
   await ready();
   const rows = page.getByRole('table', { name: 'Work items' }).locator('tbody tr');

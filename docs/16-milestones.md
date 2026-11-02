@@ -87,6 +87,12 @@ Accept:
 - Card extraction ≥ 95% field accuracy on the synthetic card set
 - Report figures match direct SQL computations in tests
 
+Status (Nov 2, 2026):
+- Built: denial triage (`packages/domain/src/remit/denials.ts`): ten categories, a plain explanation and a rules-based suggestion per denied line (modifier 25 for an office visit denied CO-4 beside a procedure or preventive visit; 59 where the NCCI edit allows it, write-off where it does not; the authorization number for CO-197; check coverage for eligibility; write-off for timely filing and duplicates). Labeled "Suggested"; an LLM may word it later but never sets a code.
+- Built: the corrected-claim flow (Flow 5): W-16 Build correction makes a new version with frequency 7 and the payer's claim number (locked, C-09 banner), applies the fix, scrubs it; release in Mode A is a task to resubmit it from the PM; the claim moves on when the PM shows it sent again (the old denial on the PM's record does not count); the denial item closes when the corrected claim is accepted or paid. C-14 write-off (reason, note over $100, billers up to $500, admins above) closes the balance and leaves a task to post the adjustment in the PM. D-01 Denials by category with the open balance at risk.
+- Tests: domain advice, the Flow 5 loop and write-off against the mock PM (packages/claims), and Flow 5 end to end in the browser (a CO-4 denial made by `e2e/fixtures/denial.ts` through the app's own code).
+- Next in M4: D-02 page and D-03 bulk write-off, claim status checks (C-15, W-15), eligibility screens and patients (P-01 to P-06, W-13), card capture (W-14), reports (RP-01 to RP-07, F-01), notifications and digest, timely-filing watch (W-22).
+
 ## M5 — Onboarding, settings, hardening (weeks 16–18)
 
 Build: onboarding wizard with capability-driven mode recommendation and go-live checklist (O-01 to O-11, E-06); invites (S-02, A-06); client overview and settings (CL-02 to CL-09, CL-11); settings (S-01 to S-08, S-10 to S-14, F-03; S-11 shows usage only until invoicing in M7); operator console (OP-01 to OP-04); I-04, I-05; help, banners and first-week checklist (G-07, G-13, G-14); team view (W-02); session and export controls; runbooks (incident, backup restore); production infrastructure on AWS under BAA.

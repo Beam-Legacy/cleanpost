@@ -20,10 +20,9 @@ import {
 } from '@cleanpost/ui';
 import { CLAIM_STATUS } from '@/lib/claim-display';
 import { formatDate, formatMoney } from '@/lib/format';
-import { CodeChip } from '@/components/code-chip';
-import { CARC_LABEL } from '@/lib/remit-display';
 import type { WorkDetail } from '@/lib/queries/work';
 import { LinkPayment } from './link-payment';
+import { DenialPanel } from './denial-panel';
 import { MappingForm } from './mapping-form';
 import { PostingTask } from './posting-task';
 import type { Permissions } from './work-queue';
@@ -322,20 +321,9 @@ export function WorkPanel({
               {d.remittance.payerName} · trace <span className="code">{d.remittance.traceNumber}</span> ·{' '}
               {formatMoney(d.remittance.amountCents)} · {formatDate(d.remittance.paymentDate)}
             </div>
-            {d.item.type === 'denial' &&
-              d.remittance.adjustments.some((a) => a.group !== 'PR' && a.carc !== '45') && (
-                <ul className="stack-sm" style={{ paddingLeft: 18, margin: 0 }}>
-                  {d.remittance.adjustments
-                    .filter((a) => a.group !== 'PR' && a.carc !== '45')
-                    .map((a, i) => (
-                      <li key={i}>
-                        <span className="code">{a.code}</span> denied {formatMoney(a.amountCents)}{' '}
-                        <CodeChip code={`${a.group}-${a.carc}`} bad />{' '}
-                        <span className="muted">{CARC_LABEL[a.carc] ?? ''}</span>
-                      </li>
-                    ))}
-                </ul>
-              )}
+            {d.item.type === 'denial' && d.denial && d.claim && (
+              <DenialPanel itemId={d.item.id} claimId={d.claim.id} denial={d.denial} canCorrect={can.edit} />
+            )}
             <div>
               <Link className="btn btn-secondary btn-sm" href={`/remittances/${d.remittance.id}`}>
                 Open remittance

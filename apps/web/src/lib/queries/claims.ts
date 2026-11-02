@@ -221,6 +221,8 @@ export interface ClaimVersionView {
   id: string;
   version: number;
   frequencyCode: string;
+  /** For a corrected claim (frequency 7): the payer's claim number it replaces. */
+  originalRef: string | null;
   createdBy: string;
   createdByName: string | null;
   createdAt: Date;
@@ -396,6 +398,7 @@ async function loadClaim(tx: Tx, ctx: ActiveContext, id: string): Promise<ClaimD
       id: r.v.id,
       version: r.v.version,
       frequencyCode: r.v.frequencyCode,
+      originalRef: r.v.originalRef,
       createdBy: r.v.createdBy,
       createdByName: r.name,
       createdAt: r.v.createdAt,

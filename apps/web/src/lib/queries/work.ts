@@ -11,9 +11,12 @@ import {
   memberships,
   patients,
   payers,
+  claimLines,
+  ncciEdits,
   remitAdjustments,
   remitClaims,
   remitLines,
+  remitRemarks,
   remittances,
   savedViews,
   scrubResults,
@@ -23,7 +26,8 @@ import {
   workItems,
   type Tx,
 } from '@cleanpost/db';
-import { policy, work, type ClaimPayload, type Finding } from '@cleanpost/domain';
+import { policy, remit, work, type ClaimPayload, type Finding } from '@cleanpost/domain';
+import { payerClaimNumber } from '@cleanpost/claims';
 import { linkCandidates } from '@cleanpost/remit';
 import { wakeDueItems } from '@cleanpost/work';
 import { pacificDay } from '../format';
@@ -319,6 +323,21 @@ export interface WorkDetail {
   } | null;
   connection: { id: string; status: string; pmName: string } | null;
   manualTask: { title: string; instructions: string[]; status: string } | null;
+  /** W-16: the denied lines with their category, explanation and suggested fix (rules, not AI). */
+  denial: {
+    advice: {
+      lineNumber: number;
+      code: string;
+      carc: string;
+      group: string;
+      amountCents: number;
+      advice: remit.DenialAdvice;
+    }[];
+    payerClaimNumber: string | null;
+    /** A corrected claim is already on its way: show its status instead of the actions. */
+    inFlight: boolean;
+    balanceCents: number;
+  } | null;
   /** W-17: claims this unmatched payment could be, best first. */
   linkCandidates:
     | {
@@ -464,6 +483,82 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
       };
     }
   }
+  let denial: WorkDetail['denial'] = null;
+  if (item.type === 'denial' && item.claimId && claim) {
+    const denied = await tx
+      .select({
+        lineNumber: claimLines.lineNumber,
+        code: remitLines.code,
+        modifiers: remitLines.modifiers,
+        group: remitAdjustments.groupCode,
+        carc: remitAdjustments.carc,
+        amountCents: remitAdjustments.amountCents,
+        remitLineId: remitLines.id,
+      })
+      .from(remitAdjustments)
+      .innerJoin(remitLines, eq(remitLines.id, remitAdjustments.remitLineId))
+      .innerJoin(remitClaims, eq(remitClaims.id, remitLines.remitClaimId))
+      .leftJoin(claimLines, eq(claimLines.id, remitLines.claimLineId))
+      .where(
+        and(
+          eq(remitClaims.claimId, item.claimId),
+          item.remittanceId ? eq(remitClaims.remittanceId, item.remittanceId) : undefined,
+        ),
+      );
+    const remarks = denied.length
+      ? await tx
+          .select({ lineId: remitRemarks.remitLineId, rarc: remitRemarks.rarc })
+          .from(remitRemarks)
+          .where(
+            inArray(
+              remitRemarks.remitLineId,
+              denied.map((d) => d.remitLineId),
+            ),
+          )
+      : [];
+    const ncci = (
+      await tx
+        .select({
+          column1: ncciEdits.column1Code,
+          column2: ncciEdits.column2Code,
+          modifierIndicator: ncciEdits.modifierIndicator,
+        })
+        .from(ncciEdits)
+    ).map((n) => n);
+    const [cv] = claim.versionId
+      ? await tx.select().from(claimVersions).where(eq(claimVersions.id, claim.versionId))
+      : [];
+    const payload = (cv?.payload ?? null) as ClaimPayload | null;
+    const isDenial = (d: (typeof denied)[number]) =>
+      Number(d.amountCents) > 0 && (d.group === 'CO' || d.group === 'PI') && !['45', '253'].includes(d.carc);
+    denial = {
+      advice: payload
+        ? denied.filter(isDenial).map((d) => ({
+            lineNumber: d.lineNumber ?? 1,
+            code: d.code,
+            carc: d.carc,
+            group: d.group,
+            amountCents: Number(d.amountCents),
+            advice: remit.adviseDenial(
+              payload,
+              {
+                lineNumber: d.lineNumber ?? 1,
+                code: d.code,
+                modifiers: d.modifiers,
+                group: d.group,
+                carc: d.carc,
+                amountCents: Number(d.amountCents),
+                remarks: remarks.filter((r) => r.lineId === d.remitLineId).map((r) => r.rarc),
+              },
+              ncci,
+            ),
+          }))
+        : [],
+      payerClaimNumber: await payerClaimNumber(tx, item.claimId),
+      inFlight: cv?.frequencyCode === '7' && claim.status !== 'denied',
+      balanceCents: claim.balanceCents,
+    };
+  }
   let candidates: WorkDetail['linkCandidates'] = null;
   if (item.type === 'remit_unmatched' && item.status !== 'resolved') {
     const found = await linkCandidates(tx, item.id);
@@ -495,6 +590,7 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
     clientName: client?.name ?? null,
     threshold: client?.autoReleaseThreshold ?? 90,
     remittance,
+    denial,
     linkCandidates: candidates,
     claim,
     scrub,

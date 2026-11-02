@@ -1,5 +1,6 @@
 /** Claim words shared by W-01, C-01 and C-02 to C-05: status chips and plain-language events. */
 import type { Status } from '@cleanpost/ui';
+import { formatMoney } from './format';
 
 export const CLAIM_STATUS: Record<string, Status> = {
   draft: 'Draft',
@@ -104,7 +105,28 @@ export function describeEvent(e: EventLike, pmName: string): { title: string; to
     case 'note':
       return { title: `Note: ${String(p.text ?? '')}`, tone: undefined };
     case 'closed':
-      return { title: 'Closed', tone: undefined };
+      return p.writeOffCents
+        ? {
+            title: `Written off ${formatMoney(Number(p.writeOffCents))}: ${String(p.reason ?? '').toLowerCase()}`,
+            tone: undefined,
+          }
+        : { title: 'Closed', tone: undefined };
+    case 'written_off':
+      return {
+        title: `Written off ${formatMoney(Number(p.writeOffCents))} (${formatMoney(Number(p.left))} still open): ${String(p.reason ?? '').toLowerCase()}`,
+        tone: undefined,
+      };
+    case 'corrected':
+      return {
+        title: `Corrected claim built (frequency 7, replaces payer claim ${String(p.originalRef ?? '')})${p.fixed ? ' with the suggested fix' : ''}`,
+        tone: 'info',
+      };
+    case 'denied':
+      return { title: 'Denied by the payer', tone: 'bad' };
+    case 'paid':
+      return { title: 'Paid', tone: 'good' };
+    case 'partially_paid':
+      return { title: 'Partly paid', tone: 'warn' };
     default:
       return { title: e.type.replace(/_/g, ' '), tone: undefined };
   }
@@ -125,6 +147,11 @@ export const LAST_EVENT: Record<string, string> = {
   correction_manual: 'Correction task opened',
   voided: 'Voided',
   closed: 'Closed',
+  written_off: 'Written off in part',
+  corrected: 'Correction built',
+  denied: 'Denied',
+  paid: 'Paid',
+  partially_paid: 'Partly paid',
   note: 'Note added',
   held: 'On hold',
   hold_released: 'Hold released',
