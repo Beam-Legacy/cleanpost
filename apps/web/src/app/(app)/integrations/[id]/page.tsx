@@ -11,6 +11,7 @@ import {
   type Capability,
 } from '@cleanpost/adapters';
 import { policy } from '@cleanpost/domain';
+import { SYNC_OPERATIONS } from '@cleanpost/sync';
 import { Banner, EmptyState, ModeBadge, StatusChip, cx } from '@cleanpost/ui';
 import { ConnectionChip } from '@/components/connection-status';
 import { NoAccess } from '@/components/page';
@@ -117,6 +118,8 @@ export default async function ConnectionPage({ params }: { params: Promise<{ id:
                 const last = lastByOp(op);
                 const isPull = op.startsWith('pull');
                 const automatic = typeof level === 'number' && level > 0;
+                // Pulls Cleanpost does not read yet (claim status, payments) have no schedule.
+                const scheduled = !isPull || (SYNC_OPERATIONS as readonly string[]).includes(op);
                 return (
                   <tr key={op} className={last?.status === 'failed' ? 'row-bad' : undefined}>
                     <td>
@@ -138,18 +141,26 @@ export default async function ConnectionPage({ params }: { params: Promise<{ id:
                         />
                       ) : (
                         <span className="subtle">
-                          {level === 'unavailable' ? '—' : automatic ? 'Not run yet' : 'Manual task'}
+                          {level === 'unavailable'
+                            ? '—'
+                            : !automatic
+                              ? 'Manual task'
+                              : scheduled
+                                ? 'Not run yet'
+                                : 'Not read yet'}
                         </span>
                       )}
                     </td>
                     <td>
                       {level === 3
                         ? 'On upload'
-                        : isPull && automatic && interval
-                          ? `Every ${interval} min`
-                          : automatic
-                            ? 'On demand'
-                            : '—'}
+                        : isPull && automatic && !scheduled
+                          ? '—'
+                          : isPull && automatic && interval
+                            ? `Every ${interval} min`
+                            : automatic
+                              ? 'On demand'
+                              : '—'}
                     </td>
                     <td>{formatWhen(lastOkByOp(op)?.finishedAt)}</td>
                   </tr>
