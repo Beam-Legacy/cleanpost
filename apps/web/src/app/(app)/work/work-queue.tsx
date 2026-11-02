@@ -70,6 +70,12 @@ export function WorkQueue({
     [router, hrefFor],
   );
   const index = rows.findIndex((r) => r.id === selectedId);
+  // Where J/K move from: updated at once on each press, so fast presses move several rows
+  // before the page has re-rendered for the first one.
+  const cursor = useRef(index);
+  useEffect(() => {
+    cursor.current = index;
+  }, [index]);
   const neighbour = useCallback(() => {
     if (index < 0) return null;
     return rows[index + 1]?.id ?? rows[index - 1]?.id ?? null;
@@ -139,12 +145,20 @@ export function WorkQueue({
       const key = e.key;
       if (key === 'j' || key === 'ArrowDown') {
         e.preventDefault();
-        const next = rows[index + 1] ?? (index < 0 ? rows[0] : undefined);
-        if (next) select(next.id);
+        const at = cursor.current;
+        const next = rows[at + 1] ?? (at < 0 ? rows[0] : undefined);
+        if (next) {
+          cursor.current = rows.indexOf(next);
+          select(next.id);
+        }
       } else if (key === 'k' || key === 'ArrowUp') {
         e.preventDefault();
-        const prev = index > 0 ? rows[index - 1] : undefined;
-        if (prev) select(prev.id);
+        const at = cursor.current;
+        const prev = at > 0 ? rows[at - 1] : undefined;
+        if (prev) {
+          cursor.current = at - 1;
+          select(prev.id);
+        }
       } else if (key === 'Escape' && selectedId) {
         select(null);
       } else if (key === 'Enter' && detail?.claim) {

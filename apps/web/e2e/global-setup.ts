@@ -1,3 +1,6 @@
+import { rmSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 /**
@@ -15,6 +18,11 @@ export const E2E_USERS = [
 ];
 
 export default async function globalSetup() {
+  // Keys saved by firstSignIn belong to the users reset below.
+  rmSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'test-results', '.e2e-keys'), {
+    recursive: true,
+    force: true,
+  });
   const url = process.env.DATABASE_ADMIN_URL ?? 'postgres://cleanpost:cleanpost@localhost:5432/cleanpost';
   const client = new pg.Client({ connectionString: url });
   await client.connect();

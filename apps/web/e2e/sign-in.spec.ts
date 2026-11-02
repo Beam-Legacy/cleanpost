@@ -4,6 +4,8 @@ import { expectAccessible, PASSWORD } from './helpers';
 import { totp } from './totp';
 
 test('first sign-in: password, required two-factor setup, company choice, app shell', async ({ page }) => {
+  // Several axe passes and the auth routes' first compile on a cold dev server.
+  test.setTimeout(90_000);
   await page.goto('/work');
   await expect(page).toHaveURL(/\/sign-in$/);
   await expectAccessible(page, 'A-01');
