@@ -17,6 +17,7 @@ export const JOBS = {
   syncTick: 'sync.tick',
   claimBuild: 'claim.build',
   claimScrub: 'claim.scrub',
+  claimRelease: 'claim.release',
   deadLetter: 'system.dead_letter',
 } as const;
 
@@ -25,6 +26,14 @@ export type ClaimBuildPayload = z.infer<typeof claimBuildPayload>;
 
 export const claimScrubPayload = z.object({ tenantId: z.uuid(), claimVersionId: z.uuid() });
 export type ClaimScrubPayload = z.infer<typeof claimScrubPayload>;
+
+export const claimReleasePayload = z.object({
+  tenantId: z.uuid(),
+  claimId: z.uuid(),
+  /** Who released it (C-11); absent for auto-release. */
+  userId: z.uuid().optional(),
+});
+export type ClaimReleasePayload = z.infer<typeof claimReleasePayload>;
 
 const RETRIES = {
   retryLimit: 4,
@@ -59,6 +68,8 @@ export const QUEUES: { name: string; options: Parameters<PgBoss['createQueue']>[
   { name: JOBS.syncTick, options: { policy: 'singleton', retryLimit: 0, expireInSeconds: 5 * 60 } },
   // One queued and one running build per client (singletonKey = client ID).
   { name: JOBS.claimBuild, options: { policy: 'stately', expireInSeconds: 30 * 60, ...RETRIES } },
+  // One queued release per claim (singletonKey = claim ID).
+  { name: JOBS.claimRelease, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
   // One queued scrub per claim version (singletonKey = version ID).
   { name: JOBS.claimScrub, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
 ];
@@ -133,6 +144,11 @@ export async function sendClaimBuild(boss: PgBoss, payload: ClaimBuildPayload): 
 export async function sendClaimScrub(boss: PgBoss, payload: ClaimScrubPayload): Promise<string | null> {
   const data = claimScrubPayload.parse(payload);
   return boss.send(JOBS.claimScrub, data, { singletonKey: data.claimVersionId });
+}
+
+export async function sendClaimRelease(boss: PgBoss, payload: ClaimReleasePayload): Promise<string | null> {
+  const data = claimReleasePayload.parse(payload);
+  return boss.send(JOBS.claimRelease, data, { singletonKey: data.claimId });
 }
 
 /** Sending side, used by the web app (Run now) and the scheduler. */

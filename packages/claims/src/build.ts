@@ -46,6 +46,8 @@ export interface BuildResult {
   skipped: Record<string, number>;
   /** Claim versions to scrub next. */
   toScrub: string[];
+  /** Claims created in this run (their charges are held in the PM next). */
+  createdClaimIds: string[];
 }
 
 const DEFAULT_FILING_DAYS = 90;
@@ -278,7 +280,14 @@ export async function buildClaimsForClient(
       : [];
     return { client: c, candidates: rows.map((r) => r.id) };
   });
-  const result: BuildResult = { created: 0, updated: 0, unchanged: 0, skipped: {}, toScrub: [] };
+  const result: BuildResult = {
+    created: 0,
+    updated: 0,
+    unchanged: 0,
+    skipped: {},
+    toScrub: [],
+    createdClaimIds: [],
+  };
   if (!client || client.status === 'offboarded') return result;
   for (const encounterId of candidates) {
     const outcome = await withTenant(db, { tenantId: ctx.tenantId }, (tx) =>
@@ -291,6 +300,7 @@ export async function buildClaimsForClient(
     } else {
       result[outcome.kind]++;
       result.toScrub.push(outcome.versionId);
+      if (outcome.kind === 'created') result.createdClaimIds.push(outcome.claimId);
     }
   }
   return result;

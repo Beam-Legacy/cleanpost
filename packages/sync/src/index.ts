@@ -7,6 +7,7 @@ export {
   toAdapterConnection,
   SYNC_OPERATIONS,
   type OperationOutcome,
+  type SyncAppliers,
   type SyncDeps,
   type SyncRequest,
   type SyncResult,

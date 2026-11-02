@@ -508,10 +508,24 @@ export function apiRoutes(deps: ApiDeps) {
         return fail(c, 409, 'conflict', 'Only encounters in review can be approved');
       }
       if (e.workflowStatus === 'Review') {
-        await db
-          .update(encounters)
-          .set({ workflowStatus: 'Approved', updatedAt: deps.now() })
-          .where(eq(encounters.id, e.id));
+        const now = deps.now();
+        await db.transaction(async (tx) => {
+          await tx
+            .update(encounters)
+            .set({ workflowStatus: 'Approved', updatedAt: now })
+            .where(eq(encounters.id, e.id));
+          // An approved encounter joins the PM's next clearinghouse batch.
+          await tx
+            .insert(claims)
+            .values({
+              encounterId: e.id,
+              practiceId: pid,
+              patientControlNumber: e.id,
+              status: 'queued',
+              updatedAt: now,
+            })
+            .onConflictDoNothing();
+        });
       }
       await log(pid, 'release', e.id, 'ok', { workflowStatus: 'Approved' });
       return c.json({ ok: true, workflowStatus: 'Approved' });

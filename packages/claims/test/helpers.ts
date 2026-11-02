@@ -57,7 +57,7 @@ export async function clientRow(name: string) {
 let world: Promise<void> | undefined;
 
 /** The synthetic world, synced from the mock PM into Cleanpost once per test file. */
-export function syncedWorld(scale = 0.5) {
+export function syncedWorld(scale = 1) {
   world ??= (async () => {
     await seed(admin.db, 'claims-test-password-123');
     await seedPmMock(pm.db, { secret: SECRET, asOf: new Date(), scale });

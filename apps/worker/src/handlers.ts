@@ -11,17 +11,23 @@ import {
   type AdapterRegistry,
 } from '@cleanpost/adapters';
 import {
+  applyClaimStatuses,
   buildClaimsForClient,
+  holdCharges,
+  releaseClaim,
   scrubVersion,
   versionsAwaitingScrub,
   type ClaimReviewer,
 } from '@cleanpost/claims';
-import { withTenant, workItems, recordAudit, type Database } from '@cleanpost/db';
+import { eq } from 'drizzle-orm';
+import { claimVersions, withTenant, workItems, recordAudit, type Database } from '@cleanpost/db';
 import {
   claimBuildPayload,
+  claimReleasePayload,
   claimScrubPayload,
   JOBS,
   sendClaimBuild,
+  sendClaimRelease,
   sendClaimScrub,
   sendSyncPull,
   syncPullPayload,
@@ -74,6 +80,8 @@ const syncDeps = (deps: WorkerDeps): SyncDeps => ({
   log: deps.log,
   ...(deps.now ? { now: deps.now } : {}),
   ...(deps.retryDelaysMs ? { retryDelaysMs: deps.retryDelaysMs } : {}),
+  // Claim status from the PM is applied to claims (Mode A tracking, docs/04).
+  appliers: { pullClaimsAndStatus: applyClaimStatuses },
 });
 
 export async function handleSyncPull(deps: WorkerDeps, data: unknown) {
@@ -89,6 +97,11 @@ export async function handleSyncPull(deps: WorkerDeps, data: unknown) {
 export async function handleClaimBuild(deps: WorkerDeps, data: unknown) {
   const payload = claimBuildPayload.parse(data);
   const result = await buildClaimsForClient(deps.db, payload, deps.now ? { now: deps.now() } : {});
+  // New charges are held in the PM so nothing bills before the scrub (docs/04 Mode A).
+  const held = await holdCharges(releaseDeps(deps), {
+    tenantId: payload.tenantId,
+    claimIds: result.createdClaimIds,
+  });
   // Every built version waits for a scrub, including any a crashed worker left behind.
   const awaiting = await versionsAwaitingScrub(deps.db, payload.tenantId, payload.clientId);
   for (const claimVersionId of new Set([...result.toScrub, ...awaiting])) {
@@ -100,6 +113,7 @@ export async function handleClaimBuild(deps: WorkerDeps, data: unknown) {
       created: result.created,
       updated: result.updated,
       toScrub: awaiting.length,
+      held: held.held,
     },
     'claims built',
   );
@@ -108,7 +122,7 @@ export async function handleClaimBuild(deps: WorkerDeps, data: unknown) {
 
 export async function handleClaimScrub(deps: WorkerDeps, data: unknown) {
   const payload = claimScrubPayload.parse(data);
-  return scrubVersion(
+  const result = await scrubVersion(
     {
       db: deps.db,
       log: deps.log,
@@ -117,6 +131,42 @@ export async function handleClaimScrub(deps: WorkerDeps, data: unknown) {
     },
     payload,
   );
+  // At or above the threshold with nothing blocking: released without a human (docs/04 step 5).
+  if (result.status === 'scrubbed' && result.decision === 'auto_release') {
+    const claimId = await claimOfVersion(deps.db, payload.tenantId, payload.claimVersionId);
+    if (claimId) await sendClaimRelease(deps.boss, { tenantId: payload.tenantId, claimId });
+  }
+  return result;
+}
+
+const releaseDeps = (deps: WorkerDeps) => ({
+  db: deps.db,
+  registry: deps.registry,
+  log: deps.log,
+  ...(deps.now ? { now: deps.now } : {}),
+});
+
+async function claimOfVersion(db: Database, tenantId: string, claimVersionId: string) {
+  return withTenant(db, { tenantId }, async (tx) => {
+    const [v] = await tx
+      .select({ claimId: claimVersions.claimId })
+      .from(claimVersions)
+      .where(eq(claimVersions.id, claimVersionId));
+    return v?.claimId ?? null;
+  });
+}
+
+export async function handleClaimRelease(deps: WorkerDeps, data: unknown) {
+  const payload = claimReleasePayload.parse(data);
+  const result = await releaseClaim(
+    releaseDeps(deps),
+    { tenantId: payload.tenantId, claimId: payload.claimId },
+    payload.userId ? `user:${payload.userId}` : 'automation:claim.release',
+  );
+  // A retryable PM error is thrown so the queue retries with backoff, then dead-letters.
+  if (result.status === 'failed' && result.retryable) throw new Error(`release failed: ${result.code}`);
+  deps.log.info({ claimId: payload.claimId, status: result.status }, 'claim release');
+  return result;
 }
 
 /** Every minute: queue connections that are due, and mark stale ones degraded. */
@@ -148,6 +198,7 @@ export async function handleDeadLetter(deps: WorkerDeps, data: unknown) {
   const sync = syncPullPayload.safeParse(data);
   const build = claimBuildPayload.safeParse(data);
   const scrub = claimScrubPayload.safeParse(data);
+  const release = claimReleasePayload.safeParse(data);
   const failed = sync.success
     ? {
         job: JOBS.syncPull,
@@ -169,7 +220,14 @@ export async function handleDeadLetter(deps: WorkerDeps, data: unknown) {
             refs: { claimVersionId: scrub.data.claimVersionId },
             what: 'A claim scrub job',
           }
-        : null;
+        : release.success
+          ? {
+              job: JOBS.claimRelease,
+              tenantId: release.data.tenantId,
+              refs: { claimId: release.data.claimId },
+              what: 'A claim release job',
+            }
+          : null;
   deps.log.error({ job: failed?.job ?? 'unknown', ...(failed?.refs ?? {}) }, 'job failed after retries');
   if (!failed) return;
   const now = deps.now?.() ?? new Date();
@@ -183,6 +241,7 @@ export async function handleDeadLetter(deps: WorkerDeps, data: unknown) {
         dueAt: new Date(now.getTime() + 4 * 3_600_000),
         ...('connectionId' in failed.refs ? { connectionId: failed.refs.connectionId } : {}),
         ...('clientId' in failed.refs ? { clientId: failed.refs.clientId } : {}),
+        ...('claimId' in failed.refs ? { claimId: failed.refs.claimId } : {}),
         reasonCode: 'JOB_FAILED',
         summary: `${failed.what} failed after 5 attempts. Cleanpost support has been alerted.`,
       })
@@ -222,6 +281,9 @@ export async function registerWorkers(
       if (job) await handleClaimScrub(deps, job.data);
     },
   );
+  await deps.boss.work(JOBS.claimRelease, { batchSize: 1, localConcurrency: 2 }, async ([job]) => {
+    if (job) await handleClaimRelease(deps, job.data);
+  });
   await deps.boss.work(JOBS.deadLetter, async ([job]) => {
     if (job) await handleDeadLetter(deps, job.data);
   });

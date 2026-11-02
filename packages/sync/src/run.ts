@@ -16,6 +16,7 @@ import {
   type AdapterRegistry,
   type CapabilityMap,
   type Connection,
+  type ExtClaimStatus,
   type ExtEncounter,
   type ExtPatient,
   type Operation,
@@ -29,6 +30,7 @@ import {
   withTenant,
   type AuditActor,
   type Database,
+  type Tx,
 } from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
 import type { Logger } from '@cleanpost/log';
@@ -43,8 +45,21 @@ import {
   type Rejected,
 } from './upsert';
 
+/** Pulls sync always runs. Claim status joins when an applier is given (packages/claims). */
 export const SYNC_OPERATIONS = ['pullPatientsAndCoverage', 'pullCharges'] as const;
-export type SyncOperation = (typeof SYNC_OPERATIONS)[number];
+export type SyncOperation = (typeof SYNC_OPERATIONS)[number] | 'pullClaimsAndStatus';
+
+/**
+ * Appliers for pulls whose records belong to another package, so sync does not depend on it.
+ * Each runs inside the page's tenant transaction.
+ */
+export interface SyncAppliers {
+  pullClaimsAndStatus?: (
+    tx: Tx,
+    ctx: { tenantId: string; clientId: string; connectionId: string; actor: AuditActor },
+    items: ExtClaimStatus[],
+  ) => Promise<Counts>;
+}
 
 export interface SyncDeps {
   db: Database;
@@ -55,6 +70,7 @@ export interface SyncDeps {
   retryDelaysMs?: number[];
   /** How far back the first charges pull reaches. Default 120 days. */
   backfillDays?: number;
+  appliers?: SyncAppliers;
 }
 
 export interface SyncRequest {
@@ -111,8 +127,12 @@ export function syncIntervalMinutes(row: Pick<ConnectionRow, 'syncIntervalMinute
 }
 
 /** Operations that run on a schedule: automatic (level 1, 2 or 4). File pulls (3) run on upload. */
-export function automaticPulls(caps: Partial<CapabilityMap>): SyncOperation[] {
-  return SYNC_OPERATIONS.filter((op) => {
+export function automaticPulls(caps: Partial<CapabilityMap>, appliers: SyncAppliers = {}): SyncOperation[] {
+  const ops: SyncOperation[] = [
+    ...SYNC_OPERATIONS,
+    ...(appliers.pullClaimsAndStatus ? (['pullClaimsAndStatus'] as const) : []),
+  ];
+  return ops.filter((op) => {
     const level = caps[op];
     return typeof level === 'number' && level > 0 && level !== 3;
   });
@@ -206,7 +226,9 @@ async function runOperation(
       const pull = (): Promise<Page<unknown>> =>
         op === 'pullPatientsAndCoverage'
           ? adapter.pullPatientsAndCoverage(ac, since, cursor)
-          : adapter.pullCharges(ac, since, cursor);
+          : op === 'pullClaimsAndStatus'
+            ? adapter.pullClaimsAndStatus(ac, since, cursor)
+            : adapter.pullCharges(ac, since, cursor);
       const page = await withRetry(pull, delays);
       const valid: unknown[] = [];
       for (const item of page.items) {
@@ -229,6 +251,9 @@ async function runOperation(
         const pageCounts = await withTenant(deps.db, ctxTenant, async (tx) => {
           payers ??= await loadPayerMatcher(tx, conn.clientId);
           if (op === 'pullPatientsAndCoverage') return upsertPatients(tx, ctx, valid as ExtPatient[], payers);
+          if (op === 'pullClaimsAndStatus') {
+            return deps.appliers!.pullClaimsAndStatus!(tx, ctx, valid as ExtClaimStatus[]);
+          }
           const res = await upsertEncounters(tx, ctx, valid as ExtEncounter[]);
           rejected.push(...res.rejected);
           return res.counts;
@@ -312,7 +337,7 @@ export async function runSync(deps: SyncDeps, req: SyncRequest): Promise<SyncRes
       });
     });
   }
-  const ops = automaticPulls(caps);
+  const ops = automaticPulls(caps, deps.appliers);
   if (ops.length === 0) return { status: 'skipped', reason: 'no_automatic_pulls' };
 
   if (req.userId) {

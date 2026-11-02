@@ -11,8 +11,8 @@ import { scanForPhi } from '@cleanpost/testing';
 import { buildClaimsForClient, scrubVersion, versionsAwaitingScrub } from '../src';
 import { admin, app, client, closeAll, log, NORTHWIND, pm, syncedWorld } from './helpers';
 
-// Lakeside belongs to the build tests; files run in any order against one database.
-const NAMES = ['Willamette', 'Cascade'] as const;
+// Each test file owns its practices (Lakeside: build, Willamette: release); files run in any order.
+const NAMES = ['Cascade'] as const;
 const clientIds = () => NAMES.map((n) => client(n).id);
 const outcomes = new Map<string, { decision: string; confidence: number }>();
 
@@ -35,7 +35,7 @@ afterAll(async () => {
 
 describe('claim.scrub on synced data', () => {
   it('scrubs every built claim and moves it through the state machine', async () => {
-    expect(outcomes.size).toBeGreaterThan(30);
+    expect(outcomes.size).toBeGreaterThan(25);
     const rows = await admin.db
       .select({ status: claims.status })
       .from(claims)

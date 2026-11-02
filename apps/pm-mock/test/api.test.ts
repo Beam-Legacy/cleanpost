@@ -98,10 +98,12 @@ describe('pulls', () => {
     expect((await get(`/practices/generic/remittances?since=${SINCE}`, 'generic-account')).status).toBe(200);
   });
 
-  it('serves claim status for billed encounters', async () => {
+  it('serves claim status for billed encounters, and queues the ones approved since', async () => {
     const claimRows = await pullAll('/practices/lakeside/claims', 'northwind-billing');
     expect(claimRows.length).toBeGreaterThan(0);
-    expect(claimRows.every((c) => c.status === 'accepted')).toBe(true);
+    // Loaded billed encounters were accepted; encounters approved by other tests wait in the batch.
+    expect(claimRows.every((c) => c.status === 'accepted' || c.status === 'queued')).toBe(true);
+    expect(claimRows.some((c) => c.status === 'accepted')).toBe(true);
   });
 
   it('rejects a bad query or cursor without echoing it', async () => {
