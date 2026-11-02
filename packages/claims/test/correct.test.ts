@@ -4,7 +4,7 @@
  * scrubbed, approved and released as a task to resubmit it from Tebra (frequency 7), and the denial
  * closes itself when the PM shows the corrected claim accepted.
  */
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, inArray, ne } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   claimEvents,
@@ -168,18 +168,21 @@ async function deny(claimId: string, payerClaimNumber: string) {
 }
 
 /**
- * For write-off tests, which need no PM round trip: a Willamette claim the scrub passed, billed by
- * the PM, accepted and denied. Takes "ready" claims, never the ones in review release.test needs.
+ * For write-off tests, which need no PM round trip: a Willamette claim out the door and denied.
+ * Takes a claim the payer already has (accepted or submitted, left by the other tests), else one the
+ * scrub passed and the PM bills, never the claims in review that release.test needs; files run in
+ * any order, so the pool is whatever the other files have left.
  */
 async function deniedClaim(payerClaimNumber: string) {
-  const pick = async () =>
-    (
-      await admin.db
-        .select()
-        .from(claims)
-        .where(and(eq(claims.clientId, willamette().id), eq(claims.status, 'ready')))
-        .limit(1)
-    )[0];
+  const pick = async () => {
+    const rows = await admin.db
+      .select()
+      .from(claims)
+      .where(
+        and(eq(claims.clientId, willamette().id), inArray(claims.status, ['accepted', 'submitted', 'ready'])),
+      );
+    return ['accepted', 'submitted', 'ready'].flatMap((st) => rows.filter((r) => r.status === st))[0];
+  };
   let c = await pick();
   if (!c) {
     const built = await admin.db
@@ -192,12 +195,15 @@ async function deniedClaim(payerClaimNumber: string) {
       if ((c = await pick())) break;
     }
   }
-  if (!c) throw new Error('no Willamette claim ready');
+  if (!c) throw new Error('no Willamette claim to deny');
+  const claim = c;
   await withTenant(app.db, { tenantId: NORTHWIND }, async (tx) => {
-    await applyClaimEvent(tx, c, 'billed_outside', { actor: 'automation:test' });
-    await applyClaimEvent(tx, { ...c, status: 'submitted' }, 'accept', { actor: 'automation:test' });
+    if (claim.status === 'ready')
+      await applyClaimEvent(tx, claim, 'billed_outside', { actor: 'automation:test' });
+    if (claim.status !== 'accepted')
+      await applyClaimEvent(tx, { ...claim, status: 'submitted' }, 'accept', { actor: 'automation:test' });
   });
-  return { claimId: c.id, denialItemId: await deny(c.id, payerClaimNumber) };
+  return { claimId: claim.id, denialItemId: await deny(claim.id, payerClaimNumber) };
 }
 
 const openDenials = (claimId: string) =>
