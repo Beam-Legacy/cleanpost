@@ -5,6 +5,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgTable,
   smallint,
   text,
@@ -96,6 +97,14 @@ export const remitLines = pgTable('remit_lines', {
   paidCents: cents('paid_cents').notNull(),
   units: integer('units').notNull().default(1),
   lineControlNumber: text('line_control_number'),
+  /**
+   * Posting match (Modes A, C; docs/07-remittance-posting.md): null until checked, then
+   * pending (the PM has not posted the payment yet) | verified | mismatch | missing | unmapped.
+   */
+  verifyStatus: text('verify_status'),
+  /** What differs, in the PM's codes: [{ field, expected, actual }]. Amounts and codes only. */
+  verifyDetail: jsonb('verify_detail').$type<{ field: string; expected: string; actual: string }[]>(),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
   ...timestamps,
 });
 
@@ -187,3 +196,31 @@ export const postings = pgTable('postings', {
   verifiedAt: timestamp('verified_at', { withTimezone: true }),
   ...timestamps,
 });
+
+/**
+ * What the PM posted, read back with `pullPostings` (Modes A, C): one row per posting line, in the
+ * PM's own adjustment codes. Compared with the 835 per line by the posting match.
+ */
+export const pmPostings = pgTable(
+  'pm_postings',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    clientId: clientId().references(() => clients.id),
+    connectionId: uuid('connection_id').notNull(),
+    /** Stable key from the posting's own fields, so a re-read is not stored twice. */
+    externalKey: text('external_key').notNull(),
+    traceNumber: text('trace_number').notNull(),
+    encounterExternalId: text('encounter_external_id').notNull(),
+    lineExternalId: text('line_external_id'),
+    paidCents: cents('paid_cents').notNull(),
+    adjustments: jsonb('adjustments').$type<{ pmAdjustmentCode: string; amountCents: number }[]>().notNull(),
+    patientRespCents: cents('patient_resp_cents').notNull(),
+    postedAt: timestamp('posted_at', { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    unique('pm_postings_key').on(t.connectionId, t.externalKey),
+    index('pm_postings_trace_idx').on(t.clientId, t.traceNumber),
+  ],
+);

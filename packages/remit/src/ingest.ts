@@ -30,6 +30,7 @@ import {
 } from '@cleanpost/db';
 import { formatCents, remit, state } from '@cleanpost/domain';
 import type { Logger } from '@cleanpost/log';
+import { createWorkItem } from './items';
 
 export interface IngestDeps {
   db: Database;
@@ -74,49 +75,6 @@ async function payerOf(tx: Tx, r: remit.Remittance835) {
   return p?.id ?? null;
 }
 
-async function workItem(
-  tx: Tx,
-  v: {
-    tenantId: string;
-    clientId: string;
-    type: string;
-    priority: 1 | 2 | 3;
-    hours: number;
-    reasonCode: string;
-    summary: string;
-    amountCents: number | null;
-    claimId?: string | null;
-    remittanceId: string;
-    now: Date;
-  },
-  actor: AuditActor,
-) {
-  const [item] = await tx
-    .insert(workItems)
-    .values({
-      tenantId: v.tenantId,
-      clientId: v.clientId,
-      type: v.type,
-      priority: v.priority,
-      dueAt: new Date(v.now.getTime() + v.hours * 3_600_000),
-      claimId: v.claimId ?? null,
-      remittanceId: v.remittanceId,
-      reasonCode: v.reasonCode,
-      summary: v.summary,
-      amountCents: v.amountCents,
-    })
-    .returning({ id: workItems.id });
-  await recordAudit(tx, {
-    actor,
-    action: 'work_item.created',
-    entityType: 'work_item',
-    entityId: item!.id,
-    clientId: v.clientId,
-    metadata: { type: v.type, remittanceId: v.remittanceId, ...(v.claimId ? { claimId: v.claimId } : {}) },
-  });
-}
-
-/** The claim this payment belongs to: our control number first, then the payer's claim number. */
 async function matchClaim(tx: Tx, clientId: string, c: remit.ClaimPayment) {
   const [byPcn] = await tx
     .select()
@@ -352,7 +310,7 @@ export async function ingestInTx(
     await move(tx, remittanceId, status, 'balance_fail');
     const difference =
       balance.remittanceDifferenceCents || balance.claims.reduce((s, c) => s + c.differenceCents, 0);
-    await workItem(
+    await createWorkItem(
       tx,
       {
         tenantId: ctx.tenantId,
@@ -380,7 +338,7 @@ export async function ingestInTx(
     const m = await matchClaim(tx, ctx.clientId, c);
     if (!m) {
       unmatched++;
-      await workItem(
+      await createWorkItem(
         tx,
         {
           tenantId: ctx.tenantId,
@@ -439,7 +397,7 @@ export async function ingestInTx(
           ),
         );
       if (!open.length)
-        await workItem(
+        await createWorkItem(
           tx,
           {
             tenantId: ctx.tenantId,

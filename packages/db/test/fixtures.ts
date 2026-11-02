@@ -156,6 +156,17 @@ export async function insertTenantFixture(db: Database, f: TenantFixture, label:
   await db
     .insert(s.postings)
     .values({ ...tc, remittanceId: remittance!.id, connectionId: connection!.id, method: 'pm_native' });
+  await db.insert(s.pmPostings).values({
+    ...tc,
+    connectionId: connection!.id,
+    externalKey: `${label}-posting`,
+    traceNumber: 'EFT1',
+    encounterExternalId: 'E1',
+    paidCents: 100,
+    adjustments: [],
+    patientRespCents: 0,
+    postedAt: new Date(),
+  });
   const [workItem] = await db
     .insert(s.workItems)
     .values({

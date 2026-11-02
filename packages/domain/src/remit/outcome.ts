@@ -41,8 +41,10 @@ export interface PaymentOutcome {
   }[];
 }
 
-const isDenial = (a: Adjustment) =>
+/** A denial: a CO or PI reduction that is not contractual. */
+export const isDenialAdjustment = (a: Adjustment) =>
   a.amountCents > 0 && (a.group === 'CO' || a.group === 'PI') && !CONTRACTUAL.has(a.carc);
+const isDenial = isDenialAdjustment;
 
 export function denialCategory(carc: string): DenialCategory {
   if (AUTH_ELIGIBILITY.has(carc)) return 'auth_eligibility';

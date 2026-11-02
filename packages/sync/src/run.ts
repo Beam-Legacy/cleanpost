@@ -19,6 +19,7 @@ import {
   type ExtClaimStatus,
   type ExtEncounter,
   type ExtPatient,
+  type ExtPosting,
   type ExtRemittance,
   type Operation,
   type Page,
@@ -48,7 +49,8 @@ import {
 
 /** Pulls sync always runs. Claim status joins when an applier is given (packages/claims). */
 export const SYNC_OPERATIONS = ['pullPatientsAndCoverage', 'pullCharges'] as const;
-export type SyncOperation = (typeof SYNC_OPERATIONS)[number] | 'pullClaimsAndStatus' | 'pullRemittances';
+export type SyncOperation =
+  (typeof SYNC_OPERATIONS)[number] | 'pullClaimsAndStatus' | 'pullRemittances' | 'pullPostings';
 
 /**
  * Appliers for pulls whose records belong to another package, so sync does not depend on it.
@@ -66,6 +68,21 @@ export interface SyncAppliers {
     ctx: { tenantId: string; clientId: string; connectionId: string; actor: AuditActor },
     items: ExtRemittance[],
   ) => Promise<Counts>;
+  /** What the PM posted (Modes A and C), for the posting match. */
+  pullPostings?: (
+    tx: Tx,
+    ctx: { tenantId: string; clientId: string; connectionId: string; actor: AuditActor },
+    items: ExtPosting[],
+  ) => Promise<Counts>;
+  /**
+   * Runs once after the pulls of a cycle succeed (the posting match reads remittances and postings
+   * together, so it waits for every page). Its failure is logged and does not fail the sync.
+   */
+  afterPulls?: (
+    tx: Tx,
+    ctx: { tenantId: string; clientId: string; connectionId: string; actor: AuditActor },
+    now: Date,
+  ) => Promise<unknown>;
 }
 
 export interface SyncDeps {
@@ -139,6 +156,8 @@ export function automaticPulls(caps: Partial<CapabilityMap>, appliers: SyncAppli
     ...SYNC_OPERATIONS,
     ...(appliers.pullClaimsAndStatus ? (['pullClaimsAndStatus'] as const) : []),
     ...(appliers.pullRemittances ? (['pullRemittances'] as const) : []),
+    // After remittances, so a payment and its postings are read in the same cycle.
+    ...(appliers.pullPostings ? (['pullPostings'] as const) : []),
   ];
   return ops.filter((op) => {
     const level = caps[op];
@@ -238,7 +257,9 @@ async function runOperation(
             ? adapter.pullClaimsAndStatus(ac, since, cursor)
             : op === 'pullRemittances'
               ? adapter.pullRemittances(ac, since, cursor)
-              : adapter.pullCharges(ac, since, cursor);
+              : op === 'pullPostings'
+                ? adapter.pullPostings(ac, since, cursor)
+                : adapter.pullCharges(ac, since, cursor);
       const page = await withRetry(pull, delays);
       const valid: unknown[] = [];
       for (const item of page.items) {
@@ -266,6 +287,9 @@ async function runOperation(
           }
           if (op === 'pullRemittances') {
             return deps.appliers!.pullRemittances!(tx, ctx, valid as ExtRemittance[]);
+          }
+          if (op === 'pullPostings') {
+            return deps.appliers!.pullPostings!(tx, ctx, valid as ExtPosting[]);
           }
           const res = await upsertEncounters(tx, ctx, valid as ExtEncounter[]);
           rejected.push(...res.rejected);
@@ -370,6 +394,20 @@ export async function runSync(deps: SyncDeps, req: SyncRequest): Promise<SyncRes
     const outcome = await runOperation(deps, conn, adapter, op as Operation & SyncOperation, actor);
     outcomes.push(outcome);
     if (outcome.authFailed) break; // the rest would fail the same way
+  }
+
+  if (deps.appliers?.afterPulls && outcomes.some((o) => o.ok) && !outcomes.some((o) => o.authFailed)) {
+    try {
+      await withTenant(deps.db, ctxTenant, (tx) =>
+        deps.appliers!.afterPulls!(
+          tx,
+          { tenantId: conn.tenantId, clientId: conn.clientId, connectionId: conn.id, actor },
+          now(),
+        ),
+      );
+    } catch (err) {
+      deps.log.error({ err, connectionId: conn.id }, 'after-sync step failed');
+    }
   }
 
   const connectionStatus = await withTenant(deps.db, ctxTenant, async (tx) => {

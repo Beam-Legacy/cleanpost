@@ -22,7 +22,7 @@ import {
 } from '@cleanpost/claims';
 import { eq, inArray } from 'drizzle-orm';
 import type { ExtRemittance } from '@cleanpost/adapters';
-import { fromExtRemittance, ingestInTx } from '@cleanpost/remit';
+import { fromExtRemittance, ingestInTx, storePmPostings, verifyInTx } from '@cleanpost/remit';
 import { parse835 } from '@cleanpost/x12';
 import {
   claims,
@@ -126,8 +126,17 @@ const syncDeps = (deps: WorkerDeps): SyncDeps => ({
   ...(deps.now ? { now: deps.now } : {}),
   ...(deps.retryDelaysMs ? { retryDelaysMs: deps.retryDelaysMs } : {}),
   // Claim status from the PM is applied to claims (Mode A tracking, docs/04); the 835s the PM
-  // holds are ingested and matched (docs/07).
-  appliers: { pullClaimsAndStatus: applyClaimStatuses, pullRemittances: applyRemittances },
+  // holds are ingested and matched, its postings stored, and every matched payment checked
+  // against what the PM posted (docs/07 posting match).
+  appliers: {
+    pullClaimsAndStatus: applyClaimStatuses,
+    pullRemittances: applyRemittances,
+    pullPostings: async (tx, ctx, items) => {
+      const r = await storePmPostings(tx, ctx, items);
+      return { new: r.created, changed: 0, unchanged: r.unchanged, failed: 0 };
+    },
+    afterPulls: (tx, ctx, now) => verifyInTx(tx, { tenantId: ctx.tenantId, clientId: ctx.clientId }, now),
+  },
 });
 
 export async function handleSyncPull(deps: WorkerDeps, data: unknown) {
