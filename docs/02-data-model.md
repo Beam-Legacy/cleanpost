@@ -45,7 +45,7 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 | `claim_versions` | claim_id, version, frequency_code (1,7,8), original_ref (payer claim control number for 7/8), payload jsonb (canonical 837 shape), scrub_result_id, created_by | Immutable after release |
 | `claim_lines` | claim_version_id, line_number, line_control_number, charge_line_id, code, modifiers, units, charge_cents, dx_pointers | |
 | `scrub_results` | claim_version_id, confidence (0–100), findings jsonb[], ai_summary, decision (`auto_release`,`review`,`blocked`), rules_version | |
-| `claim_events` | claim_id, claim_version_id?, type (`built`,`scrubbed`,`approved`,`released`,`ack_999`,`ack_277ca`,`status_277`,`rejected`,`paid`,`denied`,`partially_paid`,`reversed`,`corrected`,`voided`,`note`), payload jsonb, actor, occurred_at | Full timeline |
+| `claim_events` | claim_id, claim_version_id?, type (`built`,`scrubbed`,`approved`,`released`,`ack_999`,`ack_277ca`,`status_277`,`rejected`,`paid`,`denied`,`partially_paid`,`reversed`,`corrected`,`closed`,`voided`,`note`), payload jsonb (`event`, `from`, `to` plus details), actor, occurred_at | Full timeline; written by `applyClaimEvent` for every transition |
 
 ## Remittance and posting
 

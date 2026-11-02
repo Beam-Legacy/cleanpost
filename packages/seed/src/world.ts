@@ -144,7 +144,9 @@ export const CLIENTS: WorldClient[] = [
     tenantId: NORTHWIND,
     name: 'Cascade Pediatrics',
     status: 'live',
-    mode: 'B',
+    // The ui/ designs show Cascade in Mode B; until Modes B and C are built (M7) every Northwind
+    // client runs in Mode A (docs/12-testing.md, DEC-01).
+    mode: 'A',
     city: 'Salem',
     npiBase: '162945530',
     taxId: '93-3307715',
@@ -174,7 +176,8 @@ export const CLIENTS: WorldClient[] = [
     tenantId: NORTHWIND,
     name: 'Willamette Ortho',
     status: 'live',
-    mode: 'C',
+    // Designs show Mode C; Mode A until M7 (see Cascade above).
+    mode: 'A',
     city: 'Eugene',
     npiBase: '170052887',
     taxId: '93-1185520',

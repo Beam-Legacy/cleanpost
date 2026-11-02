@@ -8,7 +8,7 @@ Mode is set per client (`clients.default_mode`) with optional per-payer override
 
 1. `sync.pull` brings new patients, coverage, encounters and charges into the canonical model.
 2. Changed coverage triggers `eligibility.check` (Stedi 270/271). Inactive coverage creates a work item and holds the claim.
-3. When an encounter's charges are complete (PM marks it ready, or no changes for a configurable quiet period, default 2 hours), `claim.build` creates claim version 1.
+3. When an encounter's charges are complete (PM marks it ready, or no changes for a configurable quiet period, default 2 hours), `claim.build` creates claim version 1 (`packages/claims`). A pulled change to a claim that has not been released creates a new version and sends it back through scrub; a released claim is never rebuilt. Encounters the PM already sent before Cleanpost saw them (Tebra `Approved`, generic `billed`) get no claim here; they are tracked through the PM's claim status. The version payload refers to patient, coverage and payer by ID, so names, addresses and member IDs stay in their own encrypted columns.
 4. `claim.scrub` runs rules and AI review and sets confidence.
 5. At or above threshold → `ready` (auto). Below → `needs_review` work item. Blocking finding → `blocked` work item.
 
