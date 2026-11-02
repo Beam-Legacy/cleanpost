@@ -1,5 +1,5 @@
 import 'server-only';
-import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, sql, type SQL } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import {
   claimEvents,
   claims,
@@ -10,6 +10,7 @@ import {
   memberships,
   patients,
   payers,
+  savedViews,
   scrubResults,
   users,
   withAudit,
@@ -489,5 +490,49 @@ export async function listAssignees(
         return { id: p.id, name: p.name, open: l?.open ?? 0, overdue: l?.overdue ?? 0 };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
+  });
+}
+
+export interface SavedView {
+  id: string;
+  name: string;
+  /** Query string for /work, e.g. "type=review&assignee=me". */
+  query: string;
+  shared: boolean;
+  mine: boolean;
+}
+
+const VIEW_KEYS = ['type', 'payer', 'assignee', 'client'] as const;
+
+/** Only the filter keys W-01 knows, as a query string. */
+export function viewQuery(filters: Record<string, unknown>): string {
+  const p = new URLSearchParams();
+  for (const k of VIEW_KEYS) {
+    const v = filters[k];
+    if (typeof v === 'string' && v && v.length <= 64) p.set(k, v);
+  }
+  return p.toString();
+}
+
+/** W-08: this user's views and the views shared with the team. */
+export async function listSavedViews(ctx: ActiveContext): Promise<SavedView[]> {
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const rows = await tx
+      .select()
+      .from(savedViews)
+      .where(
+        and(
+          eq(savedViews.surface, 'work'),
+          or(eq(savedViews.userId, ctx.user.id), eq(savedViews.shared, true)),
+        ),
+      )
+      .orderBy(asc(savedViews.name));
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      query: viewQuery((r.filters ?? {}) as Record<string, unknown>),
+      shared: r.shared,
+      mine: r.userId === ctx.user.id,
+    }));
   });
 }

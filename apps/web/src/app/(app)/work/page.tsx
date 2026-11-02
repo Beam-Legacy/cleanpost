@@ -6,8 +6,9 @@ import { policy, work } from '@cleanpost/domain';
 import { EmptyState, KpiRow, KpiTile } from '@cleanpost/ui';
 import { PageHead } from '@/components/page';
 import { formatCount } from '@/lib/format';
-import { getWorkDetail, listWork, type WorkFilters } from '@/lib/queries/work';
+import { getWorkDetail, listSavedViews, listWork, viewQuery, type WorkFilters } from '@/lib/queries/work';
 import { requireActiveContext } from '@/lib/session';
+import { RemoveViewButton, SaveViewButton } from './saved-views';
 import { WorkFilterSelects } from './work-filters';
 import { WorkQueue } from './work-queue';
 
@@ -33,6 +34,17 @@ export default async function WorkPage({
   };
   const now = new Date();
   const queue = await listWork(ctx, filters, now);
+  const views = await listSavedViews(ctx);
+  const currentQuery = viewQuery(sp as Record<string, unknown>);
+  const groupLabel = work.WORK_TYPE_GROUPS.find((g) => g.key === group)?.label ?? 'All types';
+  const payerName = queue.payers.find((p) => p.id === filters.payerId)?.name;
+  const viewSummary = [
+    groupLabel,
+    payerName ? `Payer: ${payerName}` : null,
+    filters.assignee === 'me' ? 'Assignee: me' : filters.assignee === 'unassigned' ? 'Unassigned' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const itemId = Id.safeParse(sp.item).success ? sp.item! : null;
   const detail = itemId ? await getWorkDetail(ctx, itemId) : null;
   const can = {
@@ -65,7 +77,11 @@ export default async function WorkPage({
 
   return (
     <>
-      <PageHead title="Work" subtitle={caughtUp ? 'Nothing assigned to you is due' : subtitle} />
+      <PageHead
+        title="Work"
+        subtitle={caughtUp ? 'Nothing assigned to you is due' : subtitle}
+        actions={<SaveViewButton canShare={ctx.actor.role === 'admin'} summary={viewSummary} />}
+      />
       <KpiRow label="Today">
         <KpiTile label="Due today" value={formatCount(k.dueToday)} />
         <KpiTile
@@ -127,6 +143,19 @@ export default async function WorkPage({
                 )}
               </>
             )}
+            {views.map((v) => (
+              <span key={v.id} className="row" style={{ gap: 0 }}>
+                <Link
+                  className={`filter-chip${v.query === currentQuery ? ' on' : ''}`}
+                  aria-current={v.query === currentQuery ? 'true' : undefined}
+                  href={`/work${v.query ? `?${v.query}` : ''}`}
+                >
+                  {v.name}
+                  {v.shared ? ' (team)' : ''}
+                </Link>
+                {v.mine && <RemoveViewButton id={v.id} name={v.name} />}
+              </span>
+            ))}
             <span className="spacer" />
             <WorkFilterSelects payers={queue.payers} />
           </div>

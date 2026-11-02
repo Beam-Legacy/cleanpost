@@ -56,7 +56,8 @@ Status (Nov 2, 2026):
 - Built since: C-06 with G-12 reveal, C-10, C-13 (before release, DEC-15), C-16.
 - Built since: W-04 bulk bar, W-05 assign (with in-app notification), C-17 bulk release (claim reviews whose findings are all info).
 - Built since: C-12 hold (claim state `on_hold`).
-- Open: W-08, W-09, G-06, the C-01 column picker and export.
+- Built since: W-08 saved views (personal, or shared with the team by admins).
+- Open: W-09 (more filters), G-06 (remapping shortcuts), the C-01 column picker and export; these move to M5 with settings.
 
 ## M3 — Payments in, Mode A verification (weeks 9–11)
 

@@ -5,15 +5,15 @@
  * in the worker (claim.correct, claim.release); the web app only queues them.
  */
 import { revalidatePath } from 'next/cache';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { approveClaim, editClaim, scrubVersion, unapproveClaim } from '@cleanpost/claims';
-import { claims, claimVersions, scrubResults, withTenant, workItems } from '@cleanpost/db';
+import { claims, claimVersions, savedViews, scrubResults, withTenant, workItems } from '@cleanpost/db';
 import { policy, type policy as P } from '@cleanpost/domain';
 import { cancelClaimRelease, sendClaimCorrect, sendClaimRelease } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import { assignItem, reopenItem, resolveItem, snoozeItem, wakeItem } from '@cleanpost/work';
-import { listAssignees, type Assignee } from '@/lib/queries/work';
+import { listAssignees, viewQuery, type Assignee } from '@/lib/queries/work';
 import { getBoss } from '@/lib/jobs';
 import { getDb } from '@/lib/server';
 import { requireActiveContext, type ActiveContext } from '@/lib/session';
@@ -369,4 +369,50 @@ export async function bulkRelease(
     skipped,
     message: `Releasing ${released} ${released === 1 ? 'claim' : 'claims'}.${skipped ? ` ${skipped} skipped: not eligible any more.` : ''}`,
   };
+}
+
+/** W-08 Save view: a name per person; sharing with the team is for admins. */
+export async function saveView(
+  name: string,
+  filters: Record<string, string>,
+  shared: boolean,
+): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  policy.assertAllowed(ctx.actor, 'work.view');
+  const clean = z.string().trim().min(1).max(60).parse(name);
+  if (shared && ctx.actor.role !== 'admin')
+    return { ok: false, message: 'Only admins can share views with the team.' };
+  const query = viewQuery(filters);
+  const res = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const [dup] = await tx
+      .select({ id: savedViews.id })
+      .from(savedViews)
+      .where(
+        and(eq(savedViews.userId, ctx.user.id), eq(savedViews.surface, 'work'), eq(savedViews.name, clean)),
+      );
+    if (dup) return false;
+    await tx.insert(savedViews).values({
+      tenantId: ctx.tenantId,
+      userId: ctx.user.id,
+      surface: 'work',
+      name: clean,
+      filters: Object.fromEntries(new URLSearchParams(query)),
+      shared,
+    });
+    return true;
+  });
+  revalidatePath('/work');
+  return res
+    ? { ok: true, message: `View "${clean}" saved.` }
+    : { ok: false, message: 'You already have a view with that name.' };
+}
+
+export async function deleteView(viewId: string): Promise<WorkActionResult> {
+  const ctx = await requireActiveContext();
+  const id = Id.parse(viewId);
+  await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    tx.delete(savedViews).where(and(eq(savedViews.id, id), eq(savedViews.userId, ctx.user.id))),
+  );
+  revalidatePath('/work');
+  return { ok: true, message: 'View removed.' };
 }

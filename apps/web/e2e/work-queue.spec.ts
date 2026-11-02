@@ -149,6 +149,29 @@ test('W-04 bulk bar: assign two items (W-05) and confirm a bulk release (C-17)',
   await expect(page.getByRole('toolbar', { name: 'Selected items' })).toHaveCount(0);
 });
 
+test('W-08: saves the current filters as a view, refuses a duplicate name, and removes it', async () => {
+  await page.goto('/work?type=review');
+  await ready();
+  const save = async () => {
+    await page.getByRole('button', { name: 'Save view' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Save view' });
+    await expect(dialog).toContainText('Claim review');
+    await dialog.getByLabel('Name').fill('My reviews');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    return dialog;
+  };
+  await save();
+  await expect(page.getByText('View "My reviews" saved.')).toBeVisible();
+  const chip = page.getByRole('link', { name: 'My reviews' });
+  await expect(chip).toHaveAttribute('aria-current', 'true');
+  const dialog = await save();
+  await expect(dialog).toContainText('You already have a view with that name.');
+  await expectAccessible(page, 'W-08');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('button', { name: 'Remove view My reviews' }).click();
+  await expect(chip).toHaveCount(0);
+});
+
 test('? lists the shortcuts', async () => {
   await page.goto('/work');
   await ready();
