@@ -8,7 +8,10 @@
  */
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Logger } from '@cleanpost/log';
+import { SIM_PAYER_IDS } from '@cleanpost/seed/world';
+import { parse835 } from '@cleanpost/x12';
 import type { PmDb } from './db';
+import { receiveEra } from './era';
 import { answerKey, charges, claims, clearinghouseState, encounters, policies, practices } from './schema';
 
 export interface ClearinghouseDeps {
@@ -24,9 +27,17 @@ export interface ClearinghouseRun {
   sent: number;
   accepted: number;
   rejected: number;
+  remits: number;
+  linesPosted: number;
 }
 
 const BATCH = 200;
+
+interface Remit {
+  id: string;
+  control: number;
+  x12: string;
+}
 
 interface Ack {
   patientControlNumber: string;
@@ -54,7 +65,7 @@ async function memberStatus(db: PmDb, practiceId: string, policyId: string | und
 }
 
 /** Claims the PM has queued, as the payer receives them (codes and amounts, no names). */
-async function queued(db: PmDb, practiceId: string) {
+async function queued(db: PmDb, practiceId: string, practiceName: string) {
   const rows = await db
     .select({ claim: claims, encounter: encounters })
     .from(claims)
@@ -80,6 +91,11 @@ async function queued(db: PmDb, practiceId: string) {
     out.push({
       patientControlNumber: claim.patientControlNumber,
       payerName: policy?.payerName ?? 'Unknown payer',
+      payerId: policy ? (SIM_PAYER_IDS[policy.payerName] ?? null) : null,
+      memberId: policy?.memberId ?? null,
+      priorAuthNumber: e.priorAuthNumber,
+      frequencyCode: '1',
+      billingName: practiceName,
       dateOfService: e.dateOfService,
       renderingNpi: e.renderingNpi,
       // The mock PM has no group NPI; the rendering provider bills.
@@ -88,6 +104,8 @@ async function queued(db: PmDb, practiceId: string) {
       diagnoses,
       lines: lines.map((l) => ({
         lineNumber: l.lineNumber,
+        // The PM's own line ID goes out as the line control number (REF*6R) and comes back on the 835.
+        lineControlNumber: l.id,
         code: l.code,
         modifiers: l.modifiers,
         units: l.units,
@@ -107,12 +125,12 @@ export async function runClearinghouse(deps: ClearinghouseDeps): Promise<Clearin
     'content-type': 'application/json',
     ...(deps.token ? { authorization: `Bearer ${deps.token}` } : {}),
   };
-  const run: ClearinghouseRun = { sent: 0, accepted: 0, rejected: 0 };
-  const all = await deps.db.select({ id: practices.id }).from(practices);
-  for (const { id: practiceId } of all) {
+  const run: ClearinghouseRun = { sent: 0, accepted: 0, rejected: 0, remits: 0, linesPosted: 0 };
+  const all = await deps.db.select({ id: practices.id, name: practices.name }).from(practices);
+  for (const { id: practiceId, name } of all) {
     const source = `pm-mock:${practiceId}`;
     // 1. Send the queued batch.
-    const batch = await queued(deps.db, practiceId);
+    const batch = await queued(deps.db, practiceId, name);
     if (batch.length) {
       const res = await doFetch(`${deps.payerSimUrl}/claims`, {
         method: 'POST',
@@ -174,7 +192,38 @@ export async function runClearinghouse(deps: ClearinghouseDeps): Promise<Clearin
           set: { acksSince: new Date(last.at) },
         });
     }
+    // 3. Bring in the 835s and auto-post them.
+    let after = state?.remitsAfter ?? 0;
+    for (;;) {
+      const rr = await doFetch(
+        `${deps.payerSimUrl}/remits?source=${encodeURIComponent(source)}&after=${after}`,
+        { headers },
+      );
+      if (!rr.ok) throw new Error(`payer-sim remits failed: ${rr.status}`);
+      const { remits } = (await rr.json()) as { remits: Remit[] };
+      for (const m of remits) {
+        const posted = await receiveEra(deps.db, {
+          practiceId,
+          remitId: m.id,
+          r: parse835(m.x12),
+          raw835: m.x12,
+          now: now(),
+        });
+        if (posted) {
+          run.remits++;
+          run.linesPosted += posted.posted;
+        }
+        after = m.control;
+      }
+      if (remits.length) {
+        await deps.db
+          .insert(clearinghouseState)
+          .values({ practiceId, remitsAfter: after })
+          .onConflictDoUpdate({ target: clearinghouseState.practiceId, set: { remitsAfter: after } });
+      }
+      if (remits.length < 100) break;
+    }
   }
-  if (run.sent || run.accepted || run.rejected) deps.log.info(run, 'clearinghouse run');
+  if (run.sent || run.accepted || run.rejected || run.remits) deps.log.info(run, 'clearinghouse run');
   return run;
 }

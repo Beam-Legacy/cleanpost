@@ -20,9 +20,11 @@
   },
   "dependencies": {
     "@cleanpost/config": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
     "@cleanpost/log": "workspace:*",
     "@cleanpost/seed": "workspace:*",
     "@cleanpost/testing": "workspace:*",
+    "@cleanpost/x12": "workspace:*",
     "@hono/node-server": "2.1.5",
     "drizzle-orm": "^0.45.4",
     "hono": "4.13.16",
@@ -32,6 +34,7 @@
   "devDependencies": {
     "@cleanpost/adapters": "workspace:*",
     "@cleanpost/db": "workspace:*",
+    "@cleanpost/payer-sim": "workspace:*",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.11",
     "tsx": "^4.23.15"

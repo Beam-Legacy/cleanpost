@@ -18,6 +18,7 @@ import {
   patients,
   payments,
   practices,
+  remittances,
   writeLog,
   type AccountFault,
 } from './schema';
@@ -267,6 +268,20 @@ export function adminRoutes(deps: AdminDeps) {
     return c.redirect(`/admin/practices/${c.req.param('id')}`);
   });
 
+  // The ERA download a PM or clearinghouse portal offers; the file name carries no patient data.
+  app.get('/eras/:id', async (c) => {
+    const [e] = await db
+      .select({ id: remittances.id, payload: remittances.payload })
+      .from(remittances)
+      .where(eq(remittances.id, c.req.param('id')));
+    const raw835 = (e?.payload as { raw835?: string } | undefined)?.raw835;
+    if (!e || !raw835) return c.notFound();
+    return c.body(raw835, 200, {
+      'content-type': 'application/edi-x12',
+      'content-disposition': `attachment; filename="${e.id.replace(/[^A-Za-z0-9-]/g, '')}.835"`,
+    });
+  });
+
   app.get('/practices/:id', async (c) => {
     const [p] = await db
       .select()
@@ -302,6 +317,12 @@ export function adminRoutes(deps: AdminDeps) {
       .where(and(eq(payments.practiceId, p.id)))
       .orderBy(desc(payments.createdAt))
       .limit(20);
+    const eras = await db
+      .select({ id: remittances.id, receivedAt: remittances.receivedAt, payload: remittances.payload })
+      .from(remittances)
+      .where(eq(remittances.practiceId, p.id))
+      .orderBy(desc(remittances.receivedAt), desc(remittances.id))
+      .limit(50);
     const fmt = (d: Date) => d.toISOString().replace('T', ' ').slice(0, 19);
     return c.html(
       page(
@@ -373,6 +394,45 @@ export function adminRoutes(deps: AdminDeps) {
                   </tbody>
                 </table>`
               : html`<p class="muted">None.</p>`
+          }
+          <h2>ERA files</h2>
+          <p class="muted">
+            835s from the clearinghouse, auto-posted above. Where the PM has no ERA API (the Tebra profile),
+            download a file here and upload it to Cleanpost.
+          </p>
+          ${
+            eras.length
+              ? html`<table>
+                  <thead>
+                    <tr>
+                      <th>Received (UTC)</th>
+                      <th>Payer</th>
+                      <th>Trace</th>
+                      <th>Amount</th>
+                      <th>Claims</th>
+                      <th>File</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${eras.map((e) => {
+                      const era = e.payload as {
+                        payerName: string;
+                        traceNumber: string;
+                        paymentAmountCents: number;
+                        claims: unknown[];
+                      };
+                      return html`<tr>
+                        <td>${fmt(e.receivedAt)}</td>
+                        <td>${era.payerName}</td>
+                        <td>${era.traceNumber}</td>
+                        <td>$${(era.paymentAmountCents / 100).toFixed(2)}</td>
+                        <td>${era.claims.length}</td>
+                        <td><a href="/admin/eras/${e.id}">Download 835</a></td>
+                      </tr>`;
+                    })}
+                  </tbody>
+                </table>`
+              : html`<p class="muted">None yet.</p>`
           }
           <h2>Recent encounters</h2>
           <table>

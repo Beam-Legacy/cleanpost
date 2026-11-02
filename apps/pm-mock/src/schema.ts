@@ -276,4 +276,6 @@ export const clearinghouseState = pm.table('clearinghouse_state', {
     .primaryKey()
     .references(() => practices.id),
   acksSince: ts('acks_since'),
+  /** The last 835 control number read from payer-sim. */
+  remitsAfter: integer('remits_after').notNull().default(0),
 });

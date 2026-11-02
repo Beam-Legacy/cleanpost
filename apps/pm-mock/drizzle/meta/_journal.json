@@ -15,6 +15,13 @@
       "when": 1793592522645,
       "tag": "0001_clearinghouse",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793605104197,
+      "tag": "0002_remits_after",
+      "breakpoints": true
     }
   ]
 }

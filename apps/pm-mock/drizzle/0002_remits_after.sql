@@ -1,0 +1,1 @@
+ALTER TABLE "pm_mock"."clearinghouse_state" ADD COLUMN "remits_after" integer DEFAULT 0 NOT NULL;

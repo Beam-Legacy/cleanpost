@@ -87,6 +87,9 @@ importers:
       '@cleanpost/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@cleanpost/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@cleanpost/log':
         specifier: workspace:*
         version: link:../../packages/log
@@ -96,6 +99,9 @@ importers:
       '@cleanpost/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@cleanpost/x12':
+        specifier: workspace:*
+        version: link:../../packages/x12
       '@hono/node-server':
         specifier: 2.1.5
         version: 2.1.5(hono@4.13.16)
@@ -118,6 +124,9 @@ importers:
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@cleanpost/payer-sim':
+        specifier: workspace:*
+        version: link:../payer-sim
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1

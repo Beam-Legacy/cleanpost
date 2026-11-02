@@ -28,7 +28,7 @@ export async function seedTestWorld() {
     accountId: 'generic-account',
     name: 'Generic Practice',
     specialty: 'family_medicine',
-    providers: [{ npi: '1932204415', name: 'Provider One' }],
+    providers: [{ npi: '1932204419', name: 'Provider One' }],
     locations: [{ id: 'GEN-L1', name: 'Main', placeOfService: '11' }],
   });
   await loadPractice(
@@ -42,7 +42,7 @@ export async function seedTestWorld() {
       state: 'OR',
       zips: ['97201'],
       areaCode: '503',
-      providers: [{ npi: '1932204415' }],
+      providers: [{ npi: '1932204419' }],
       locations: [{ externalId: 'GEN-L1', placeOfService: '11' }],
       payers: [
         { name: 'Aetna', kind: 'commercial' },

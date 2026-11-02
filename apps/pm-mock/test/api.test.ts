@@ -212,7 +212,8 @@ describe('generic profile writes', () => {
     const repeat = await (await post('/practices/generic/payments', 'generic-account', pay)).json();
     expect(repeat).toMatchObject({ id: first.id, existing: true });
     const posted = await pullAll('/practices/generic/postings', 'generic-account');
-    expect(posted).toEqual([
+    // Only this payment's lines: the clearinghouse tests post ERAs to the same practice.
+    expect(posted.filter((p) => p.traceNumber === 'EFT-G-1')).toEqual([
       expect.objectContaining({ traceNumber: 'EFT-G-1', encounterId: id, paidCents: 9_000 }),
     ]);
     const logged = await handle.db.select().from(writeLog).where(eq(writeLog.practiceId, 'generic'));
