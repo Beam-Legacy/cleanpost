@@ -74,6 +74,22 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Guardrails:** The flag is a startup error unless `CLEANPOST_ENV` is `local` or `preview`, and the skip function refuses to run without it. Remove the flag before any environment that could hold PHI exists; staging and production cannot enable it.
 - **Affects:** `packages/config`, `packages/auth/src/session.ts`, A-03 (`apps/web`), `sessions.second_factor_skipped_at`.
 
+## DEC-11 — M1 sync and mock PM choices (Nov 2, 2026)
+
+| Topic | Choice | Why |
+| --- | --- | --- |
+| Synthetic generator | Own seeded PRNG and specialty profiles in `packages/testing/synth`, not Synthea or Faker | Deterministic, small, and every value comes from the scanner's known pools. Synthea can come later for clinical realism. |
+| Pediatric ages | 11–17 in the generator | The PHI scanner recognises dates of birth from 1930 to 2015 only; widening it would flag dates of service. |
+| Mock PM data | Its own `pm_mock` schema with its own migrations table; Cleanpost's app role has no access | It stands in for a third-party PM: Cleanpost reaches it only through the adapter, like a real one. |
+| Mock PM credentials | Account keys derived from `PM_MOCK_SECRET`; connections hold `pm-mock:<account>` | No keys copied between services; the mock adapter and pm-mock refuse staging and production. |
+| Scheduler | `sync.tick` every minute reads `app.sync_candidates()`, a security-definer function returning IDs and schedule fields only | The only cross-tenant read the app role has; everything else runs in each connection's tenant. Recorded in `11-security-hipaa.md`. |
+| Rate limiter | Token buckets in Postgres (`rate_limit_buckets`, tenant RLS) | Shared by every worker process without another service. |
+| Contract suite | `markChargeBilled` may be `unavailable` | Matches `docs/05-adapters.md`; Tebra has no way to mark a charge billed. The suite had been stricter than the docs. |
+| Contract `Page` | Gains `rejected` (PM record ID and field) | Records the adapter cannot read are reported, never silently dropped, and never by value. |
+| Encounter status | PM "billed" maps to canonical `ready`; the PM's own status is kept in `encounters.pm_status` | `claimed` means Cleanpost built a claim (M2); M2's builder will use `pm_status` to skip encounters the PM billed before go-live. |
+| Job queue | pg-boss in its own `pgboss` schema, installed by `pnpm db:migrate`; apps connect as the app role with migrate off | The app role never needs DDL rights on the main schema. |
+| Pulls in M1 | Patients and charges only | Claim status, remittances and postings are pulled once M2 and M3 have the code that applies them. |
+
 ## Open questions
 
 | Question | Owner | Needed by |

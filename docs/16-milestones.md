@@ -29,6 +29,15 @@ Accept:
 - Fault injection (auth expiry, 500s, partial pages, rate limits) leads to correct connection states and work items
 - Two clients sharing one PM account share its rate limit
 
+Status (Nov 2, 2026): built.
+- **Contract tests:** `pnpm test:adapters` covers the mock adapter for each profile against pm-mock, plus the manual, file, stub and Tebra-skeleton adapters.
+- **Seeded data and duplicates:** `packages/sync/test/sync.test.ts` checks that seeded data lands with external refs and that a repeat pull creates no duplicates.
+- **Faults:** `packages/sync/test/faults.test.ts` covers faults, connection states and work items.
+- **Shared rate limit:** two limiter instances share Tebra's limit, and Lakeside and Willamette sync together under the real limits without a 429.
+- **Worker:** the worker over a real queue is covered in `apps/worker/test`.
+- **UI:** Run now, Pause and Resume on I-02 are in the e2e suite.
+- **Moved to later milestones:** claim status, remittance and posting pulls are applied from M2 and M3, with the code that uses them.
+
 ## M2 — Claims out, Mode A (weeks 6–8)
 
 Build: claim builder, rules DSL and engine, seed rules (structural, NCCI, starter specialty and payer rules), AI review via `@cleanpost/ai` with redaction, confidence scoring, claim state machine, Mode A release via adapter (hold, correction, release), Stedi sandbox client for eligibility (270/271) and the `eligibility.check` job feeding scrub step 2, `apps/payer-sim` fed by pm-mock's clearinghouse (277CA back into pm-mock, read by sync), work queue (W-01, W-03 to W-12, W-23, G-06), claims (C-01 to C-05, C-08, C-10 to C-13, C-16, C-17), reveal control (G-12).

@@ -84,16 +84,31 @@ Each adapter declares a `syncPolicy` (contract): the default `sync.pull` interva
 
 Tebra: every 2 hours by default, backfills after hours, limits from `docs/15-integrations-reference.md`.
 
+How it is built (`packages/sync`, M1):
+- The limiter is a token bucket per (tenant, PM account or connection, endpoint) in `rate_limit_buckets`; each take is a short tenant transaction, so every worker process shares it. A wait longer than 30 seconds becomes `RATE_LIMITED`.
+- A cycle asks the adapter for its capabilities (saved to `connections.levels`), then runs each automatic pull (level 1, 2 or 4; file pulls run on upload). Each page is written in its own tenant transaction; HTTP calls never run inside one.
+- Records are matched through `external_refs` (connection, entity type, PM ID), so a repeat pull changes nothing. A record that fails validation is counted as failed and named in the sync run by PM ID and field only.
+- `since` is the start of the last succeeded run minus 10 minutes. The first patients pull reads everything; the first charges pull reaches back 120 days.
+- Retryable errors (5xx, partial pages, timeouts, 429) are retried within the run. After that the outcome goes through the connection state machine: authentication failure → `failed` at once; an operation failing → `degraded`; three cycles in a row in which everything failed → `failed`; success → `healthy`. A degraded or failed connection has one open `sync_failure` work item, resolved by automation when it recovers.
+- Pause and Resume (I-02) and staleness (no success for 2× the interval) use the same state machine.
+
 ## Reference PM mock (`apps/pm-mock`)
 
-A small practice management system with its own schema: practices, providers, patients, policies, appointments, encounters, charges, claims, payments, adjustments, adjustment codes. It runs with a capability profile per practice: `generic` (every operation supported) and `tebra` (Draft/Review/Approved/Rejected encounter workflow, no ERA access, payment headers only, Tebra's per-account rate limits), so the full cycle is tested against a PM as limited as the first real one. It exposes:
-- REST API matching every adapter operation, with optional faults (latency, 500s, auth expiry, partial pages) toggled by headers for testing.
-- Its own "clearinghouse" mode: if a client is in Mode A, released charges are sent to `apps/payer-sim`, and 835s come back into pm-mock, which auto-posts them (with a configurable error rate, e.g. 5% of lines posted to the wrong adjustment code) so Cleanpost's verification has something to catch.
-- A minimal admin UI so a human can see what Cleanpost wrote into the PM.
+A small practice management system with its own schema (`pm_mock`): accounts, practices, providers, locations, patients, policies, encounters, charges, claims, payments, postings, remittances, adjustment codes, a write log and the generator's answer key. Cleanpost never reads these tables, only the API. Each PM account (one API key, one rate limit, possibly several practices) runs a capability profile:
+- `generic`: every operation supported.
+- `tebra`: Draft/Review/Approved/Rejected encounter workflow (hold = stay in Review, release = Approved); no mark billed, no corrections, no remittance files; payments created as headers only; Tebra's per-account, per-endpoint limits.
+- `managed_api`: no hold or corrections; full payment posting.
+
+It exposes:
+- A REST API (`/api/v1/practices/:id/...`) matching every adapter operation. Lists page by `(updated_at, id)` from `since`. Faults can be injected per request with `X-Mock-Fault` (`auth_expired`, `error_500`, `partial_page`, `rate_limited`, `timeout`, `latency:<ms>`) or stored on the account for a number of requests or minutes.
+- Its own "clearinghouse" mode (M2): if a client is in Mode A, released charges are sent to `apps/payer-sim`, and 835s come back into pm-mock, which auto-posts them (with a configurable error rate, e.g. 5% of lines posted to the wrong adjustment code) so Cleanpost's verification has something to catch.
+- A minimal admin page (`/admin`, basic auth with `PM_MOCK_ADMIN_PASSWORD`). It shows what Cleanpost wrote into the PM, injects account faults and adds today's visits, so a demo can show new charges arriving.
+
+Account API keys in local and preview are derived from `PM_MOCK_SECRET`; connections reference them as `pm-mock:<account>` and the development secret resolver turns that into the key. The mock adapter and pm-mock refuse to run in staging and production.
 
 ## Contract test suite (`pnpm test:adapters`)
 
-Runs against every registered adapter: capabilities are declared for every operation; pulls are idempotent and paginate; unsupported operations return manual tasks; mapping produces valid canonical records (Zod); errors are typed and contain no PHI.
+Runs against every registered adapter: capabilities are declared for every operation (only `holdCharge`, `releaseCharge` and `markChargeBilled` may be `unavailable`); pulls are idempotent and paginate; unsupported operations return manual tasks; mapping produces valid canonical records (Zod); errors are typed and contain no PHI. The mock adapter runs it against an in-process pm-mock for each profile (`apps/pm-mock/test/contract.test.ts`), plus fault mapping and shared rate limits.
 
 ## Credentials
 

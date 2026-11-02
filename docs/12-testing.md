@@ -4,12 +4,19 @@ The full cycle must run end to end on synthetic data before any real connector e
 
 ## Synthetic data (`packages/testing/synth`)
 
-- **Patients**: generated with Synthea (open-source synthetic patient generator) or Faker with a fixed seed. Names drawn from a known synthetic list so the log scanner can detect leaks.
-- **Coverage**: mix of commercial, Medicare, Medicaid; 10% inactive; 8% with secondary coverage; 3% with mismatched payer.
-- **Encounters and charges**: generator per specialty profile (`profiles/<specialty>.json`) with code mix, modifier frequency, diagnoses and charge amounts. First profile: the pilot specialty Julia picks. Include deliberate defects at known rates (missing modifier 5%, invalid pointer 1%, NCCI conflict 2%, duplicate 0.5%) so scrub accuracy can be measured.
-- **Tenants**: "Northwind Billing" with the clients from the `ui/` synthetic world (`ui/CONVENTIONS.md`), each backed by pm-mock with the matching PM profile (Tebra profile for Lakeside and Willamette, generic profile for Cascade, manual adapter for Riverbend). Until Modes B and C are built (M7), every Northwind client runs in Mode A. "Harbor RCM" (1 client, manual adapter) for isolation tests.
+`generatePractice()` is deterministic for a seed (its own PRNG, no Faker or Synthea yet).
 
-`pnpm seed` loads these into Cleanpost and pm-mock.
+- **Patients**: drawn from the synthetic identity pools (`synth/identifiers.ts`), so the log scanner can detect leaks. Dates of birth stay within 1930–2015, the range the scanner recognises; pediatric patients are therefore 11–17.
+- **Coverage**: Medicare for patients 65 and over, about 20% Medicaid otherwise, commercial for the rest. Exactly 8% have secondary coverage. The answer key marks 10% inactive (the PM does not know) and 3% with the wrong payer on file.
+- **Encounters and charges**: one generator per specialty profile (`synth/profiles.ts`): code mix, modifiers, diagnoses and charge amounts in integer cents, codes only. Profiles now: family medicine, pediatrics, orthopedics; the pilot specialty Julia picks gets its own. Deliberate defects come at exact rates: missing modifier 5%, NCCI conflict 2% (real procedure-to-procedure pairs), invalid pointer 1%, duplicate 0.5%. Arthroscopies without prior authorization are also marked. The answer key, stored in `pm_mock.answer_key` and never served by the API, says which record carries which defect, so scrub accuracy can be measured.
+- **Tenants**: "Northwind Billing" with the clients from the `ui/` synthetic world (`ui/CONVENTIONS.md`), backed by pm-mock with the matching PM profile:
+  - Lakeside and Willamette: Tebra profile, one shared Tebra account;
+  - Cascade: managed API profile, for AdvancedMD;
+  - Riverbend: manual adapter.
+
+  Until Modes B and C are built (M7), every Northwind client runs in Mode A. "Harbor RCM" (1 client, manual adapter) is used for isolation tests.
+
+`pnpm seed` loads these into Cleanpost and, when `PM_MOCK_DATABASE_URL` and `PM_MOCK_SECRET` are set, into pm-mock (Lakeside 180 patients and 320 encounters, Cascade 150 and 260, Willamette 140 and 240). The first sync then brings them into Cleanpost.
 
 ## Payer simulator (`apps/payer-sim`)
 

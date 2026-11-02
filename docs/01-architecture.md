@@ -14,6 +14,8 @@ cleanpost/
     domain/         Pure business logic: claim builder, rules, matching, state machines, money
     db/             Drizzle schema, migrations, RLS policies, tenant-scoped client
     adapters/       Adapter contract, registry, and one folder per PM adapter
+    sync/           Sync engine: pulls into canonical tables, connection state, shared rate limiter
+    jobs/           Job queue (pg-boss): queue names, ID-only payload schemas, install
     stedi/          Typed Stedi client (eligibility, claims, status, ERA, enrollment, webhooks)
     x12/            837/835/277 parsers and serializers for file-based adapters and golden tests
     ai/             Bedrock client, prompt templates, structured-output schemas, redaction guard
@@ -45,11 +47,13 @@ Stedi webhooks ──► /api/webhooks/stedi ── enqueue job
 
 ## Jobs
 
-All asynchronous work is a pg-boss job. Payloads carry IDs only.
+All asynchronous work is a pg-boss job. Payloads carry IDs only and are validated with Zod when read (`packages/jobs`). The queue lives in its own `pgboss` schema: `pnpm db:migrate` installs it as the migration role and grants it to the app role; the web app only sends jobs, the worker also runs the schedule and maintenance.
 
 | Job | Trigger | Does |
 | --- | --- | --- |
-| `sync.pull` | Schedule per connection (default from the adapter's `syncPolicy`: mock 15 min, Tebra 2 hours), manual | Calls adapter pull operations, upserts canonical records, records a SyncRun |
+| `sync.tick` | Every minute (worker) | Lists due connections through `app.sync_candidates()` (IDs and schedule fields only) and queues `sync.pull` for each; marks healthy connections stale after 2× their interval |
+| `sync.pull` | `sync.tick` (default interval from the adapter's `syncPolicy`: mock 15 min, Tebra 2 hours; connections may override), Run now on I-02 | Calls adapter pull operations, upserts canonical records, records a SyncRun per operation, moves the connection through its state machine. One queued and one running job per connection. M1 pulls patients and charges; claim status joins in M2, remittances and postings in M3 |
+| `system.dead_letter` | A job that failed its last retry | Creates a `system` work item and logs an error for the platform operator |
 | `eligibility.check` | New or changed coverage; 3 days before a scheduled claim release | Stedi 270, stores 271 summary |
 | `claim.build` | New charges complete for an encounter | Builds claim version from canonical records |
 | `claim.scrub` | After build, after any edit | Runs rules and AI review, sets confidence, routes |
@@ -72,7 +76,7 @@ Retry policy: exponential backoff, max 5 attempts; after that the job creates a 
 | Env | Data | Host | BAA |
 | --- | --- | --- | --- |
 | local | Synthetic only | Docker (Postgres, Mailpit for email) | n/a |
-| preview | Synthetic only | Railway project `cleanpost-preview`: Postgres 16 and `web` (Dockerfile `apps/web/Dockerfile`, pre-deploy `pnpm release:preview`, health check `/api/health`), `CLEANPOST_ENV=preview`, `SMTP_HOST=log` | Not required |
+| preview | Synthetic only | Railway project `cleanpost-preview`, all with `CLEANPOST_ENV=preview`: Postgres 16; `web` (Dockerfile `apps/web/Dockerfile`, pre-deploy `pnpm release:preview` which also seeds the mock PM, health check `/api/health`, `SMTP_HOST=log`); `worker` (`apps/worker/Dockerfile`, `/health`); `pm-mock` (`apps/pm-mock/Dockerfile`, reached by the worker at `pm-mock.railway.internal:4010`, admin page behind basic auth) | Not required |
 | staging | Synthetic plus de-identified golden files | AWS | Yes |
 | production | Real PHI | AWS (ECS Fargate, RDS Postgres, S3 with SSE-KMS, Secrets Manager) | Yes, signed before any PHI |
 

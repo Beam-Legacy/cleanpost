@@ -19,7 +19,7 @@ Cleanpost is a business associate of each billing company (itself a business ass
 | --- | --- |
 | Identity | better-auth with mandatory MFA (TOTP or passkey); password policy per NIST 800-63B; lockout and alerting |
 | Authorization | Role-based (admin, biller, viewer) plus client scope; checks in a single policy module used by every route and job |
-| Tenant isolation | Postgres RLS on every customer table, with `tenant_id` denormalized onto child tables; `app.tenant_id` set per transaction; automated cross-tenant tests in CI. Global tables (users and auth tables, reference data, banners) hold no PHI and are reached only through their owning module |
+| Tenant isolation | Postgres RLS on every customer table, with `tenant_id` denormalized onto child tables; `app.tenant_id` set per transaction; automated cross-tenant tests in CI. Global tables (users and auth tables, reference data, banners) hold no PHI and are reached only through their owning module. The app role's only cross-tenant read is `app.sync_candidates()`, a security-definer function owned by the migration role (which must bypass RLS) that returns connection IDs and schedule fields for the sync scheduler, nothing else; it is covered by the isolation tests. The job queue schema (`pgboss`) holds ID-only payloads and no customer data |
 | Encryption in transit | TLS 1.2+ everywhere; HSTS; internal service traffic over TLS |
 | Encryption at rest | RDS encryption (KMS), S3 SSE-KMS, field-level encryption for tax IDs, member IDs and SSNs (SSNs are not collected unless a payer requires them) |
 | Secrets | AWS Secrets Manager; no secrets in env files committed to git; rotation schedule |
