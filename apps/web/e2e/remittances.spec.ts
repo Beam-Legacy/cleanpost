@@ -148,3 +148,19 @@ test('M-03 lists manual tasks with where the hand work comes from, accessibly', 
   ).toBeVisible();
   await expectAccessible(page, 'M-03');
 });
+
+test('R-08 explains an adjustment code on focus', async () => {
+  await page.goto('/remittances?view=attention');
+  await page
+    .getByRole('table', { name: 'Payments' })
+    .getByRole('row')
+    .filter({ hasText: 'Out of balance' })
+    .first()
+    .getByRole('link')
+    .click();
+  const chip = page.locator('button.codechip').first();
+  await expect(chip).toBeVisible();
+  await chip.focus();
+  await expect(page.getByRole('tooltip')).toContainText(/above the contracted rate/i);
+  await expectAccessible(page, 'R-08');
+});

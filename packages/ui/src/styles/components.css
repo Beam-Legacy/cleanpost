@@ -1779,6 +1779,12 @@ svg.lucide.icon-20 {
   color: var(--ink);
   white-space: nowrap;
 }
+/* R-08: a chip that explains itself is a button, for hover and keyboard focus. */
+button.codechip {
+  border: 0;
+  cursor: help;
+  line-height: inherit;
+}
 .codechip.bad {
   background: var(--danger-tint);
   color: var(--danger);

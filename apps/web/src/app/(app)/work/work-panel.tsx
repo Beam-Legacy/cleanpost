@@ -20,6 +20,7 @@ import {
 } from '@cleanpost/ui';
 import { CLAIM_STATUS } from '@/lib/claim-display';
 import { formatDate, formatMoney } from '@/lib/format';
+import { CodeChip } from '@/components/code-chip';
 import { CARC_LABEL } from '@/lib/remit-display';
 import type { WorkDetail } from '@/lib/queries/work';
 import { LinkPayment } from './link-payment';
@@ -329,9 +330,7 @@ export function WorkPanel({
                     .map((a, i) => (
                       <li key={i}>
                         <span className="code">{a.code}</span> denied {formatMoney(a.amountCents)}{' '}
-                        <span className="codechip bad">
-                          {a.group}-{a.carc}
-                        </span>{' '}
+                        <CodeChip code={`${a.group}-${a.carc}`} bad />{' '}
                         <span className="muted">{CARC_LABEL[a.carc] ?? ''}</span>
                       </li>
                     ))}

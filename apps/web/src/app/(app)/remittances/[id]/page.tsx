@@ -9,6 +9,7 @@ import { formatDate, formatMoney } from '@/lib/format';
 import { getRemittance, type RemitLineView } from '@/lib/queries/remittances';
 import { CARC_LABEL, lineResult, PLB_LABEL } from '@/lib/remit-display';
 import { requireActiveContext } from '@/lib/session';
+import { CodeChip } from '@/components/code-chip';
 import { AcceptDifference } from './accept-difference';
 
 export const metadata: Metadata = { title: 'Remittance' };
@@ -28,9 +29,7 @@ function SaysCell({ l }: { l: RemitLineView }) {
           <>
             Denied {formatMoney(denied.reduce((s, a) => s + a.amountCents, 0))}{' '}
             {denied.map((a) => (
-              <span key={adjText(a)} className="codechip bad">
-                {adjText(a)}
-              </span>
+              <CodeChip key={adjText(a)} code={adjText(a)} bad />
             ))}
           </>
         ) : (
@@ -382,7 +381,7 @@ export default async function RemittancePage({
             {legend.map((c, i) => (
               <span key={c}>
                 {i > 0 && ' · '}
-                <span className={`codechip${DENIAL.has(c) ? ' bad' : ''}`}>{c}</span> {CARC_LABEL[c]}
+                <CodeChip code={c} bad={DENIAL.has(c)} /> {CARC_LABEL[c]}
               </span>
             ))}
           </span>

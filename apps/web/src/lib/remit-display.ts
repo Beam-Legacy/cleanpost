@@ -54,3 +54,41 @@ export const PLB_LABEL: Record<string, string> = {
   FB: 'forwarding balance',
   CS: 'adjustment',
 };
+
+/** What the group code says about who owes the amount (R-08). */
+export const GROUP_LABEL: Record<string, string> = {
+  CO: 'Contractual: the provider cannot bill the patient for this',
+  PR: 'Patient responsibility: the patient (or a secondary payer) may be billed',
+  OA: 'Other adjustment',
+  PI: 'Payer initiated reduction',
+  CR: 'Correction or reversal',
+};
+
+/** Remark codes the payer simulator and common 835s use, in our own words (R-08). */
+export const RARC_LABEL: Record<string, string> = {
+  N822: 'A required modifier is missing',
+  M15: 'Billed separately but paid as part of another service',
+  N30: 'The patient was not eligible for this service',
+  MA01: 'The claim may be appealed',
+  N522: 'Duplicate of a claim processed before',
+};
+
+/** One code's plain meaning: "CO-45", "PR-1", a RARC like "N822", or a bare CARC. */
+export function explainCode(code: string): { title: string; lines: string[] } {
+  const pair = /^(CO|PR|OA|PI|CR)-([A-Z0-9]+)$/.exec(code);
+  if (pair) {
+    const [, group, carc] = pair as unknown as [string, string, string];
+    return {
+      title: code,
+      lines: [
+        CARC_LABEL[carc] ? capitalize(CARC_LABEL[carc]) : 'No description on file',
+        GROUP_LABEL[group] ?? '',
+      ].filter(Boolean),
+    };
+  }
+  if (RARC_LABEL[code]) return { title: code, lines: [RARC_LABEL[code]] };
+  if (CARC_LABEL[code]) return { title: code, lines: [capitalize(CARC_LABEL[code])] };
+  return { title: code, lines: ['No description on file'] };
+}
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

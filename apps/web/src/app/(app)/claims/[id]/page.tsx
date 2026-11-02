@@ -19,6 +19,7 @@ import {
 import { actorLabel, CLAIM_STATUS, describeEvent, FREQUENCY_LABEL } from '@/lib/claim-display';
 import { formatDate, formatMoney, formatWhen } from '@/lib/format';
 import { getClaim, getClaimCoverage, type ClaimDetail } from '@/lib/queries/claims';
+import { CodeChip } from '@/components/code-chip';
 import { getClaimPayments } from '@/lib/queries/remittances';
 import { lineResult } from '@/lib/remit-display';
 import { requireActiveContext } from '@/lib/session';
@@ -771,11 +772,10 @@ async function ClaimPayments({
                                 className="row"
                                 style={{ gap: 4, display: 'inline-flex', marginRight: 8 }}
                               >
-                                <span
-                                  className={`codechip${a.group === 'PR' || a.carc === '45' ? '' : ' bad'}`}
-                                >
-                                  {a.group}-{a.carc}
-                                </span>
+                                <CodeChip
+                                  code={`${a.group}-${a.carc}`}
+                                  bad={!(a.group === 'PR' || a.carc === '45')}
+                                />
                                 {formatMoney(a.amountCents)}
                               </span>
                             ))

@@ -76,7 +76,8 @@ Status (Nov 2, 2026):
 - Built: `pnpm test:cycle` for the mock-PM Mode A clients, passing (acceptance 2 and 3); W-19 map an adjustment code (admins; per PM type or client; closes the items and re-checks); W-17 link an unmatched payment to a candidate claim, or set it aside as before go-live or not this client's; the scrub blocks a member the payer does not know (271 AAA 72/75).
 - Built: C-07 claim payments tab; R-06 and W-18 accept a difference (admins, with a reason; claims that balance on their own go on, the rest are set aside), with the `remittance.accept_difference` permission.
 - Built: manual posting (M-01, M-02, F-02 as CSV, M-03): where Cleanpost cannot read the PM's postings (manual adapter, stubs), each matched payment opens one posting task with a worksheet in the PM's codes; "Mark as posted" with the PM's payment ID reconciles it on that person's word (lines `confirmed`); "Couldn't complete" records the reason and assigns the task to the owner; the manual tasks page shows open tasks and estimated hand work by operation and PM.
-- Next: the worksheet as PDF (F-02), the manual adapter clients in `pnpm test:cycle` (charges by file), R-08 code explainer, secondary claim verification.
+- Built: R-08 code explainer: adjustment and remark code chips explain themselves on hover or focus, in our own words (`explainCode`, no X12 list text, no procedure descriptions).
+- Next: the worksheet as PDF (F-02), the manual adapter clients in `pnpm test:cycle` (charges by file), secondary claim verification.
 
 ## M4 — Denials, eligibility, documents, reports (weeks 12–15)
 
