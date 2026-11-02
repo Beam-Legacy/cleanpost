@@ -146,9 +146,29 @@ export async function sendClaimScrub(boss: PgBoss, payload: ClaimScrubPayload): 
   return boss.send(JOBS.claimScrub, data, { singletonKey: data.claimVersionId });
 }
 
-export async function sendClaimRelease(boss: PgBoss, payload: ClaimReleasePayload): Promise<string | null> {
+/**
+ * Queues a release. A person's approval waits `delaySeconds` (10 in W-10) so Undo can cancel it
+ * before anything reaches the PM (docs/09-ui-screens.md).
+ */
+export async function sendClaimRelease(
+  boss: PgBoss,
+  payload: ClaimReleasePayload,
+  opts: { delaySeconds?: number } = {},
+): Promise<string | null> {
   const data = claimReleasePayload.parse(payload);
-  return boss.send(JOBS.claimRelease, data, { singletonKey: data.claimId });
+  return boss.send(JOBS.claimRelease, data, {
+    singletonKey: data.claimId,
+    ...(opts.delaySeconds ? { startAfter: opts.delaySeconds } : {}),
+  });
+}
+
+/** Undo: cancels a release that has not started. False if it already ran or is running. */
+export async function cancelClaimRelease(boss: PgBoss, jobId: string): Promise<boolean> {
+  const job = await boss.getJobById(JOBS.claimRelease, jobId);
+  if (!job || job.state !== 'created') return false;
+  await boss.cancel(JOBS.claimRelease, jobId);
+  const after = await boss.getJobById(JOBS.claimRelease, jobId);
+  return after?.state === 'cancelled';
 }
 
 /** Sending side, used by the web app (Run now) and the scheduler. */

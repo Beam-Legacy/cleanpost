@@ -1,0 +1,23 @@
+{
+  "name": "@cleanpost/work",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
+    "drizzle-orm": "^0.45.4"
+  },
+  "devDependencies": {
+    "@cleanpost/seed": "workspace:*",
+    "@cleanpost/testing": "workspace:*"
+  }
+}

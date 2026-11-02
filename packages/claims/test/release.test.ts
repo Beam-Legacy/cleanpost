@@ -34,6 +34,7 @@ import {
   editClaim,
   releaseClaim,
   scrubVersion,
+  unapproveClaim,
   versionsAwaitingScrub,
 } from '../src';
 import {
@@ -182,6 +183,36 @@ describe('release (Mode A, Tebra profile)', () => {
       .from(pmSchema.claims)
       .where(eq(pmSchema.claims.encounterId, pmEnc.id));
     expect(pmClaim!.status).toBe('queued');
+  });
+
+  it('undoes an approval before release: back in review, item reopened, release refused', async () => {
+    const [c] = await inReview();
+    const user = await userIdOf();
+    await approveClaim(app.db, { tenantId: NORTHWIND, userId: user, claimId: c!.id });
+    expect(await unapproveClaim(app.db, { tenantId: NORTHWIND, userId: user, claimId: c!.id })).toEqual({
+      ok: true,
+    });
+    const [after] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
+    expect(after!.status).toBe('needs_review');
+    const [review] = await admin.db
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.claimId, c!.id), eq(workItems.type, 'claim_review')));
+    expect(review!.status).toBe('open');
+    expect(await releaseClaim(deps, { tenantId: NORTHWIND, claimId: c!.id })).toEqual({
+      status: 'refused',
+      reason: 'not_ready',
+    });
+    // Approved again, the approval counts again.
+    await approveClaim(app.db, { tenantId: NORTHWIND, userId: user, claimId: c!.id });
+    expect(await releaseClaim(deps, { tenantId: NORTHWIND, claimId: c!.id }, `user:${user}`)).toEqual({
+      status: 'released',
+      via: 'adapter',
+    });
+    expect(await unapproveClaim(app.db, { tenantId: NORTHWIND, userId: user, claimId: c!.id })).toEqual({
+      ok: false,
+      reason: 'already_released',
+    });
   });
 
   it('reads the PM claim number and the 277CA result back through sync', async () => {
@@ -341,7 +372,7 @@ describe('edits in Mode A when the PM can only be corrected by hand (Tebra)', ()
     const res = await editClaim(
       deps,
       { tenantId: NORTHWIND, userId: user, claimId },
-      { kind: 'fix', ruleId },
+      { kind: 'fix', ruleIds: [ruleId] },
     );
     expect(res).toMatchObject({ status: 'edited', pm: 'manual_task' });
     if (res.status !== 'edited') return;

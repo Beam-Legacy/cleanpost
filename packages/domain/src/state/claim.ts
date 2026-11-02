@@ -1,7 +1,7 @@
 /**
  * Claim lifecycle (docs/03-state-machines.md):
  *
- *   draft -build-> built -scrub-> needs_review -approve-> ready
+ *   draft -build-> built -scrub-> needs_review -approve-> ready (-unapprove-> needs_review: Undo)
  *                        |        |  `-edit-> built          (new scrub)
  *                        |        `-block-> blocked -fix-> built
  *                        `-scrub(auto)-> ready
@@ -42,6 +42,8 @@ export type ClaimEvent =
   | 'scrub_review'
   | 'scrub_block'
   | 'approve'
+  /** Undo of a person's approval within 10 seconds, before the release went out (docs/09). */
+  | 'unapprove'
   | 'edit'
   | 'block'
   | 'fix'
@@ -66,7 +68,7 @@ const TABLE: TransitionTable<ClaimState, ClaimEvent> = {
   built: { scrub_auto: 'ready', scrub_review: 'needs_review', scrub_block: 'blocked', ...editable },
   needs_review: { approve: 'ready', block: 'blocked', ...editable },
   blocked: { fix: 'built', ...editable },
-  ready: { release: 'submitted', ...editable },
+  ready: { release: 'submitted', unapprove: 'needs_review', ...editable },
   submitted: { reject: 'rejected', accept: 'accepted', status: 'submitted', void: 'voided' },
   rejected: { fix: 'built', void: 'voided' },
   accepted: {

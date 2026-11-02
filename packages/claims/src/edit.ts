@@ -43,8 +43,8 @@ import type { ReleaseDeps } from './release';
 import { CORRECTION_OPERATION, ensureManualTask } from './tasks';
 
 export type EditInput =
-  /** Apply the suggested fix of one finding on the current scrub. */
-  | { kind: 'fix'; ruleId: string }
+  /** Apply the suggested fixes of these findings on the current scrub, in order, as one version. */
+  | { kind: 'fix'; ruleIds: string[] }
   /** The C-08 editor's whole payload. */
   | { kind: 'payload'; payload: ClaimPayload };
 
@@ -117,11 +117,19 @@ async function save(
       ? await tx.select().from(scrubResults).where(eq(scrubResults.id, current.scrubResultId))
       : [];
     const items = ((result?.findings as { items?: Finding[] } | null)?.items ?? []) as Finding[];
-    const finding = items.find((f) => f.ruleId === input.ruleId && f.suggestedFix);
-    if (!finding?.suggestedFix) return { status: 'refused', reason: 'no_fix' };
-    const fixed = applyFix(before, finding.suggestedFix, finding.lineNumbers);
-    if (!fixed.ok) return { status: 'refused', reason: fixed.error };
-    next = fixed.value;
+    let payload = before;
+    for (const ruleId of input.ruleIds) {
+      const finding = items.find((f) => f.ruleId === ruleId && f.suggestedFix);
+      if (!finding?.suggestedFix) return { status: 'refused', reason: 'no_fix' };
+      const fixed = applyFix(payload, finding.suggestedFix, finding.lineNumbers);
+      // A later fix may already be covered by an earlier one; only a real failure stops the edit.
+      if (!fixed.ok && fixed.error === 'no_change') continue;
+      if (!fixed.ok) return { status: 'refused', reason: fixed.error };
+      payload = fixed.value.payload;
+    }
+    const changes = diffPayload(before, payload);
+    if (!changes.length) return { status: 'refused', reason: 'no_change' };
+    next = { payload, changes };
   } else {
     const checked = checkEdit(before, input.payload);
     if (!checked.ok) return { status: 'refused', reason: checked.error };
@@ -171,7 +179,7 @@ async function save(
         version,
         fields: next.changes.map((c) => c.fieldPath),
         source: input.kind,
-        ...(input.kind === 'fix' ? { ruleId: input.ruleId } : {}),
+        ...(input.kind === 'fix' ? { ruleIds: input.ruleIds } : {}),
       },
     },
     async () => undefined,

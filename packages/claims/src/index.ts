@@ -6,6 +6,7 @@ export {
   holdCharges,
   markReleased,
   releaseClaim,
+  unapproveClaim,
   type ReleaseDeps,
   type ReleaseOutcome,
 } from './release';

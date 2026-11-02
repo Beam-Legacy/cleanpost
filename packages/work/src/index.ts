@@ -1,0 +1,144 @@
+/**
+ * Work item actions a person takes from the queue (W-06 Snooze, W-07 Resolve, Undo), each through
+ * the work-item state machine (CLAUDE.md rule 6), recorded with the actor and audit-logged.
+ * Authorization (work.resolve) is the caller's: these run inside the caller's tenant.
+ */
+import { and, eq, lte } from 'drizzle-orm';
+import { recordAudit, withTenant, workItems, type AuditActor, type Database, type Tx } from '@cleanpost/db';
+import { state, work } from '@cleanpost/domain';
+
+export type WorkActionResult =
+  | { ok: true }
+  | {
+      ok: false;
+      reason: 'not_found' | 'invalid_transition' | 'past' | 'too_far' | 'unknown_reason' | 'note_required';
+    };
+
+interface Ctx {
+  tenantId: string;
+  userId: string;
+  now?: Date;
+}
+
+async function locked(tx: Tx, id: string) {
+  const [item] = await tx.select().from(workItems).where(eq(workItems.id, id)).for('update');
+  return item ?? null;
+}
+
+async function move(
+  tx: Tx,
+  item: typeof workItems.$inferSelect,
+  event: state.WorkItemEvent,
+  set: Partial<typeof workItems.$inferInsert>,
+  actor: AuditActor,
+  action: string,
+  metadata: Record<string, unknown> = {},
+): Promise<WorkActionResult> {
+  const next = state.nextWorkItemState(item.status as state.WorkItemState, event);
+  if (!next.ok) return { ok: false, reason: 'invalid_transition' };
+  await tx
+    .update(workItems)
+    .set({ ...set, status: next.value, updatedAt: new Date() })
+    .where(eq(workItems.id, item.id));
+  await recordAudit(tx, {
+    actor,
+    action,
+    entityType: 'work_item',
+    entityId: item.id,
+    clientId: item.clientId,
+    metadata: { type: item.type, from: item.status, to: next.value, ...metadata },
+  });
+  return { ok: true };
+}
+
+/** W-06: hide until a time. Never moves the SLA (due_at stays). */
+export async function snoozeItem(
+  db: Database,
+  ctx: Ctx,
+  itemId: string,
+  until: Date,
+): Promise<WorkActionResult> {
+  const now = ctx.now ?? new Date();
+  const check = work.checkSnooze(now, until);
+  if (!check.ok) return { ok: false, reason: check.error };
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const item = await locked(tx, itemId);
+    if (!item) return { ok: false, reason: 'not_found' };
+    return move(tx, item, 'snooze', { snoozedUntil: until }, `user:${ctx.userId}`, 'work_item.snoozed', {
+      until: until.toISOString(),
+    });
+  });
+}
+
+/** Undo of a snooze, or waking an item early. */
+export async function wakeItem(db: Database, ctx: Ctx, itemId: string): Promise<WorkActionResult> {
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const item = await locked(tx, itemId);
+    if (!item) return { ok: false, reason: 'not_found' };
+    return move(tx, item, 'wake', { snoozedUntil: null }, `user:${ctx.userId}`, 'work_item.woken');
+  });
+}
+
+/** W-07: resolve with a reason from the item type's list (and a note for Other). */
+export async function resolveItem(
+  db: Database,
+  ctx: Ctx,
+  itemId: string,
+  input: { reason: string; note?: string | null },
+): Promise<WorkActionResult> {
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const item = await locked(tx, itemId);
+    if (!item) return { ok: false, reason: 'not_found' };
+    const check = work.checkResolution(item.type, input.reason, input.note ?? null);
+    if (!check.ok) return { ok: false, reason: check.error };
+    const note = input.note?.trim();
+    const actor: AuditActor = `user:${ctx.userId}`;
+    return move(
+      tx,
+      item,
+      'resolve',
+      {
+        resolvedBy: actor,
+        resolution: note ? `${input.reason}: ${note}` : input.reason,
+        resolvedAt: ctx.now ?? new Date(),
+        snoozedUntil: null,
+      },
+      actor,
+      'work_item.resolved',
+      // The reason is from a fixed list; the free-text note stays out of the audit metadata.
+      { reason: input.reason, hasNote: Boolean(note) },
+    );
+  });
+}
+
+/** Undo of a resolve. */
+export async function reopenItem(db: Database, ctx: Ctx, itemId: string): Promise<WorkActionResult> {
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const item = await locked(tx, itemId);
+    if (!item) return { ok: false, reason: 'not_found' };
+    return move(
+      tx,
+      item,
+      'reopen',
+      { resolvedBy: null, resolution: null, resolvedAt: null },
+      `user:${ctx.userId}`,
+      'work_item.reopened',
+    );
+  });
+}
+
+/**
+ * Snoozed items whose time has come go back to open (actor automation). Runs inside the caller's
+ * tenant transaction when the queue loads, so a woken item is in the list that same moment.
+ */
+export async function wakeDueItems(tx: Tx, now: Date): Promise<number> {
+  const due = await tx
+    .select()
+    .from(workItems)
+    .where(and(eq(workItems.status, 'snoozed'), lte(workItems.snoozedUntil, now)))
+    .for('update', { skipLocked: true });
+  for (const item of due) {
+    await move(tx, item, 'wake', { snoozedUntil: null }, 'automation:work.wake', 'work_item.woken');
+  }
+  return due.length;
+}

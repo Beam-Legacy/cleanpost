@@ -1,7 +1,7 @@
 /** Manual tasks for PM operations Cleanpost cannot do itself (docs/05-adapters.md level 0). */
 import { and, eq, ne } from 'drizzle-orm';
 import type { Connection, OpResult } from '@cleanpost/adapters';
-import type { claims} from '@cleanpost/db';
+import type { claims } from '@cleanpost/db';
 import { manualTasks, recordAudit, workItems, type AuditActor, type Tx } from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
 

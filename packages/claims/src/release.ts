@@ -117,18 +117,20 @@ async function load(
           ),
         )
     : [];
-  const [approval] = await tx
-    .select({ actor: claimEvents.actor })
+  // The latest approval decision for this version; an Undo (unapproved) cancels the approval.
+  const [decided] = await tx
+    .select({ actor: claimEvents.actor, type: claimEvents.type })
     .from(claimEvents)
     .where(
       and(
         eq(claimEvents.claimId, claim.id),
         eq(claimEvents.claimVersionId, claim.currentVersionId),
-        eq(claimEvents.type, 'approved'),
+        inArray(claimEvents.type, ['approved', 'unapproved']),
       ),
     )
     .orderBy(desc(claimEvents.occurredAt))
     .limit(1);
+  const approval = decided?.type === 'approved' ? decided : null;
   const allowed = state.canRelease({
     state: claim.status as state.ClaimState,
     decision: (result?.decision ?? null) as state.ScrubDecision | null,
@@ -292,6 +294,63 @@ export async function approveClaim(
     await recordAudit(tx, {
       actor,
       action: 'claim.approved',
+      entityType: 'claim',
+      entityId: claim.id,
+      clientId: claim.clientId,
+    });
+    return { ok: true };
+  });
+}
+
+/**
+ * Undo of an approval within its 10 seconds (docs/09-ui-screens.md): ready -> needs_review, and the
+ * review item opens again. Refused once the version has been released.
+ */
+export async function unapproveClaim(
+  db: Database,
+  ctx: { tenantId: string; userId: string; claimId: string },
+): Promise<{ ok: true } | { ok: false; reason: 'not_found' | 'already_released' | 'not_approved' }> {
+  return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
+    const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId)).for('update');
+    if (!claim?.currentVersionId) return { ok: false, reason: 'not_found' };
+    if (claim.status !== 'ready') {
+      return {
+        ok: false,
+        reason: state.isPreRelease(claim.status as state.ClaimState) ? 'not_approved' : 'already_released',
+      };
+    }
+    const actor: AuditActor = `user:${ctx.userId}`;
+    await applyClaimEvent(tx, claim, 'unapprove', { actor, versionId: claim.currentVersionId });
+    const [item] = await tx
+      .select()
+      .from(workItems)
+      .where(
+        and(
+          eq(workItems.claimId, claim.id),
+          eq(workItems.type, 'claim_review'),
+          eq(workItems.status, 'resolved'),
+          eq(workItems.resolvedBy, actor),
+        ),
+      )
+      .orderBy(desc(workItems.resolvedAt))
+      .limit(1);
+    if (item) {
+      const next = state.nextWorkItemState('resolved', 'reopen');
+      if (next.ok)
+        await tx
+          .update(workItems)
+          .set({
+            status: next.value,
+            resolvedBy: null,
+            resolution: null,
+            resolvedAt: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(workItems.id, item.id));
+    }
+    await recordAudit(tx, {
+      actor,
+      action: 'claim.approval_undone',
       entityType: 'claim',
       entityId: claim.id,
       clientId: claim.clientId,

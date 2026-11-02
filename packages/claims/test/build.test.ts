@@ -333,7 +333,7 @@ describe('edits by a person (Mode A, a PM that takes charge corrections)', () =>
       await editClaim(
         deps,
         { tenantId: NORTHWIND, userId: USER, claimId: released!.id },
-        { kind: 'fix', ruleId: 'x' },
+        { kind: 'fix', ruleIds: ['x'] },
       ),
     ).toEqual({ status: 'refused', reason: 'not_editable' });
   });

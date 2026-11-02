@@ -5,3 +5,4 @@ export * from './money';
 export * from './claims';
 export * from './rules';
 export * from './scrub';
+export * as work from './work';
