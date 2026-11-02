@@ -1,0 +1,26 @@
+{
+  "name": "@cleanpost/remit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cleanpost/claims": "workspace:*",
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "drizzle-orm": "^0.45.4"
+  },
+  "devDependencies": {
+    "@cleanpost/seed": "workspace:*",
+    "@cleanpost/testing": "workspace:*",
+    "@cleanpost/x12": "workspace:*"
+  }
+}

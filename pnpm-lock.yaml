@@ -543,6 +543,34 @@ importers:
         specifier: workspace:*
         version: link:../testing
 
+  packages/remit:
+    dependencies:
+      '@cleanpost/claims':
+        specifier: workspace:*
+        version: link:../claims
+      '@cleanpost/db':
+        specifier: workspace:*
+        version: link:../db
+      '@cleanpost/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@cleanpost/log':
+        specifier: workspace:*
+        version: link:../log
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
+    devDependencies:
+      '@cleanpost/seed':
+        specifier: workspace:*
+        version: link:../seed
+      '@cleanpost/testing':
+        specifier: workspace:*
+        version: link:../testing
+      '@cleanpost/x12':
+        specifier: workspace:*
+        version: link:../x12
+
   packages/seed:
     dependencies:
       '@cleanpost/adapters':
