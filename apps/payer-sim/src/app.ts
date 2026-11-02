@@ -16,6 +16,7 @@ import type { Logger } from '@cleanpost/log';
 import { acknowledge, ackDelayMinutes, submittedClaimSchema } from './ack';
 import type { NcciPair } from './adjudicate';
 import type { SimDb } from './db';
+import { claimStatusRequestSchema, respond277, type StatusRow } from './claim-status';
 import { eligibilityRequestSchema, memberRosterSchema, respond271 } from './eligibility';
 import { adjudicationDelayDays, payerProfile } from './payers';
 import { runPayments } from './payments';
@@ -231,6 +232,31 @@ export function createPayerSimApp(deps: SimDeps) {
           )
       : [];
     return c.json(respond271(req.data, member ?? null));
+  });
+
+  // Stedi's real-time claim status path and response shape (src/claim-status.ts).
+  app.post('/2024-04-01/change/medicalnetwork/claimstatus/v2', async (c) => {
+    const req = claimStatusRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!req.success) return c.json({ code: 'ValidationException', message: 'Invalid request' }, 400);
+    const now = await simNow(deps.db, realNow);
+    const found = await deps.db
+      .select({ s: submissions, r: remittances })
+      .from(submissions)
+      .leftJoin(remittances, eq(remittances.id, submissions.remittanceId))
+      .where(eq(submissions.memberId, req.data.subscriber.memberId));
+    const rows: StatusRow[] = found
+      .map(({ s, r }) => ({
+        patientControlNumber: s.patientControlNumber,
+        payerId: payerProfile(s.payerId, s.payerName).id,
+        claim: s.claim as StatusRow['claim'],
+        ackStatus: s.ackStatus,
+        ackDueAt: s.ackDueAt,
+        ackCodes: s.ackCodes,
+        adjudication: (s.adjudication ?? null) as StatusRow['adjudication'],
+        remittance: r ? { traceNumber: r.traceNumber, paymentDate: r.paymentDate } : null,
+      }))
+      .filter((row) => row.payerId === req.data.tradingPartnerServiceId);
+    return c.json(respond277(req.data, rows, now));
   });
 
   app.get('/clock', async (c) => c.json({ now: (await simNow(deps.db, realNow)).toISOString() }));

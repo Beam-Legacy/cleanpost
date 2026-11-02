@@ -12,7 +12,7 @@ import {
 } from '@cleanpost/ai';
 import { parseEnv } from '@cleanpost/config';
 import { createDatabase } from '@cleanpost/db';
-import { createStediEligibilityClient } from '@cleanpost/eligibility';
+import { createStediClaimStatusClient, createStediEligibilityClient } from '@cleanpost/eligibility';
 import { createBoss } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import { buildRegistry, registerWorkers } from './handlers';
@@ -88,6 +88,22 @@ const eligibility =
         })
       : undefined;
 
+// Claim status (276/277) follows the same switch: Stedi's test keys do not cover it, so preview
+// uses payer-sim's copy of the endpoint.
+const claimStatusClient =
+  eligibilityMode === 'stedi'
+    ? createStediClaimStatusClient({
+        apiKey: env.STEDI_API_KEY!,
+        ...(env.STEDI_BASE_URL ? { baseUrl: env.STEDI_BASE_URL } : {}),
+      })
+    : eligibilityMode === 'payer-sim'
+      ? createStediClaimStatusClient({
+          apiKey: env.PAYER_SIM_TOKEN ?? 'payer-sim',
+          baseUrl: env.PAYER_SIM_URL!,
+          kind: 'payer-sim',
+        })
+      : undefined;
+
 const handle = createDatabase(env.DATABASE_URL, { max: env.WORKER_CONCURRENCY + 2 });
 const boss = createBoss(env.DATABASE_URL, 'worker');
 boss.on('error', (err) => log.error({ err }, 'job queue error'));
@@ -106,6 +122,7 @@ await registerWorkers(
     registry,
     ...(reviewer ? { reviewer } : {}),
     ...(eligibility ? { eligibility } : {}),
+    ...(claimStatusClient ? { claimStatus: claimStatusClient } : {}),
   },
   { concurrency: env.WORKER_CONCURRENCY },
 );

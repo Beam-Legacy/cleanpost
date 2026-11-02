@@ -1,7 +1,7 @@
 'use client';
 /**
  * W-01 side panel, by item type: W-10 claim review, W-11 claim blocked, W-12 rejection, W-16
- * denial, W-17 to W-19 payments, W-21 manual task, W-23 connection problem, the write-off approval
+ * denial, W-15 no response, W-17 to W-19 payments, W-21 manual task, W-23 connection problem, the write-off approval
  * (D-03), and a plain panel for types whose screens come later.
  * Codes only, never CPT descriptions (CLAUDE.md rule 11). AI text is labelled "Suggested".
  */
@@ -22,6 +22,7 @@ import {
 import { CLAIM_STATUS } from '@/lib/claim-display';
 import { formatDate, formatMoney } from '@/lib/format';
 import type { WorkDetail } from '@/lib/queries/work';
+import { CheckStatusButton, CreateStatusTaskButton, StatusResult } from '@/components/claim-status';
 import { ApprovalPanel } from './approval-panel';
 import { LinkPayment } from './link-payment';
 import { DenialPanel } from './denial-panel';
@@ -104,6 +105,10 @@ function whyHere(d: WorkDetail): string {
       return 'The 835 does not add up, so nothing from it is checked or posted until the payer corrects it or an admin accepts the difference.';
     case 'remit_unmatched':
       return 'A payment in the 835 does not match any claim in Cleanpost; often a claim billed before this client went live.';
+    case 'no_response':
+      return d.item.reasonCode === 'no_ack'
+        ? 'No acknowledgment from the payer a week after the claim was sent. A status check asks the payer what it has; this closes itself when the payer answers.'
+        : 'No payment a month after the payer accepted the claim. A status check asks the payer where it stands; this closes itself when the 835 arrives.';
     case 'mapping_needed':
       return 'An adjustment code in an 835 has no matching code in the PM, so postings with it cannot be checked until an admin maps it.';
     default:
@@ -349,6 +354,38 @@ export function WorkPanel({
                 clientName={d.clientName}
               />
             )}
+          </div>
+        )}
+
+        {d.item.type === 'no_response' && d.followUp && c && (
+          <div className="stack-sm">
+            <dl className="kv dense">
+              {d.followUp.sinceLabel && (
+                <>
+                  <dt>Last claim event</dt>
+                  <dd>{d.followUp.sinceLabel}</dd>
+                </>
+              )}
+              <dt>Days waiting</dt>
+              <dd>{d.followUp.daysWaiting ?? '—'}</dd>
+              <dt>{c.payerName ?? 'The payer'} usually pays in</dt>
+              <dd>
+                {d.followUp.typicalDays !== null
+                  ? `${d.followUp.typicalDays} days`
+                  : 'Not enough history yet'}
+              </dd>
+            </dl>
+            <span className="overline">Status check</span>
+            <StatusResult view={d.followUp.status} />
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+              {can.resolve && <CheckStatusButton view={d.followUp.status} after="refresh" />}
+              {can.resolve && <CreateStatusTaskButton view={d.followUp.status} />}
+              {d.followUp.status.last && (
+                <Link className="btn btn-ghost btn-sm" href={`/claims/${c.id}?status=last`}>
+                  Status details
+                </Link>
+              )}
+            </div>
           </div>
         )}
 

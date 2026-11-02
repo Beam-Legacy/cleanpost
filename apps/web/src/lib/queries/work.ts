@@ -45,7 +45,9 @@ import { policy, remit, work, type ClaimPayload, type Finding } from '@cleanpost
 import { payerClaimNumber } from '@cleanpost/claims';
 import { linkCandidates } from '@cleanpost/remit';
 import { wakeDueItems } from '@cleanpost/work';
-import { pacificDay } from '../format';
+import { formatDate, pacificDay } from '../format';
+import { statusViewInTx, typicalDaysToPay, type StatusView } from './claim-status';
+import { patientLabel } from './labels';
 import {
   pendingWriteOff,
   requestOfApproval,
@@ -110,8 +112,7 @@ export interface WorkQueue {
   clientsInQueue: number;
 }
 
-export const patientLabel = (p: { lastName: string; firstName: string } | null) =>
-  p ? `${p.lastName}, ${p.firstName.slice(0, 1)}.` : null;
+export { patientLabel } from './labels';
 
 /** Items this person may see: their clients (billers), and connection and system items for admins. */
 function scopeWhere(ctx: ActiveContext): SQL[] {
@@ -365,6 +366,15 @@ export interface WorkDetail {
     /** A write-off over the limit waiting for an admin. */
     pendingRequest: WriteOffRequestView | null;
   } | null;
+  /** W-15 follow-up (no_response): how long the claim has waited, against what the payer usually takes. */
+  followUp: {
+    reason: string;
+    /** Days since it was sent (no acknowledgment) or since the payer accepted it (no payment). */
+    daysWaiting: number | null;
+    sinceLabel: string | null;
+    typicalDays: number | null;
+    status: StatusView;
+  } | null;
   /** W-01 panel for a write_off_approval item: the request and what the dialog would have offered. */
   writeOffRequest: (WriteOffRequestView & { pmName: string; limitCents: number }) | null;
   /** W-17: claims this unmatched payment could be, best first. */
@@ -593,6 +603,28 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
       pendingRequest: await pendingWriteOff(tx, item.claimId),
     };
   }
+  let followUp: WorkDetail['followUp'] = null;
+  if (item.type === 'no_response' && item.claimId && claim) {
+    const status = await statusViewInTx(tx, item.claimId);
+    const [c] = await tx.select({ payerId: claims.payerId }).from(claims).where(eq(claims.id, item.claimId));
+    const kind = item.reasonCode === 'no_ack' ? 'released' : 'ack_277ca';
+    const [since] = await tx
+      .select({ at: claimEvents.occurredAt })
+      .from(claimEvents)
+      .where(and(eq(claimEvents.claimId, item.claimId), eq(claimEvents.type, kind)))
+      .orderBy(desc(claimEvents.occurredAt))
+      .limit(1);
+    if (status)
+      followUp = {
+        reason: item.reasonCode,
+        daysWaiting: since ? Math.floor((Date.now() - since.at.getTime()) / 86_400_000) : null,
+        sinceLabel: since
+          ? `${item.reasonCode === 'no_ack' ? 'Sent' : 'Accepted by payer'} ${formatDate(since.at.toISOString().slice(0, 10))}`
+          : null,
+        typicalDays: await typicalDaysToPay(tx, c?.payerId ?? null),
+        status,
+      };
+  }
   let writeOffRequest: WorkDetail['writeOffRequest'] = null;
   if (item.type === 'write_off_approval' && item.clientId) {
     const r = await requestOfApproval(tx, item.id);
@@ -632,6 +664,7 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
     remittance,
     denial,
     writeOffRequest,
+    followUp,
     linkCandidates: candidates,
     claim,
     scrub,

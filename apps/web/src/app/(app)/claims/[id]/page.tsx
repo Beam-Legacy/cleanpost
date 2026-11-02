@@ -20,6 +20,8 @@ import { actorLabel, CLAIM_STATUS, describeEvent, FREQUENCY_LABEL } from '@/lib/
 import { formatDate, formatMoney, formatWhen } from '@/lib/format';
 import { getClaim, getClaimCoverage, type ClaimDetail } from '@/lib/queries/claims';
 import { CodeChip } from '@/components/code-chip';
+import { CheckStatusButton, StatusDrawer } from '@/components/claim-status';
+import { getStatusView } from '@/lib/queries/claim-status';
 import { getClaimPayments } from '@/lib/queries/remittances';
 import { lineResult } from '@/lib/remit-display';
 import { requireActiveContext } from '@/lib/session';
@@ -73,6 +75,16 @@ export default async function ClaimPage({
     : null;
   const editing = sp.edit === '1' && canEdit;
   const canNote = policy.authorize(ctx.actor, 'work.resolve', { clientId: c.clientId }).allowed;
+  // C-15: a claim that is out can be checked; one with an answer shows it.
+  const statusView =
+    ['submitted', 'accepted', 'paid', 'partially_paid', 'denied'].includes(c.status) || sp.status === 'last'
+      ? await getStatusView(ctx, c.id)
+      : null;
+  const closeStatus = (() => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(sp)) if (v && k !== 'status') p.set(k, v);
+    return `/claims/${c.id}${p.size ? `?${p}` : ''}`;
+  })();
 
   return (
     <>
@@ -125,6 +137,7 @@ export default async function ClaimPage({
                   <HoldButton claimId={c.id} onHold={c.status === 'on_hold'} />
                 )}
               {canEdit && <VoidClaimButton claimId={c.id} pmName={d.pmName} />}
+              {statusView && canNote && <CheckStatusButton view={statusView} after="open" />}
             </div>
           )}
         </div>
@@ -165,6 +178,18 @@ export default async function ClaimPage({
             {formatDate(c.filingDeadline)}.
           </Banner>
         )}
+      {statusView?.last && (
+        <Banner tone={statusView.last.advice.task ? 'warn' : 'info'}>
+          <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <span>
+              <b>Status check {formatWhen(statusView.last.at)}:</b> {statusView.last.advice.headline}
+            </span>
+            <Link className="btn btn-ghost btn-sm" href={`/claims/${c.id}?status=last`} scroll={false}>
+              Status details
+            </Link>
+          </span>
+        </Banner>
+      )}
       {d.correctionPending && (
         <Banner tone="info">
           <b>Waiting for the change in {d.pmName}.</b> Cleanpost releases the claim after the next sync shows
@@ -218,6 +243,7 @@ export default async function ClaimPage({
           {tab === 'patient' && <PatientCoverage claimId={c.id} ctx={ctx} />}
         </>
       )}
+      {sp.status === 'last' && statusView && <StatusDrawer view={statusView} closeHref={closeStatus} />}
     </>
   );
 }

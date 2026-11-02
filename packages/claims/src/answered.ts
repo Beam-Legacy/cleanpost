@@ -106,3 +106,31 @@ export async function cancelPendingWriteOffs(
   }
   return pending.length;
 }
+
+/**
+ * Follow-ups (`no_response`, W-15) the payer's answer makes moot: an acceptance answers "no
+ * acknowledgment", a payment or denial answers both. They close themselves (docs/08-work-queue.md).
+ */
+export async function resolveFollowUps(
+  tx: Tx,
+  claim: { id: string; clientId: string },
+  why: string,
+  actor: AuditActor,
+  now: Date,
+  reasons?: readonly string[],
+): Promise<number> {
+  const open = await tx
+    .select()
+    .from(workItems)
+    .where(
+      and(
+        eq(workItems.claimId, claim.id),
+        eq(workItems.type, 'no_response'),
+        ne(workItems.status, 'resolved'),
+        reasons ? inArray(workItems.reasonCode, [...reasons]) : undefined,
+      ),
+    );
+  let n = 0;
+  for (const item of open) if (await autoResolve(tx, item, why, actor, now)) n++;
+  return n;
+}

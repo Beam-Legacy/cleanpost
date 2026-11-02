@@ -18,7 +18,7 @@ import {
 } from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
 import { applyClaimEvent } from './events';
-import { resolveAnsweredDenials } from './answered';
+import { resolveAnsweredDenials, resolveFollowUps } from './answered';
 import { markReleased } from './release';
 
 export interface StatusContext {
@@ -158,6 +158,7 @@ export async function applyClaimStatuses(
       });
       // Flow 5: the denial a corrected claim answers closes when the payer accepts it.
       await resolveAnsweredDenials(tx, current, 'Corrected claim accepted', ctx.actor, now);
+      await resolveFollowUps(tx, current, 'Payer accepted it', ctx.actor, now, ['no_ack']);
       changed = true;
     } else if (current.status === 'submitted' && item.status === 'rejected') {
       await applyClaimEvent(tx, current, 'reject', {
@@ -166,6 +167,7 @@ export async function applyClaimStatuses(
         payload: { source: 'pm', reasons: item.rejectionReasons ?? [] },
         now,
       });
+      await resolveFollowUps(tx, current, 'Payer rejected it', ctx.actor, now, ['no_ack']);
       const [open] = await tx
         .select({ id: workItems.id })
         .from(workItems)

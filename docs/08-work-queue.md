@@ -11,7 +11,7 @@ One queue per tenant across all clients. Billers see items for clients they are 
 | `eligibility_issue` | Inactive or mismatched coverage | 1 | 4h if visit is upcoming, else 24h | Update coverage, re-check, mark self-pay |
 | `card_review` | Card extraction below confidence | 3 | 48h | Confirm or correct fields |
 | `rejection` | 999 or 277CA reject | 1 | 24h | Fix and resubmit |
-| `no_response` | No 277CA or 835 after N days | 3 | 72h | Run status check, resubmit, contact payer |
+| `no_response` | No 277CA 7 days after sending (`no_ack`), or no payment 30 days after acceptance (`no_payment`); daily sweep | 3 | 72h | Run status check (C-15, once a day per claim; the sweep checks weekly), create the task the answer implies (records request, resubmission), resolve. Closes itself when the payer accepts it (no_ack) or the 835 arrives |
 | `denial` | Denied or partially denied line | by category: auth/eligibility 1, coding 2, other 3 | 48h | Accept suggested correction, edit, write off (reason), appeal (phase 2: draft) |
 | `write_off_approval` | A biller asks to write off more than the tenant's approval limit (D-03) | 2 | 24h (admin) | Approve (writes it off) or decline with a note; never W-07 Resolve |
 | `underpayment` (phase 2) | Paid below fee schedule | 3 | 5d | Dispute, accept |

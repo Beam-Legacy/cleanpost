@@ -13,3 +13,9 @@ export {
   type EligibilityResult,
 } from './stedi';
 export { summarize271, type EligibilitySummary } from './summary';
+export {
+  createStediClaimStatusClient,
+  type ClaimStatusClient,
+  type ClaimStatusRequest,
+  type ClaimStatusResponse,
+} from './claim-status';

@@ -20,6 +20,8 @@ export const JOBS = {
   claimRelease: 'claim.release',
   claimCorrect: 'claim.correct',
   eligibilityCheck: 'eligibility.check',
+  claimStatusCheck: 'claim.statusCheck',
+  claimStatusSweep: 'claim.statusSweep',
   deadLetter: 'system.dead_letter',
 } as const;
 
@@ -48,6 +50,14 @@ export type ClaimCorrectPayload = z.infer<typeof claimCorrectPayload>;
 /** Stedi 270/271 for one coverage (docs/01-architecture.md); the claims waiting on it scrub after. */
 export const eligibilityCheckPayload = z.object({ tenantId: z.uuid(), coverageId: z.uuid() });
 export type EligibilityCheckPayload = z.infer<typeof eligibilityCheckPayload>;
+
+/** A 276 for one claim: from the daily sweep, or an hour after a person's check got no answer. */
+export const claimStatusCheckPayload = z.object({
+  tenantId: z.uuid(),
+  claimId: z.uuid(),
+  trigger: z.enum(['sweep', 'retry']),
+});
+export type ClaimStatusCheckPayload = z.infer<typeof claimStatusCheckPayload>;
 
 const RETRIES = {
   retryLimit: 4,
@@ -88,6 +98,10 @@ export const QUEUES: { name: string; options: Parameters<PgBoss['createQueue']>[
   { name: JOBS.eligibilityCheck, options: { policy: 'stately', expireInSeconds: 5 * 60, ...RETRIES } },
   // One queued write-back per claim (singletonKey = claim ID); it sends every change still missing.
   { name: JOBS.claimCorrect, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
+  // One queued status check per claim (singletonKey = claim ID); a payer that does not answer is
+  // asked again at the next sweep, so no retries pile up.
+  { name: JOBS.claimStatusCheck, options: { policy: 'stately', expireInSeconds: 5 * 60, retryLimit: 0 } },
+  { name: JOBS.claimStatusSweep, options: { policy: 'singleton', retryLimit: 0, expireInSeconds: 30 * 60 } },
   // One queued scrub per claim version (singletonKey = version ID).
   { name: JOBS.claimScrub, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
 ];
@@ -186,6 +200,18 @@ export async function sendEligibilityCheck(
 ): Promise<string | null> {
   const data = eligibilityCheckPayload.parse(payload);
   return boss.send(JOBS.eligibilityCheck, data, { singletonKey: data.coverageId });
+}
+
+export async function sendClaimStatusCheck(
+  boss: PgBoss,
+  payload: ClaimStatusCheckPayload,
+  opts: { delaySeconds?: number } = {},
+): Promise<string | null> {
+  const data = claimStatusCheckPayload.parse(payload);
+  return boss.send(JOBS.claimStatusCheck, data, {
+    singletonKey: data.claimId,
+    ...(opts.delaySeconds ? { startAfter: opts.delaySeconds } : {}),
+  });
 }
 
 export async function sendClaimCorrect(boss: PgBoss, payload: ClaimCorrectPayload): Promise<string | null> {

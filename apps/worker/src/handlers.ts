@@ -13,6 +13,8 @@ import {
 import {
   applyClaimStatuses,
   buildClaimsForClient,
+  checkClaimStatus,
+  statusSweep,
   holdCharges,
   pushCorrection,
   releaseClaim,
@@ -38,18 +40,21 @@ import {
   checkCoverage,
   coveragesNeedingCheck,
   versionsWaitingOnCoverage,
+  type ClaimStatusClient,
   type EligibilityClient,
 } from '@cleanpost/eligibility';
 import {
   claimBuildPayload,
   claimCorrectPayload,
   claimReleasePayload,
+  claimStatusCheckPayload,
   eligibilityCheckPayload,
   claimScrubPayload,
   JOBS,
   sendClaimBuild,
   sendClaimRelease,
   sendClaimScrub,
+  sendClaimStatusCheck,
   sendEligibilityCheck,
   sendSyncPull,
   syncPullPayload,
@@ -74,6 +79,8 @@ export interface WorkerDeps {
   reviewer?: ClaimReviewer;
   /** Stedi 270/271 (payer-sim in local and preview); scrubs read no check when absent. */
   eligibility?: EligibilityClient;
+  /** Stedi 276/277 (payer-sim in local and preview); follow-ups open without checks when absent. */
+  claimStatus?: ClaimStatusClient;
   now?: () => Date;
   retryDelaysMs?: number[];
 }
@@ -293,6 +300,41 @@ export async function handleClaimCorrect(deps: WorkerDeps, data: unknown) {
   return result;
 }
 
+/**
+ * A 276 for one claim (C-15, W-15). A payer that does not answer is asked again at the next sweep,
+ * so a failure is logged, not retried here (no dead letters for a slow payer).
+ */
+export async function handleClaimStatusCheck(deps: WorkerDeps, data: unknown) {
+  const payload = claimStatusCheckPayload.parse(data);
+  if (!deps.claimStatus) return { status: 'skipped' as const };
+  const res = await checkClaimStatus(
+    { db: deps.db, client: deps.claimStatus, log: deps.log, ...(deps.now ? { now: deps.now } : {}) },
+    { tenantId: payload.tenantId, claimId: payload.claimId, trigger: payload.trigger },
+  );
+  deps.log.info(
+    { claimId: payload.claimId, status: res.status, ...(res.status === 'checked' ? { kind: res.kind } : {}) },
+    'claim status check',
+  );
+  return res;
+}
+
+/** Daily (docs/04-modes.md): follow-ups for claims the payer has not answered, and their checks. */
+export async function handleStatusSweep(deps: WorkerDeps) {
+  const now = deps.now?.() ?? new Date();
+  const tenants = [...new Set((await listCandidates(deps.db)).map((c) => c.tenantId))];
+  let opened = 0;
+  let queued = 0;
+  for (const tenantId of tenants) {
+    const res = await statusSweep(deps.db, { tenantId }, now);
+    opened += res.opened;
+    if (deps.claimStatus)
+      for (const claimId of res.due)
+        if (await sendClaimStatusCheck(deps.boss, { tenantId, claimId, trigger: 'sweep' })) queued++;
+  }
+  deps.log.info({ tenants: tenants.length, opened, queued }, 'claim status sweep');
+  return { opened, queued };
+}
+
 /** Every minute: queue connections that are due, and mark stale ones degraded. */
 export async function handleTick(deps: WorkerDeps) {
   const now = deps.now?.() ?? new Date();
@@ -434,8 +476,18 @@ export async function registerWorkers(
   await deps.boss.work(JOBS.eligibilityCheck, { batchSize: 1, localConcurrency: 4 }, async ([job]) => {
     if (job) await handleEligibilityCheck(deps, job.data);
   });
+  await deps.boss.work(JOBS.claimStatusCheck, { batchSize: 1, localConcurrency: 2 }, async ([job]) => {
+    if (job) await handleClaimStatusCheck(deps, job.data);
+  });
+  await deps.boss.work(JOBS.claimStatusSweep, async () => {
+    await handleStatusSweep(deps);
+  });
   await deps.boss.work(JOBS.deadLetter, async ([job]) => {
     if (job) await handleDeadLetter(deps, job.data);
   });
-  if (opts.schedule ?? true) await deps.boss.schedule(JOBS.syncTick, '* * * * *');
+  if (opts.schedule ?? true) {
+    await deps.boss.schedule(JOBS.syncTick, '* * * * *');
+    // Daily at 6:17 am Pacific (13:17 UTC, 14:17 in winter): before the billers start.
+    await deps.boss.schedule(JOBS.claimStatusSweep, '17 13 * * *');
+  }
 }

@@ -10,7 +10,7 @@
  * Patient names in the 835 are not stored here (matching by name is the heuristic step, later).
  */
 import { and, desc, eq, isNotNull, ne, or, sql } from 'drizzle-orm';
-import { applyClaimEvent, resolveAnsweredDenials } from '@cleanpost/claims';
+import { applyClaimEvent, resolveAnsweredDenials, resolveFollowUps } from '@cleanpost/claims';
 import {
   claimLines,
   claims,
@@ -160,11 +160,14 @@ async function applyPayment(
     payload,
     now: ctx.now,
   });
-  if (outcome.event !== 'reverse')
+  if (outcome.event !== 'reverse') {
     await tx
       .update(claims)
       .set({ balanceCents: outcome.balanceCents, updatedAt: ctx.now })
       .where(eq(claims.id, claim.id));
+    // The payer answered: a follow-up for no acknowledgment or no payment closes itself.
+    await resolveFollowUps(tx, current, 'Payment arrived', ctx.actor, ctx.now);
+  }
   return outcome.event;
 }
 

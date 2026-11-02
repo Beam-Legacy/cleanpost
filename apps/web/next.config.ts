@@ -33,6 +33,7 @@ const config: NextConfig = {
     '@cleanpost/config',
     '@cleanpost/db',
     '@cleanpost/domain',
+    '@cleanpost/eligibility',
     '@cleanpost/email',
     '@cleanpost/jobs',
     '@cleanpost/log',

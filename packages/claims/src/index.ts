@@ -51,7 +51,7 @@ export {
   type BuildCorrectionOutcome,
   type CorrectionRefusal,
 } from './correct';
-export { cancelPendingWriteOffs, resolveAnsweredDenials } from './answered';
+export { cancelPendingWriteOffs, resolveAnsweredDenials, resolveFollowUps } from './answered';
 export {
   approvalLimitCents,
   decideWriteOff,
@@ -69,3 +69,13 @@ export {
   type WriteOffReason,
   type WriteOffRefusal,
 } from './write-off';
+export {
+  CHECKABLE,
+  checkClaimStatus,
+  createStatusTask,
+  statusSweep,
+  type StatusCheckDeps,
+  type StatusCheckOutcome,
+  type StatusTrigger,
+  type SweepResult,
+} from './status-check';

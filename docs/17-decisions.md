@@ -140,6 +140,14 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Also:** D-03 bulk is admin-only and one client at a time (each client's PM has its own write-off codes); each denial's denied amount, one reason and code for all, each claim in its own transaction. The PM write-off codes offered are the client's adjustment mappings with action `write_off`, plus "Another code". A write-off chosen while a suggested correction existed is recorded as `suggestion: not_taken` in the audit; building the correction with the fix is recorded as `fixed` on `claim.correction_built`.
 - **Docs:** `docs/09-ui-screens.md` does not say how an approval over the limit is stored or decided; this fills that gap and does not change any screen.
 
+## DEC-17 — Claim status checks before production (Nov 2, 2026)
+
+- **Decision:** one Stedi 276/277 client next to the eligibility client (`packages/eligibility`), switched the same way: Stedi with `STEDI_API_KEY`, else payer-sim in local and preview. Stedi's test keys do not cover claim status, so payer-sim answers the same path from what it received and decided.
+- **Decision:** follow-ups (`no_response`) open from the daily sweep when a claim has no 277CA 7 days after it was sent or no payment 30 days after acceptance. The sweep checks claims with an open follow-up once a week; a person may check a claim once a day (C-15 "limited to one a day per claim"). A check that gets no answer within 15 seconds is queued again an hour later; the sweep's checks are not retried (the next sweep asks again), so a slow payer does not fill the dead-letter queue.
+- **Decision:** the answer is stored as a `status_277` claim event (codes, amounts, dates; no names or member IDs). It may move a submitted claim to accepted (the payer has it) but never to paid or denied; the 835 decides money. The advice, the suggestion and the task (send records, resubmit) are rules in `packages/domain/src/claim-status`, not an LLM.
+- **Decision:** the 276 sends the patient as the subscriber, as the eligibility check does. Dependents (a child on a parent's plan) need the subscriber's own name and birth date from the coverage; that comes with P-02 (edit coverage) in M4.
+- **Also:** "usually pays in N days" (W-15) is the median days from acceptance to the payer's answer for the payer's claims answered in the last 180 days, shown from five claims up.
+
 ## Open questions
 
 | Question | Owner | Needed by |

@@ -109,6 +109,20 @@ afterAll(async () => {
 describe('remit.ingest', () => {
   it('matches by control number, marks the claim paid, and links the line exactly', async () => {
     const id = await sentClaim(lakeside.id, 'LFM-E10001', '99213', 14_500);
+    // A follow-up from the daily sweep (W-15): the payment answers it.
+    const [followUp] = await admin.db
+      .insert(workItems)
+      .values({
+        tenantId: NORTHWIND,
+        clientId: lakeside.id,
+        type: 'no_response',
+        priority: 3,
+        dueAt: new Date(Date.now() + 72 * 3_600_000),
+        claimId: id,
+        reasonCode: 'no_ack',
+        summary: 'No acknowledgment from the payer 8 days after it was sent.',
+      })
+      .returning();
     const res = await ingestRemittance(
       deps,
       { tenantId: NORTHWIND, clientId: lakeside.id, source: 'file' },
@@ -132,6 +146,8 @@ describe('remit.ingest', () => {
       .from(claimEvents)
       .where(eq(claimEvents.claimId, id));
     expect(events.map((e) => e.type)).toEqual(expect.arrayContaining(['ack_277ca', 'paid']));
+    const [closed] = await admin.db.select().from(workItems).where(eq(workItems.id, followUp!.id));
+    expect(closed).toMatchObject({ status: 'resolved', resolution: 'Payment arrived' });
   });
 
   it('records a retransmission once and ignores it', async () => {

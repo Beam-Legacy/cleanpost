@@ -1,5 +1,6 @@
 /** Claim words shared by W-01, C-01 and C-02 to C-05: status chips and plain-language events. */
 import type { Status } from '@cleanpost/ui';
+import { claimStatus } from '@cleanpost/domain';
 import { formatMoney } from './format';
 
 export const CLAIM_STATUS: Record<string, Status> = {
@@ -80,13 +81,36 @@ export function describeEvent(e: EventLike, pmName: string): { title: string; to
         tone: 'good',
       };
     case 'ack_277ca':
-      return { title: '277CA: accepted by the payer', tone: 'info' };
+      return {
+        title:
+          p.source === 'status_277'
+            ? 'Accepted: the payer has it (found by a status check)'
+            : p.source === '835'
+              ? 'Accepted: the payer sent a payment for it'
+              : '277CA: accepted by the payer',
+        tone: 'info',
+      };
     case 'rejected': {
       const reasons = Array.isArray(p.reasons) ? (p.reasons as string[]).join('; ') : '';
       return { title: `Rejected${reasons ? `: ${reasons}` : ''}`, tone: 'bad' };
     }
-    case 'status_277':
-      return { title: 'Claim status update from the payer', tone: 'info' };
+    case 'status_277': {
+      if (typeof p.category !== 'string')
+        return { title: 'Claim status update from the payer', tone: 'info' };
+      const kind = claimStatus.statusKind(p.category);
+      const code = `${p.category}${p.code ? `/${String(p.code)}` : ''}`;
+      return {
+        title: `Status check: ${claimStatus.categoryLabel(p.category).toLowerCase()} (${code})`,
+        tone:
+          kind === 'paid' || kind === 'received' || kind === 'pending'
+            ? 'info'
+            : kind === 'needs_info'
+              ? 'warn'
+              : kind === 'error'
+                ? undefined
+                : 'bad',
+      };
+    }
     case 'correction_requested':
       return { title: `Correction queued for ${pmName}`, tone: 'info' };
     case 'correction_pushed':

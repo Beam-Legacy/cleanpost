@@ -60,7 +60,8 @@ All asynchronous work is a pg-boss job. Payloads carry IDs only and are validate
 | `claim.release` | Auto-release, or approval (queued 10 s out so Undo can cancel it) | Mode A: adapter release; B/C: Stedi submission. Waits while a correction is on its way to the PM |
 | `claim.correct` | A person's edit of a Mode A claim | Writes every change the PM does not have yet with `pushChargeCorrection`, or opens one correction task with a worksheet |
 | `claim.ack` | Stedi webhook (999/277CA), PM sync | Applies acknowledgment events |
-| `claim.statusSweep` | Daily | 276 for claims with no response after N days |
+| `claim.statusSweep` | Daily, 6:17 am Pacific | Opens a follow-up (`no_response`) for a claim with no 277CA 7 days after it was sent, or no payment 30 days after acceptance; queues `claim.statusCheck` for open follow-ups not checked for a week; closes follow-ups on claims that moved on |
+| `claim.statusCheck` | The sweep; an hour after a person's check got no answer | A 276 through Stedi (payer-sim in local and preview): a `status_277` claim event; a submitted claim the payer has becomes accepted. A payer that does not answer is asked again at the next sweep (no retries) |
 | `remit.ingest` | Stedi webhook (B), PM sync (A, C), file upload | Stores raw 835, parses, creates Remittance |
 | `remit.match` | After ingest | Matches claims and lines |
 | `remit.post` | After match | Mode B: post via adapter. A/C: verify the PM posted it; create exceptions |
