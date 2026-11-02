@@ -90,6 +90,18 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 | Job queue | pg-boss in its own `pgboss` schema, installed by `pnpm db:migrate`; apps connect as the app role with migrate off | The app role never needs DDL rights on the main schema. |
 | Pulls in M1 | Patients and charges only | Claim status, remittances and postings are pulled once M2 and M3 have the code that applies them. |
 
+## DEC-12 — M2 scrub and AI choices (Nov 2, 2026)
+
+| Topic | Choice | Why |
+| --- | --- | --- |
+| Claim payload | Patient, coverage and payer by ID; no names, addresses or member IDs in `claim_versions.payload` | Field encryption stays meaningful; Modes B and C keep the rendered 837 as the snapshot at release. |
+| PM-billed encounters | No claim is built for an encounter the PM already sent (Tebra `Approved`, generic `billed`) | Cleanpost cannot hold or change it; it is tracked through the PM's claim status. |
+| Northwind modes in the seed | All Mode A until M7 | `docs/12-testing.md` and DEC-01; the designs' B and C badges come back with M7. |
+| Duplicate check | Against the patient's other live visits that day, not only claims | A duplicate of a visit the PM billed itself has no Cleanpost claim to compare with. |
+| Reference data | A synthetic subset in `rules/seed/reference.json` (code sets, NCCI pairs, MUE limits) | Until the CMS files load at deploy time (open AMA question). |
+| AI models | Bedrock via the Anthropic SDK's Mantle client: `anthropic.claude-haiku-5-5` (effort `low`) for routine claim review, `anthropic.claude-opus-5-5` for denials and rule proposals | docs/06 model routing: a smaller model for routine review, a larger one where the reasoning is harder. Config, not code. |
+| AI without credentials | A deterministic stand-in in local and preview; off in staging and production until Bedrock is configured | The pipeline, scoring and UI can be built and shown without AWS access. |
+
 ## Open questions
 
 | Question | Owner | Needed by |

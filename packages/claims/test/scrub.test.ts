@@ -4,7 +4,7 @@
  */
 import { and, eq, inArray, ne } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { claims, claimVersions, externalRefs, scrubResults, workItems } from '@cleanpost/db';
+import { chargeLines, claims, claimVersions, externalRefs, scrubResults, workItems } from '@cleanpost/db';
 import { pmSchema } from '@cleanpost/pm-mock';
 import { seedReference } from '@cleanpost/seed/reference';
 import { scanForPhi } from '@cleanpost/testing';
@@ -131,6 +131,76 @@ describe('claim.scrub on synced data', () => {
         reason: 'stale',
       });
     }
+  });
+
+  it('adds AI concerns as warnings only: a flat 10 points off, never a block', async () => {
+    // A fresh version of one clean claim, scrubbed with a reviewer that always raises a concern.
+    const [c] = await admin.db
+      .select()
+      .from(claims)
+      .where(and(eq(claims.status, 'needs_review'), inArray(claims.clientId, clientIds())))
+      .limit(1);
+    const [line] = await admin.db
+      .select()
+      .from(chargeLines)
+      .where(eq(chargeLines.encounterId, c!.encounterId));
+    await admin.db
+      .update(chargeLines)
+      .set({ chargeCents: line!.chargeCents + 100 })
+      .where(eq(chargeLines.id, line!.id));
+    const built = await buildClaimsForClient(app.db, { tenantId: NORTHWIND, clientId: c!.clientId });
+    expect(built.updated).toBe(1);
+    const reviewer = {
+      review: async () => ({
+        summary: 'One point to check.',
+        concerns: [
+          {
+            ruleId: 'ai.test.1',
+            step: 'ai' as const,
+            severity: 'block' as const,
+            field: 'lines[1]',
+            message: 'Check it.',
+            weight: 0,
+          },
+        ],
+      }),
+    };
+    const res = await scrubVersion(
+      { db: app.db, log, reviewer },
+      { tenantId: NORTHWIND, claimVersionId: built.toScrub[0]! },
+    );
+    // 100 - 20 (first claim) - 2 (eligibility not checked) - 10 (AI concern); the "block" became a warning.
+    expect(res).toMatchObject({ status: 'scrubbed', decision: 'review', confidence: 68 });
+    const [result] = await admin.db
+      .select()
+      .from(scrubResults)
+      .where(eq(scrubResults.claimVersionId, built.toScrub[0]!));
+    expect(result!.aiSummary).toBe('One point to check.');
+    const items = (result!.findings as { items: { step: string; severity: string }[] }).items;
+    expect(items.find((f) => f.step === 'ai')).toMatchObject({ severity: 'warn' });
+  });
+
+  it('scrubs without the AI step when the reviewer fails', async () => {
+    const [c] = await admin.db
+      .select()
+      .from(claims)
+      .where(and(eq(claims.status, 'needs_review'), inArray(claims.clientId, clientIds())))
+      .limit(1);
+    const [line] = await admin.db
+      .select()
+      .from(chargeLines)
+      .where(eq(chargeLines.encounterId, c!.encounterId));
+    await admin.db
+      .update(chargeLines)
+      .set({ chargeCents: line!.chargeCents + 100 })
+      .where(eq(chargeLines.id, line!.id));
+    const built = await buildClaimsForClient(app.db, { tenantId: NORTHWIND, clientId: c!.clientId });
+    const failing = { review: async () => Promise.reject(new Error('Bedrock unavailable')) };
+    const res = await scrubVersion(
+      { db: app.db, log, reviewer: failing },
+      { tenantId: NORTHWIND, claimVersionId: built.toScrub[0]! },
+    );
+    expect(res).toMatchObject({ status: 'scrubbed', confidence: 78 });
   });
 
   it('records why each claim scored what it did', async () => {

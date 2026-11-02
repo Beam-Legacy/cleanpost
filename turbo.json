@@ -15,7 +15,10 @@
     "PM_MOCK_URL",
     "PM_MOCK_SECRET",
     "PM_MOCK_ADMIN_PASSWORD",
-    "PORT"
+    "PORT",
+    "AI_REVIEW",
+    "AI_MODEL_ROUTINE",
+    "AWS_REGION"
   ],
   "tasks": {
     "build": {

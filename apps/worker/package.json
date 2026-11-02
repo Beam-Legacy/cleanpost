@@ -19,7 +19,8 @@
     "@cleanpost/sync": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "zod": "^4.6.7",
-    "@cleanpost/claims": "workspace:*"
+    "@cleanpost/claims": "workspace:*",
+    "@cleanpost/ai": "workspace:*"
   },
   "devDependencies": {
     "@cleanpost/pm-mock": "workspace:*",

@@ -90,3 +90,11 @@ Insurance card front and back → `{ payerName, memberId, groupNumber, subscribe
 - Prompts and outputs are not logged with PHI. Store prompt template ID, model, token counts, latency and the structured output (which contains no direct identifiers).
 - Every AI suggestion shown in the UI is labeled as a suggestion and shows its evidence. Billers accept, edit or dismiss; the choice is recorded.
 - Evaluation set in `packages/testing/ai-evals`: labeled claims and denials; run on every prompt or model change; block release if accuracy drops.
+
+How claim review is built (M2, `packages/ai`):
+- **Client and models.** Claude on Amazon Bedrock through the Anthropic SDK's Bedrock Mantle client (`@anthropic-ai/bedrock-sdk`). The routine model is `anthropic.claude-haiku-5-5` at effort `low`; the larger model for denial explanations and rule proposals is `anthropic.claude-opus-5-5`. Model IDs are config (`AI_MODEL_ROUTINE`).
+- **Structured output.** `messages.parse` with a Zod schema (`claim-review-v1`: a summary of at most 600 characters and at most five concerns, each with field, message and evidence). A refusal returns no review; output that does not parse throws, and the scrub then continues without AI.
+- **What the model sees.** It receives only the allowlisted de-identified view: age, sex, payer, place of service, date of service, whether prior authorization is on file, ICD-10 and procedure codes, and the findings so far. `assertNoIdentifiers` refuses the call if the text contains anything shaped like an SSN, phone number, email address, member ID or date of birth. Model output with such text is dropped.
+- **Scoring.** Concerns become `warn` findings on step `ai` with weight 0, so the confidence formula's flat 10 points is the only deduction; a concern can never block.
+- **Without Bedrock.** Local and preview use a deterministic stand-in with the same output shape (`AI_REVIEW=stand-in`, the default there); staging and production run without AI until Bedrock is configured (`AI_REVIEW=bedrock`).
+- **Logging.** Logs record the template, model, tokens, latency and number of concerns, never the prompt or output text.

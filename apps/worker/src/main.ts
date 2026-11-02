@@ -4,6 +4,12 @@
  */
 import { createServer } from 'node:http';
 import { z } from 'zod';
+import {
+  createBedrockReviewModel,
+  createClaimReviewer,
+  createStandInReviewModel,
+  DEFAULT_MODELS,
+} from '@cleanpost/ai';
 import { parseEnv } from '@cleanpost/config';
 import { createDatabase } from '@cleanpost/db';
 import { createBoss } from '@cleanpost/jobs';
@@ -19,15 +25,37 @@ const env = parseEnv(
     PM_MOCK_SECRET: z.string().min(24).optional(),
     PORT: z.coerce.number().int().default(4020),
     WORKER_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(4),
+    /** Scrub step 8. bedrock: Claude on AWS Bedrock; stand-in: fixed heuristics; off: skip. */
+    AI_REVIEW: z.enum(['bedrock', 'stand-in', 'off']).optional(),
+    AI_MODEL_ROUTINE: z.string().min(1).default(DEFAULT_MODELS.routine),
+    AWS_REGION: z.string().optional(),
   }),
 );
 
-// The mock PM exists only where data is synthetic.
-const mockAllowed = env.CLEANPOST_ENV === 'local' || env.CLEANPOST_ENV === 'preview';
+// The mock PM and the stand-in reviewer exist only where data is synthetic.
+const synthetic = env.CLEANPOST_ENV === 'local' || env.CLEANPOST_ENV === 'preview';
+const mockAllowed = synthetic;
 if (!mockAllowed && (env.PM_MOCK_URL || env.PM_MOCK_SECRET)) {
   log.error('PM_MOCK_URL and PM_MOCK_SECRET are only allowed in local and preview');
   process.exit(1);
 }
+const aiMode = env.AI_REVIEW ?? (synthetic ? 'stand-in' : 'off');
+if (aiMode === 'stand-in' && !synthetic) {
+  log.error('AI_REVIEW=stand-in is only allowed in local and preview');
+  process.exit(1);
+}
+const reviewer =
+  aiMode === 'bedrock'
+    ? createClaimReviewer({
+        model: createBedrockReviewModel({
+          model: env.AI_MODEL_ROUTINE,
+          ...(env.AWS_REGION ? { awsRegion: env.AWS_REGION } : {}),
+        }),
+        log,
+      })
+    : aiMode === 'stand-in'
+      ? createClaimReviewer({ model: createStandInReviewModel(), log })
+      : undefined;
 
 const handle = createDatabase(env.DATABASE_URL, { max: env.WORKER_CONCURRENCY + 2 });
 const boss = createBoss(env.DATABASE_URL, 'worker');
@@ -39,8 +67,14 @@ const registry = buildRegistry({
     ? { pmMock: { url: env.PM_MOCK_URL, secret: env.PM_MOCK_SECRET } }
     : {}),
 });
-await registerWorkers({ db: handle.db, boss, log, registry }, { concurrency: env.WORKER_CONCURRENCY });
-log.info({ mockPm: Boolean(env.PM_MOCK_URL), concurrency: env.WORKER_CONCURRENCY }, 'worker started');
+await registerWorkers(
+  { db: handle.db, boss, log, registry, ...(reviewer ? { reviewer } : {}) },
+  { concurrency: env.WORKER_CONCURRENCY },
+);
+log.info(
+  { mockPm: Boolean(env.PM_MOCK_URL), aiReview: aiMode, concurrency: env.WORKER_CONCURRENCY },
+  'worker started',
+);
 
 let stopping = false;
 const server = createServer((req, res) => {
