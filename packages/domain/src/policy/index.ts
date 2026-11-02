@@ -32,6 +32,8 @@ export const ACTIONS = [
   'claim.release',
   'remittance.view',
   'payment.post',
+  /** W-18: accept the difference on an 835 that does not balance (admins, with a reason). */
+  'remittance.accept_difference',
   'denial.write_off',
   'patient.view',
   'phi.reveal',
@@ -68,6 +70,7 @@ const CLIENT_SCOPED = new Set<Action>([
   'claim.release',
   'remittance.view',
   'payment.post',
+  'remittance.accept_difference',
   'denial.write_off',
   'patient.view',
   'phi.reveal',

@@ -14,6 +14,8 @@ import {
   remitClaims,
   remitLines,
   remittances,
+  users,
+  withTenant,
   workItems,
 } from '@cleanpost/db';
 import { testDatabaseUrls } from '@cleanpost/db/testing';
@@ -21,7 +23,7 @@ import { createLogger } from '@cleanpost/log';
 import { seed } from '@cleanpost/seed';
 import { CLIENTS, NORTHWIND } from '@cleanpost/seed/world';
 import { parse835 } from '@cleanpost/x12';
-import { ingestRemittance } from '../src';
+import { acceptDifference, ingestRemittance } from '../src';
 
 const urls = testDatabaseUrls();
 const admin = createDatabase(urls.adminUrl, { max: 2 });
@@ -173,8 +175,12 @@ describe('remit.ingest', () => {
       unmatched: 3,
       remittanceStatus: 'partially_matched',
     });
-    const items = await admin.db.select().from(workItems).where(eq(workItems.type, 'remit_unmatched'));
+    const items = await admin.db
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.type, 'remit_unmatched'), eq(workItems.remittanceId, res.remittanceId)));
     expect(items).toHaveLength(3);
+    expect(items.every((i) => i.remitClaimId !== null)).toBe(true);
   });
 
   it('matches nothing while the 835 does not balance, and says by how much', async () => {
@@ -191,6 +197,38 @@ describe('remit.ingest', () => {
     expect(item!.summary).toMatch(/^835 does not balance: off by \$5\.00/);
     const unpaid = await admin.db.select().from(remitClaims).where(eq(remitClaims.remittanceId, r!.id));
     expect(unpaid.every((c) => c.claimId === null)).toBe(true);
+  });
+
+  it('goes on once an admin accepts the difference: claims that balance are matched (W-18)', async () => {
+    const [r] = await admin.db.select().from(remittances).where(eq(remittances.traceNumber, '1EFT0009'));
+    const [u] = await admin.db.select().from(users).where(eq(users.email, 'julia@northwind.test'));
+    const res = await withTenant(app.db, { tenantId: NORTHWIND }, (tx) =>
+      acceptDifference(
+        tx,
+        { tenantId: NORTHWIND, userId: u!.id },
+        { remittanceId: r!.id, reason: 'Payer confirmed the check amount' },
+      ),
+    );
+    // The claim itself is $5.00 off, so it is set aside; nothing unbalanced reaches a claim.
+    expect(res).toMatchObject({ ok: true, matched: 0, unmatched: 0, setAside: 1 });
+    const [rc] = await admin.db.select().from(remitClaims).where(eq(remitClaims.remittanceId, r!.id));
+    expect(rc).toMatchObject({ matchStatus: 'set_aside', claimId: null });
+    const [after] = await admin.db.select().from(remittances).where(eq(remittances.id, r!.id));
+    expect(after!.status).not.toBe('out_of_balance');
+    const [item] = await admin.db
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.type, 'out_of_balance'), eq(workItems.remittanceId, r!.id)));
+    expect(item).toMatchObject({ status: 'resolved', resolution: 'Difference accepted' });
+    expect(
+      await withTenant(app.db, { tenantId: NORTHWIND }, (tx) =>
+        acceptDifference(
+          tx,
+          { tenantId: NORTHWIND, userId: u!.id },
+          { remittanceId: r!.id, reason: 'again' },
+        ),
+      ),
+    ).toEqual({ ok: false, reason: 'not_out_of_balance' });
   });
 
   it('pays in part with a deductible: the balance is what the patient owes', async () => {

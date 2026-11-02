@@ -75,7 +75,7 @@ async function payerOf(tx: Tx, r: remit.Remittance835) {
   return p?.id ?? null;
 }
 
-async function matchClaim(tx: Tx, clientId: string, c: remit.ClaimPayment) {
+export async function matchClaim(tx: Tx, clientId: string, c: remit.ClaimPayment) {
   const [byPcn] = await tx
     .select()
     .from(claims)

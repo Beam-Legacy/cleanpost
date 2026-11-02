@@ -7,11 +7,12 @@
  * Files are read in memory only; nothing from them is logged.
  */
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { and, eq, inArray } from 'drizzle-orm';
 import { clients, providers, remittances, withTenant } from '@cleanpost/db';
 import { policy, remit } from '@cleanpost/domain';
 import { createLogger } from '@cleanpost/log';
-import { ingestInTx, verifyInTx } from '@cleanpost/remit';
+import { acceptDifference, ingestInTx, verifyInTx } from '@cleanpost/remit';
 import { parse835, X12Error } from '@cleanpost/x12';
 import { formatDate } from '@/lib/format';
 import { getDb } from '@/lib/server';
@@ -191,5 +192,35 @@ export async function importUpload(form: FormData): Promise<ImportResult> {
   return {
     ok: true,
     message: `Imported ${imported} ${imported === 1 ? 'payment' : 'payments'}${skipped ? `, skipped ${skipped}` : ''}${attention ? `; ${attention} need attention` : ''}.`,
+  };
+}
+
+/** W-18 / R-06: accept the difference on an 835 that does not balance (admins, with a reason). */
+export async function acceptDifferenceAction(remittanceId: string, reason: string): Promise<ImportResult> {
+  const ctx = await requireActiveContext();
+  const id = z.uuid().parse(remittanceId);
+  const why = reason.trim();
+  if (why.length < 5) return { ok: false, message: 'Say why the difference is acceptable.' };
+  const [r] = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    tx.select({ clientId: remittances.clientId }).from(remittances).where(eq(remittances.id, id)),
+  );
+  if (!r) return { ok: false, message: 'Remittance not found.' };
+  if (!policy.authorize(ctx.actor, 'remittance.accept_difference', { clientId: r.clientId }).allowed)
+    return { ok: false, message: 'Only an admin can accept a difference.' };
+  const res = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    acceptDifference(
+      tx,
+      { tenantId: ctx.tenantId, userId: ctx.user.id },
+      { remittanceId: id, reason: why.slice(0, 300) },
+    ),
+  );
+  revalidatePath(`/remittances/${id}`);
+  revalidatePath('/remittances');
+  revalidatePath('/work');
+  if (!res.ok) return { ok: false, message: 'This remittance is no longer out of balance.' };
+  log.info({ remittanceId: id, matched: res.matched, setAside: res.setAside }, 'difference accepted');
+  return {
+    ok: true,
+    message: `Accepted. ${res.matched} matched${res.setAside ? `, ${res.setAside} set aside because ${res.setAside === 1 ? 'it does' : 'they do'} not balance` : ''}${res.unmatched ? `, ${res.unmatched} to link` : ''}.`,
   };
 }

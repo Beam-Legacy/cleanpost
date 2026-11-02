@@ -9,6 +9,7 @@ import { formatDate, formatMoney } from '@/lib/format';
 import { getRemittance, type RemitLineView } from '@/lib/queries/remittances';
 import { CARC_LABEL, lineResult, PLB_LABEL } from '@/lib/remit-display';
 import { requireActiveContext } from '@/lib/session';
+import { AcceptDifference } from './accept-difference';
 
 export const metadata: Metadata = { title: 'Remittance' };
 
@@ -88,6 +89,9 @@ export default async function RemittancePage({
   const d = await getRemittance(ctx, id);
   if (!d) notFound();
   policy.assertAllowed(ctx.actor, 'remittance.view', { clientId: d.clientId });
+  const canAccept = policy.authorize(ctx.actor, 'remittance.accept_difference', {
+    clientId: d.clientId,
+  }).allowed;
 
   const diffFirst = sp.order !== 'file';
   const rank = (l: RemitLineView) =>
@@ -209,6 +213,73 @@ export default async function RemittancePage({
           </div>
         </dl>
       </div>
+
+      {d.status === 'out_of_balance' && (
+        <div className="card card-body stack" style={{ borderColor: 'var(--danger)' }}>
+          <h2>835 does not balance</h2>
+          <p className="muted dense">
+            Nothing from this payment is matched or checked until the payer sends a corrected 835 or an admin
+            accepts the difference. Accepting goes on with the claims that balance on their own and sets the
+            rest aside.
+          </p>
+          <dl className="dl">
+            <div>
+              <dt>Payment (BPR)</dt>
+              <dd className="fig">{formatMoney(d.amountCents)}</dd>
+            </div>
+            <div>
+              <dt>Claims paid</dt>
+              <dd className="fig">{formatMoney(d.claimsPaidCents)}</dd>
+            </div>
+            <div>
+              <dt>Provider adjustments</dt>
+              <dd className="fig">
+                {formatMoney(d.providerAdjustments.reduce((s, p) => s + p.amountCents, 0))}
+              </dd>
+            </div>
+            <div>
+              <dt>Difference</dt>
+              <dd
+                className="fig"
+                style={{ color: d.remittanceDifferenceCents ? 'var(--danger)' : undefined }}
+              >
+                {formatMoney(d.remittanceDifferenceCents)}
+              </dd>
+            </div>
+          </dl>
+          {d.claimChecks.some((c) => c.differenceCents !== 0) && (
+            <table className="table" aria-label="Claims that do not balance">
+              <thead>
+                <tr>
+                  <th>Control number</th>
+                  <th className="num">Charge</th>
+                  <th className="num">Paid</th>
+                  <th className="num">Adjustments</th>
+                  <th className="num">Off by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.claimChecks
+                  .filter((c) => c.differenceCents !== 0)
+                  .map((c) => (
+                    <tr key={c.id} className="row-bad">
+                      <td className="code">{c.patientControlNumber}</td>
+                      <td className="num">{formatMoney(c.chargeCents)}</td>
+                      <td className="num">{formatMoney(c.paidCents)}</td>
+                      <td className="num">{formatMoney(c.adjustedCents)}</td>
+                      <td className="num">{formatMoney(c.differenceCents)}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+          {canAccept ? (
+            <AcceptDifference remittanceId={d.id} />
+          ) : (
+            <p className="muted dense">An admin can accept the difference with a reason.</p>
+          )}
+        </div>
+      )}
 
       {d.unmatched.map((u) => (
         <div key={u.id} className="card card-body" style={{ borderColor: 'var(--warning)' }}>

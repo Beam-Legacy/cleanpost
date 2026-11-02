@@ -44,6 +44,7 @@ describe('S-01 role matrix', () => {
       [true, true, false, false],
     ],
     ['Export patient-level data', ['phi.export'], [true, true, false, false]],
+    ['Accept an 835 difference', ['remittance.accept_difference'], [true, true, false, false]],
   ];
   for (const [label, actions, expected] of rows) {
     it(label, () => {

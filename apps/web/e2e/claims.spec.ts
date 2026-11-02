@@ -133,3 +133,14 @@ test('C-12: holds a claim in review, then releases the hold', async () => {
   await expect(page.getByText('Hold released. The claim was checked again.')).toBeVisible();
   await expect(page.locator('.chip', { hasText: 'On hold' })).toHaveCount(0);
 });
+
+test('C-07 lists the payments for a claim, or says none have come in', async () => {
+  await page.goto('/claims?view=review');
+  await page.getByRole('table', { name: 'Claims' }).getByRole('link').first().click();
+  await page.getByRole('link', { name: 'Payments' }).click();
+  await expect(page.getByRole('link', { name: 'Payments' })).toHaveAttribute('aria-current', 'page');
+  await expect(
+    page.getByText('No payment received yet').or(page.getByRole('link', { name: 'Open remittance' }).first()),
+  ).toBeVisible();
+  await expectAccessible(page, 'C-07');
+});

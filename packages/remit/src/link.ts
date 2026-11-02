@@ -37,7 +37,7 @@ async function openItem(tx: Tx, itemId: string, lock = true) {
 }
 
 /** The 835 claim payment as stored, in the canonical shape. */
-async function storedPayment(tx: Tx, rc: typeof remitClaims.$inferSelect) {
+export async function storedPayment(tx: Tx, rc: typeof remitClaims.$inferSelect) {
   const lines = await tx
     .select()
     .from(remitLines)

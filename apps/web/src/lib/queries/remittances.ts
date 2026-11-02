@@ -304,6 +304,35 @@ export async function getRemittance(ctx: ActiveContext, id: string) {
     });
     const claimsPaid = rcs.reduce((s, c) => s + Number(c.paidCents), 0);
     const plbTotal = plb.reduce((s, p) => s + Number(p.amountCents), 0);
+    // R-06: each claim's own check, charge - paid - every adjustment (claim and line).
+    const claimAdj = rcs.length
+      ? await tx
+          .select()
+          .from(remitAdjustments)
+          .where(
+            inArray(
+              remitAdjustments.remitClaimId,
+              rcs.map((c) => c.id),
+            ),
+          )
+      : [];
+    const claimChecks = rcs.map((c) => {
+      const lineIds = new Set(lines.filter((l) => l.line.remitClaimId === c.id).map((l) => l.line.id));
+      const adjusted =
+        claimAdj.filter((a) => a.remitClaimId === c.id).reduce((s, a) => s + Number(a.amountCents), 0) +
+        adjustments
+          .filter((a) => a.remitLineId && lineIds.has(a.remitLineId))
+          .reduce((s, a) => s + Number(a.amountCents), 0);
+      return {
+        id: c.id,
+        patientControlNumber: c.patientControlNumber,
+        chargeCents: Number(c.chargeCents),
+        paidCents: Number(c.paidCents),
+        adjustedCents: adjusted,
+        differenceCents: Number(c.chargeCents) - Number(c.paidCents) - adjusted,
+        matchStatus: c.matchStatus,
+      };
+    });
     const tally = (s: string) => lineViews.filter((l) => l.status === s).length;
     return {
       id,
@@ -341,7 +370,7 @@ export async function getRemittance(ctx: ActiveContext, id: string) {
         unmatched: rcs.length - matched.length,
       },
       unmatched: rcs
-        .filter((c) => !c.claimId)
+        .filter((c) => !c.claimId && c.matchStatus === 'unmatched')
         .map((c) => ({
           id: c.id,
           patientControlNumber: c.patientControlNumber,
@@ -349,7 +378,111 @@ export async function getRemittance(ctx: ActiveContext, id: string) {
         })),
       lines: lineViews,
       items,
+      claimChecks,
+      remittanceDifferenceCents: claimsPaid - plbTotal - Number(r.remit.paymentAmountCents),
     };
   });
 }
 export type RemitDetail = NonNullable<Awaited<ReturnType<typeof getRemittance>>>;
+
+export interface ClaimPaymentView {
+  remitClaimId: string;
+  remittanceId: string;
+  payerName: string;
+  traceNumber: string;
+  method: string;
+  paymentDate: string;
+  remittanceStatus: string;
+  claimStatusCode: string;
+  chargeCents: number;
+  paidCents: number;
+  patientRespCents: number;
+  payerClaimControlNumber: string | null;
+  lines: {
+    id: string;
+    code: string;
+    modifiers: string[];
+    chargeCents: number;
+    paidCents: number;
+    adjustments: { group: string; carc: string; amountCents: number }[];
+    status: string | null;
+    differences: { field: string; expected: string; actual: string }[];
+  }[];
+  /** Open items about this payment for this claim (posting difference, denial). */
+  itemId: string | null;
+}
+
+/** C-07: every payment, adjustment and reversal received for one claim, oldest first. No PHI. */
+export async function getClaimPayments(ctx: ActiveContext, claimId: string): Promise<ClaimPaymentView[]> {
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const rows = await tx
+      .select({
+        rc: remitClaims,
+        r: remittances,
+        payer: payers.name,
+      })
+      .from(remitClaims)
+      .innerJoin(remittances, eq(remittances.id, remitClaims.remittanceId))
+      .leftJoin(payers, eq(payers.id, remittances.payerId))
+      .where(and(eq(remitClaims.claimId, claimId), scope(ctx)))
+      .orderBy(asc(remittances.paymentDate), asc(remitClaims.createdAt));
+    if (!rows.length) return [];
+    const lines = await tx
+      .select()
+      .from(remitLines)
+      .where(
+        inArray(
+          remitLines.remitClaimId,
+          rows.map((x) => x.rc.id),
+        ),
+      )
+      .orderBy(asc(remitLines.createdAt), asc(remitLines.id));
+    const adj = lines.length
+      ? await tx
+          .select()
+          .from(remitAdjustments)
+          .where(
+            inArray(
+              remitAdjustments.remitLineId,
+              lines.map((l) => l.id),
+            ),
+          )
+      : [];
+    const items = await tx
+      .select({ id: workItems.id, remittanceId: workItems.remittanceId, type: workItems.type })
+      .from(workItems)
+      .where(and(eq(workItems.claimId, claimId), ne(workItems.status, 'resolved')));
+    return rows.map(({ rc, r, payer }) => ({
+      remitClaimId: rc.id,
+      remittanceId: r.id,
+      payerName: payer ?? r.payerName,
+      traceNumber: r.traceNumber,
+      method: r.paymentMethod,
+      paymentDate: r.paymentDate,
+      remittanceStatus: r.status,
+      claimStatusCode: rc.claimStatusCode,
+      chargeCents: Number(rc.chargeCents),
+      paidCents: Number(rc.paidCents),
+      patientRespCents: Number(rc.patientRespCents),
+      payerClaimControlNumber: rc.payerClaimControlNumber,
+      lines: lines
+        .filter((l) => l.remitClaimId === rc.id)
+        .map((l) => ({
+          id: l.id,
+          code: l.code,
+          modifiers: l.modifiers,
+          chargeCents: Number(l.chargeCents),
+          paidCents: Number(l.paidCents),
+          adjustments: adj
+            .filter((a) => a.remitLineId === l.id)
+            .map((a) => ({ group: a.groupCode, carc: a.carc, amountCents: Number(a.amountCents) })),
+          status: l.verifyStatus,
+          differences: l.verifyDetail ?? [],
+        })),
+      itemId:
+        items.find((i) => i.remittanceId === r.id && i.type === 'posting_exception')?.id ??
+        items.find((i) => i.remittanceId === r.id && i.type === 'denial')?.id ??
+        null,
+    }));
+  });
+}

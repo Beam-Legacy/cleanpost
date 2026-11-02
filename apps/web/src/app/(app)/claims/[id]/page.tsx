@@ -8,6 +8,7 @@ import {
   Banner,
   ConfidenceMeter,
   DueChip,
+  EmptyState,
   FindingRow,
   KeyValue,
   ModeBadge,
@@ -18,6 +19,8 @@ import {
 import { actorLabel, CLAIM_STATUS, describeEvent, FREQUENCY_LABEL } from '@/lib/claim-display';
 import { formatDate, formatMoney, formatWhen } from '@/lib/format';
 import { getClaim, getClaimCoverage, type ClaimDetail } from '@/lib/queries/claims';
+import { getClaimPayments } from '@/lib/queries/remittances';
+import { lineResult } from '@/lib/remit-display';
 import { requireActiveContext } from '@/lib/session';
 import { ClaimActions } from './claim-actions';
 import { AddNote, HoldButton, VoidClaimButton } from './claim-more';
@@ -29,6 +32,7 @@ export const metadata: Metadata = { title: 'Claim' };
 const TABS = [
   { key: 'summary', label: 'Summary' },
   { key: 'lines', label: 'Lines' },
+  { key: 'payments', label: 'Payments' },
   { key: 'timeline', label: 'Timeline' },
   { key: 'versions', label: 'Versions' },
   { key: 'patient', label: 'Patient and coverage' },
@@ -198,6 +202,7 @@ export default async function ClaimPage({
           </nav>
           {tab === 'summary' && <Summary d={d} now={now} canNote={canNote} />}
           {tab === 'lines' && <Lines d={d} />}
+          {tab === 'payments' && <ClaimPayments claimId={c.id} ctx={ctx} pmName={d.pmName} />}
           {tab === 'timeline' && <ClaimTimeline d={d} filter={sp.filter ?? 'all'} />}
           {tab === 'versions' && <Versions d={d} compare={Number.parseInt(sp.compare ?? '', 10) || null} />}
           {tab === 'patient' && <PatientCoverage claimId={c.id} ctx={ctx} />}
@@ -685,6 +690,122 @@ async function PatientCoverage({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+const CLP_STATUS: Record<string, string> = {
+  '1': 'Processed as primary',
+  '2': 'Processed as secondary',
+  '3': 'Processed as tertiary',
+  '4': 'Denied',
+  '19': 'Processed as primary, forwarded',
+  '22': 'Reversal of an earlier payment',
+};
+
+/** C-07 Payments: each 835 payment for this claim, its lines and how the PM posted them. */
+async function ClaimPayments({
+  claimId,
+  ctx,
+  pmName,
+}: {
+  claimId: string;
+  ctx: Awaited<ReturnType<typeof requireActiveContext>>;
+  pmName: string;
+}) {
+  const payments = await getClaimPayments(ctx, claimId);
+  if (!payments.length)
+    return (
+      <EmptyState title="No payment received yet" tone="neutral">
+        Payments appear here when an 835 for this claim is read from the PM or uploaded.
+      </EmptyState>
+    );
+  return (
+    <div className="stack">
+      {payments.map((p) => (
+        <div key={p.remitClaimId} className="card flush">
+          <div className="card-head">
+            <h2>
+              {p.payerName} · {formatDate(p.paymentDate)} ·{' '}
+              {p.method === 'CHK' ? 'Check' : p.method === 'NON' ? 'No payment' : 'EFT'}{' '}
+              <span className="code">{p.traceNumber}</span>
+            </h2>
+            <span className="spacer" />
+            <span className="muted dense">
+              {CLP_STATUS[p.claimStatusCode] ?? `Status ${p.claimStatusCode}`}
+            </span>
+            <Link className="btn btn-secondary btn-sm" href={`/remittances/${p.remittanceId}`}>
+              Open remittance
+            </Link>
+          </div>
+          <div className="table-wrap">
+            <table className="table" aria-label={`Payment ${p.traceNumber}`}>
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th className="num">Charge</th>
+                  <th className="num">Paid</th>
+                  <th>Adjustments</th>
+                  <th>{pmName} posting</th>
+                </tr>
+              </thead>
+              <tbody>
+                {p.lines.map((l) => {
+                  const result = lineResult(
+                    l.status,
+                    l.differences.map((x) => x.field),
+                  );
+                  return (
+                    <tr key={l.id}>
+                      <td className="code">
+                        {l.code}
+                        {l.modifiers.length ? `-${l.modifiers.join('-')}` : ''}
+                      </td>
+                      <td className="num">{formatMoney(l.chargeCents)}</td>
+                      <td className="num">{formatMoney(l.paidCents)}</td>
+                      <td>
+                        {l.adjustments.length
+                          ? l.adjustments.map((a, i) => (
+                              <span
+                                key={i}
+                                className="row"
+                                style={{ gap: 4, display: 'inline-flex', marginRight: 8 }}
+                              >
+                                <span
+                                  className={`codechip${a.group === 'PR' || a.carc === '45' ? '' : ' bad'}`}
+                                >
+                                  {a.group}-{a.carc}
+                                </span>
+                                {formatMoney(a.amountCents)}
+                              </span>
+                            ))
+                          : '—'}
+                      </td>
+                      <td>
+                        {p.itemId && (l.status === 'mismatch' || l.status === 'missing') ? (
+                          <Link href={`/work?item=${p.itemId}`}>
+                            <StatusChip status={result} />
+                          </Link>
+                        ) : (
+                          <StatusChip status={result} />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="table-foot">
+            <span>
+              Charged {formatMoney(p.chargeCents)} · paid {formatMoney(p.paidCents)} · patient responsibility{' '}
+              {formatMoney(p.patientRespCents)}
+            </span>
+            <span className="spacer" />
+            <span className="muted">CO amounts cannot be billed to the patient; PR amounts can.</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

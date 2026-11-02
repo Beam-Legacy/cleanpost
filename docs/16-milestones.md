@@ -74,7 +74,8 @@ Status (Nov 2, 2026):
 - Built: payer-sim adjudication and 835s (docs/12-testing.md), the mock PM's ERA inbox with auto-posting (and deliberate posting mistakes), the PM's own billing batch for PMs with no hold, and ERA downloads for the Tebra profile.
 - Built: R-01, R-02, R-04; queue panels for denials, posting differences, unmatched and out-of-balance payments and mappings (W-16 to W-20, read and resolve; correction and write-off are M4); the preview-only payer simulator clock on Work and Remittances.
 - Built: `pnpm test:cycle` for the mock-PM Mode A clients, passing (acceptance 2 and 3); W-19 map an adjustment code (admins; per PM type or client; closes the items and re-checks); W-17 link an unmatched payment to a candidate claim, or set it aside as before go-live or not this client's; the scrub blocks a member the payer does not know (271 AAA 72/75).
-- Next: W-18 accept a difference (admins), manual posting tasks and worksheets (M-01 to M-03, F-02) and the manual adapter clients in the cycle, R-06 to R-08, C-07, secondary claim verification.
+- Built: C-07 claim payments tab; R-06 and W-18 accept a difference (admins, with a reason; claims that balance on their own go on, the rest are set aside), with the `remittance.accept_difference` permission.
+- Next: manual posting tasks and worksheets (M-01 to M-03, F-02) and the manual adapter clients in the cycle, R-08 code explainer, secondary claim verification.
 
 ## M4 — Denials, eligibility, documents, reports (weeks 12–15)
 

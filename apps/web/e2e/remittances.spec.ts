@@ -1,3 +1,4 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
@@ -83,12 +84,58 @@ test('R-04 shows the 835 check and the comparison with the PM', async () => {
 });
 
 test('W-17 shows the claims an unmatched payment could be, and sets it aside', async () => {
+  // A payment for a control number no claim has, numbered for this run so retries start clean.
+  const run = Date.now().toString(36).toUpperCase();
+  const pcn = `E2E-${run}`;
+  const file = join(dirname(fileURLToPath(import.meta.url)), '..', 'test-results', `unmatched-${run}.835`);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(
+    file,
+    readFileSync(join(GOLDEN, 'paid-in-full.edi'), 'utf8')
+      .replaceAll('LFM-E10001', pcn)
+      .replaceAll('1EFT0001', `1E2E${run}`),
+  );
+  await page.goto('/remittances');
+  await page.getByRole('button', { name: 'Upload 835' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Upload 835' });
+  await dialog.getByLabel('835 files').setInputFiles(file);
+  await dialog.getByRole('button', { name: 'Import 1 payment' }).click();
+  await expect(page.getByText(/^Imported 1 payment/)).toBeVisible({ timeout: 30_000 });
+
   await page.goto('/work?type=posting');
-  const row = page.getByRole('row').filter({ hasText: 'Unmatched payment' }).first();
+  const row = page.getByRole('row').filter({ hasText: pcn }).first();
   await expect(row).toBeVisible();
   await row.locator('td:nth-child(3) b').click();
   await expect(page.getByText('Claims it could be')).toBeVisible();
   await expectAccessible(page, 'W-17');
   await page.getByRole('button', { name: 'Mark as before go-live' }).click();
   await expect(page.getByText('Set aside: before go-live.')).toBeVisible({ timeout: 15_000 });
+});
+
+test('R-06 shows where an 835 does not add up; only an admin may accept it', async () => {
+  await page.goto('/remittances');
+  await page.getByRole('button', { name: 'Upload 835' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Upload 835' });
+  await dialog.getByLabel('835 files').setInputFiles(join(GOLDEN, 'out-of-balance.edi'));
+  await expect(dialog.getByRole('table', { name: 'Payments in the files' })).toBeVisible();
+  if ((await dialog.getByText(/^Already imported/).count()) === 0) {
+    await expect(dialog.getByText('Does not balance')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Import 1 payment' }).click();
+    await expect(page.getByText(/^Imported 1 payment/)).toBeVisible({ timeout: 30_000 });
+  } else {
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+  }
+  await page.goto('/remittances?view=attention');
+  await page
+    .getByRole('table', { name: 'Payments' })
+    .getByRole('row')
+    .filter({ hasText: 'Out of balance' })
+    .first()
+    .getByRole('link')
+    .click();
+  await expect(page.getByRole('heading', { name: '835 does not balance' })).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Claims that do not balance' })).toBeVisible();
+  // Lena is a biller: the difference waits for an admin.
+  await expect(page.getByText('An admin can accept the difference with a reason.')).toBeVisible();
+  await expectAccessible(page, 'R-06');
 });

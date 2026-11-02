@@ -20,3 +20,4 @@ export {
   type LinkOutcome,
   type SetAsideReason,
 } from './link';
+export { acceptDifference, type AcceptOutcome } from './accept';

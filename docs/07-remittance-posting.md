@@ -33,7 +33,7 @@ Two checks with fixed names, used the same way in the UI (W-18, R-06, R-04):
 1. **835 balance** — runs right after parsing, before matching, posting or verification.
    - Per claim: `charge − paid − Σ adjustments = 0` (CAS amounts, all groups).
    - Per remittance: `Σ claim paid − Σ PLB = BPR payment amount`.
-   - Failure → remittance `out_of_balance` and an `out_of_balance` work item with the difference ("835 does not balance"). Nothing is posted or verified until it passes, or an admin accepts the difference with a reason; then only the claims that balance on their own continue.
+   - Failure → remittance `out_of_balance` and an `out_of_balance` work item with the difference ("835 does not balance"). Nothing is posted or verified until it passes, or an admin accepts the difference with a reason; then only the claims that balance on their own continue. Built: the claims that do not balance on their own are set aside (`remit_claims.match_status = set_aside`) and the reason is in the audit log.
 2. **Posting match** — runs after the PM (Modes A, C) or Cleanpost (Mode B) posts.
    - Per line: paid amount, each adjustment (mapped to the PM's code) and patient responsibility equal the 835.
    - Differences → `posting_exception` work items ("PM posting does not match"); the remittance is `posting_mismatch` until they are resolved, then `reconciled`.
