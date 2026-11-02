@@ -93,6 +93,9 @@ importers:
       '@cleanpost/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@cleanpost/claims':
+        specifier: workspace:*
+        version: link:../../packages/claims
       '@cleanpost/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -117,6 +120,9 @@ importers:
       '@cleanpost/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@cleanpost/work':
+        specifier: workspace:*
+        version: link:../../packages/work
       better-auth:
         specifier: 1.7.14
         version: 1.7.14(@opentelemetry/api@1.10.0)(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1))(next@16.4.3(@opentelemetry/api@1.10.0)(@playwright/test@1.63.0)(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(pg@8.23.1)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.0.5)

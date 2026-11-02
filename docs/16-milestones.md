@@ -48,6 +48,11 @@ Accept:
 - Eligibility check against the Stedi sandbox stores a 271 summary and feeds scrub step 2
 - Every edit produces a correction row
 
+Status (Nov 2, 2026):
+- Met: scrub accuracy (100% caught, 0% false blocks on 1,800 synthetic claims); keyboard review under 20 s (`apps/web/e2e/work-queue.spec.ts`); Mode A release approves the encounter in pm-mock and the claim status comes back through sync; one manual task per PM operation that needs a person; a corrections row per changed field (`packages/claims` tests).
+- Built: W-01, W-03, W-06, W-07, W-10, W-11, W-12, W-21 and W-23 panels, keyboard J/K/A/E/S/R, Undo (DEC-13).
+- Open: payer-sim and pm-mock's clearinghouse (the 277CA is set by hand in tests), Stedi eligibility (sandbox key pending; scrub step 2 reads stored checks), claims screens C-01 to C-17, W-04, W-05, W-08, W-09, G-06, G-12.
+
 ## M3 — Payments in, Mode A verification (weeks 9–11)
 
 Build: 835 parsing from X12 files, golden tests, ingestion and idempotency (PM read and file upload), matching, the two balancing checks, adjustment mappings with PM-type defaults, verification against PM postings, posting exceptions, manual tasks and worksheets (M-01 to M-03, F-02), secondary claim verification (the PM builds secondaries in Mode A), remittances (R-01, R-02, R-04 to R-08), queue panels (W-17 to W-21), C-07.

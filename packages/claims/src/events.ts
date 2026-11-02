@@ -68,3 +68,22 @@ export async function applyClaimEvent(
   });
   return next.value;
 }
+
+/** A claim event that is not a status change (e.g. a correction sent to the PM). */
+export async function recordClaimEvent(
+  tx: Tx,
+  claim: Pick<ClaimRow, 'id' | 'tenantId' | 'clientId'>,
+  type: string,
+  opts: { actor: AuditActor; versionId?: string | null; payload?: Record<string, unknown>; now?: Date },
+): Promise<void> {
+  await tx.insert(claimEvents).values({
+    tenantId: claim.tenantId,
+    clientId: claim.clientId,
+    claimId: claim.id,
+    claimVersionId: opts.versionId ?? null,
+    type,
+    payload: opts.payload ?? {},
+    actor: opts.actor,
+    occurredAt: opts.now ?? new Date(),
+  });
+}

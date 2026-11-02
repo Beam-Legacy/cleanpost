@@ -266,6 +266,7 @@ async function routeWorkItem(
   confidence: number,
   actor: AuditActor,
   now: Date,
+  firstClaim = false,
 ) {
   const open = await tx
     .select()
@@ -295,10 +296,18 @@ async function routeWorkItem(
   }
   if (!wanted) return;
   const firstBlock = findings.find((f) => f.severity === 'block');
+  // The reason shown in the queue (W-01): the most important finding, in one line.
+  const topWarn =
+    findings.find((f) => f.severity === 'warn' && f.step !== 'ai') ??
+    findings.find((f) => f.severity === 'warn');
   const summary =
     wanted === 'claim_blocked'
       ? `Blocked: ${firstBlock?.message ?? 'a check failed.'}`
-      : `Needs review: confidence ${confidence}.`;
+      : topWarn
+        ? topWarn.message
+        : firstClaim
+          ? `First claim for this client and payer (confidence ${confidence}).`
+          : `Confidence ${confidence} is below the release threshold.`;
   const reasonCode =
     wanted === 'claim_blocked' ? (firstBlock?.ruleId ?? 'blocked') : 'confidence_below_threshold';
   const existing = open.find((i) => i.type === wanted);
@@ -411,7 +420,16 @@ export async function scrubVersion(
       },
       now,
     });
-    await routeWorkItem(tx, claim, score.decision, findings, score.confidence, actor, now);
+    await routeWorkItem(
+      tx,
+      claim,
+      score.decision,
+      findings,
+      score.confidence,
+      actor,
+      now,
+      loaded.firstClaimForClientPayer,
+    );
     await recordAudit(tx, {
       actor,
       action: 'claim.scrubbed',

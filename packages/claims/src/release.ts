@@ -31,7 +31,7 @@ import {
 import { state } from '@cleanpost/domain';
 import type { Logger } from '@cleanpost/log';
 import { applyClaimEvent } from './events';
-import { ensureManualTask, openCorrectionTasks } from './tasks';
+import { correctionPending, ensureManualTask } from './tasks';
 
 export { ensureManualTask } from './tasks';
 
@@ -139,8 +139,7 @@ async function load(
     approvedBy: approval?.actor ?? null,
   });
   if (!allowed.ok) return { status: 'refused', reason: allowed.error };
-  if ((await openCorrectionTasks(tx, claim.id)).length)
-    return { status: 'refused', reason: 'pm_correction_pending' };
+  if (await correctionPending(tx, claim.id)) return { status: 'refused', reason: 'pm_correction_pending' };
   const target = await pmTarget(tx, claim);
   if (!target) return { status: 'refused', reason: 'no_connection' };
   return { claim, ...target };

@@ -18,6 +18,7 @@ export const JOBS = {
   claimBuild: 'claim.build',
   claimScrub: 'claim.scrub',
   claimRelease: 'claim.release',
+  claimCorrect: 'claim.correct',
   deadLetter: 'system.dead_letter',
 } as const;
 
@@ -34,6 +35,14 @@ export const claimReleasePayload = z.object({
   userId: z.uuid().optional(),
 });
 export type ClaimReleasePayload = z.infer<typeof claimReleasePayload>;
+
+/** Mode A write-back of a person's edit (docs/04-modes.md); versionId is the edit that asked. */
+export const claimCorrectPayload = z.object({
+  tenantId: z.uuid(),
+  claimId: z.uuid(),
+  versionId: z.uuid(),
+});
+export type ClaimCorrectPayload = z.infer<typeof claimCorrectPayload>;
 
 const RETRIES = {
   retryLimit: 4,
@@ -70,6 +79,8 @@ export const QUEUES: { name: string; options: Parameters<PgBoss['createQueue']>[
   { name: JOBS.claimBuild, options: { policy: 'stately', expireInSeconds: 30 * 60, ...RETRIES } },
   // One queued release per claim (singletonKey = claim ID).
   { name: JOBS.claimRelease, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
+  // One queued write-back per claim (singletonKey = claim ID); it sends every change still missing.
+  { name: JOBS.claimCorrect, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
   // One queued scrub per claim version (singletonKey = version ID).
   { name: JOBS.claimScrub, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
 ];
@@ -160,6 +171,11 @@ export async function sendClaimRelease(
     singletonKey: data.claimId,
     ...(opts.delaySeconds ? { startAfter: opts.delaySeconds } : {}),
   });
+}
+
+export async function sendClaimCorrect(boss: PgBoss, payload: ClaimCorrectPayload): Promise<string | null> {
+  const data = claimCorrectPayload.parse(payload);
+  return boss.send(JOBS.claimCorrect, data, { singletonKey: data.claimId });
 }
 
 /** Undo: cancels a release that has not started. False if it already ran or is running. */

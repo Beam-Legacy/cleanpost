@@ -29,6 +29,7 @@ const config: NextConfig = {
   transpilePackages: [
     '@cleanpost/adapters',
     '@cleanpost/auth',
+    '@cleanpost/claims',
     '@cleanpost/config',
     '@cleanpost/db',
     '@cleanpost/domain',
@@ -37,6 +38,7 @@ const config: NextConfig = {
     '@cleanpost/log',
     '@cleanpost/sync',
     '@cleanpost/ui',
+    '@cleanpost/work',
   ],
   serverExternalPackages: ['pg', 'pg-boss', 'pino', 'nodemailer'],
   async headers() {

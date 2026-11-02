@@ -57,7 +57,8 @@ All asynchronous work is a pg-boss job. Payloads carry IDs only and are validate
 | `eligibility.check` | New or changed coverage; 3 days before a scheduled claim release | Stedi 270, stores 271 summary |
 | `claim.build` | New charges complete for an encounter | Builds claim version from canonical records |
 | `claim.scrub` | After build, after any edit | Runs rules and AI review, sets confidence, routes |
-| `claim.release` | Auto-release or approval | Mode A: adapter release; B/C: Stedi submission |
+| `claim.release` | Auto-release, or approval (queued 10 s out so Undo can cancel it) | Mode A: adapter release; B/C: Stedi submission. Waits while a correction is on its way to the PM |
+| `claim.correct` | A person's edit of a Mode A claim | Writes every change the PM does not have yet with `pushChargeCorrection`, or opens one correction task with a worksheet |
 | `claim.ack` | Stedi webhook (999/277CA), PM sync | Applies acknowledgment events |
 | `claim.statusSweep` | Daily | 276 for claims with no response after N days |
 | `remit.ingest` | Stedi webhook (B), PM sync (A, C), file upload | Stores raw 835, parses, creates Remittance |

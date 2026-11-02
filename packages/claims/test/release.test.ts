@@ -32,6 +32,7 @@ import {
   approveClaim,
   buildClaimsForClient,
   editClaim,
+  pushCorrection,
   releaseClaim,
   scrubVersion,
   unapproveClaim,
@@ -370,12 +371,16 @@ describe('edits in Mode A when the PM can only be corrected by hand (Tebra)', ()
   it('applies a suggested fix as a new version and opens one correction task with a worksheet', async () => {
     expect(claimId).not.toBe('');
     const res = await editClaim(
-      deps,
+      app.db,
       { tenantId: NORTHWIND, userId: user, claimId },
       { kind: 'fix', ruleIds: [ruleId] },
     );
-    expect(res).toMatchObject({ status: 'edited', pm: 'manual_task' });
+    expect(res).toMatchObject({ status: 'edited', writeBack: true });
     if (res.status !== 'edited') return;
+    expect(await pushCorrection(deps, { tenantId: NORTHWIND, claimId })).toMatchObject({
+      status: 'manual_task',
+      version: res.version,
+    });
     expect(res.changes.map((c) => c.label)).toEqual([expect.stringMatching(/^Line \d modifier 59 added$/)]);
     const items = await openCorrectionItems();
     expect(items).toHaveLength(1);
@@ -392,11 +397,14 @@ describe('edits in Mode A when the PM can only be corrected by hand (Tebra)', ()
     const next = structuredClone(payload);
     next.priorAuthNumber = 'PA20261101';
     const res = await editClaim(
-      deps,
+      app.db,
       { tenantId: NORTHWIND, userId: user, claimId },
       { kind: 'payload', payload: next },
     );
-    expect(res).toMatchObject({ status: 'edited', pm: 'manual_task' });
+    expect(res).toMatchObject({ status: 'edited', writeBack: true });
+    expect(await pushCorrection(deps, { tenantId: NORTHWIND, claimId })).toMatchObject({
+      status: 'manual_task',
+    });
     const items = await openCorrectionItems();
     expect(items).toHaveLength(1);
     const [task] = await admin.db.select().from(manualTasks).where(eq(manualTasks.workItemId, items[0]!.id));

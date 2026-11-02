@@ -102,6 +102,18 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 | AI models | Bedrock via the Anthropic SDK's Mantle client: `anthropic.claude-haiku-5-5` (effort `low`) for routine claim review, `anthropic.claude-opus-5-5` for denials and rule proposals | docs/06 model routing: a smaller model for routine review, a larger one where the reasoning is harder. Config, not code. |
 | AI without credentials | A deterministic stand-in in local and preview; off in staging and production until Bedrock is configured | The pipeline, scoring and UI can be built and shown without AWS access. |
 
+## DEC-13 — M2 work queue and edit choices (Nov 2, 2026)
+
+| Topic | Choice | Why |
+| --- | --- | --- |
+| Undo on approve | Approve-and-release queues `claim.release` 10 seconds out; Undo cancels the job and moves the claim `ready → needs_review` (`unapprove`), reopening the review item. An approval counts only without a later `unapproved` event for that version. | docs/09 asks for Undo on approve, and nothing may have reached the PM when it is used. A confirm dialog on every approval would break the 20-second review. |
+| Where PM write-back runs | The web app saves the edit (new version, `corrections` rows) and queues `claim.correct`; the worker calls `pushChargeCorrection` or opens the correction task | docs/01: adapters run in the worker. Release waits for `correction_requested` to be answered by `correction_pushed` or `correction_manual` (and, for a task, until it closes). |
+| Re-scrub after an edit | In place in the web request, without the AI step | W-10 shows the new score at once; a person is reviewing the claim, and the AI step stays in the worker. |
+| Queue reason | The work item summary is the claim's top warning (or block), else the first-claim or threshold reason | W-01 shows a plain-language reason per row. |
+| Assignee filter | Defaults to Anyone in the user's client scope | Auto-assignment by client ownership arrives with settings (M5); "Me" would show an empty queue until then. |
+| Snooze | Presets (3 hours, tomorrow 8 am, next Monday 8 am, Pacific) and a date and time; at most 30 days. Woken lazily as automation when the queue loads. | W-06 condition snoozes (next sync, payment, eligibility) need those events first (M3, M4). |
+| Not yet in the panel | Hold (C-12), bulk bar (W-04), save view (W-08), assign (W-05) | Second pass of M2-F. |
+
 ## Open questions
 
 | Question | Owner | Needed by |

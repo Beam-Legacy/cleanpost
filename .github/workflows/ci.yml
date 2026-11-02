@@ -54,12 +54,21 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm --filter @cleanpost/ui build-storybook --quiet
-      - name: End-to-end (sign-in, two-factor, company, shell; axe in both themes)
+      - name: End-to-end (sign-in, shell, clients, work queue; axe in both themes)
         run: |
           export BETTER_AUTH_SECRET="$(openssl rand -base64 32)"
           # The seed encrypts tax IDs; a throwaway key for this run's synthetic data.
           export FIELD_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+          # The mock PM and the worker run as in preview, so the work queue has synced claims.
+          export PM_MOCK_DATABASE_URL="$DATABASE_ADMIN_URL"
+          export PM_MOCK_SECRET="$(openssl rand -hex 24)"
+          export PM_MOCK_URL=http://localhost:4010
           pnpm db:migrate
           pnpm seed
+          pnpm --filter @cleanpost/pm-mock start > pm-mock.log 2>&1 &
+          pnpm --filter @cleanpost/worker start > worker.log 2>&1 &
           pnpm --filter @cleanpost/web build
           pnpm --filter @cleanpost/web test:e2e
+      - name: Worker and mock PM logs
+        if: failure()
+        run: tail -n 100 worker.log pm-mock.log || true

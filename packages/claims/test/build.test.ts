@@ -18,7 +18,7 @@ import { createRegistry, memoryFileSource, type ChargeCorrection, type PmAdapter
 import { pmSchema } from '@cleanpost/pm-mock';
 import { runSync } from '@cleanpost/sync';
 import { scanForPhi } from '@cleanpost/testing';
-import { applyClaimEvent, buildClaimsForClient, editClaim } from '../src';
+import { applyClaimEvent, buildClaimsForClient, correctionPending, editClaim, pushCorrection } from '../src';
 import {
   admin,
   app,
@@ -247,12 +247,26 @@ describe('edits by a person (Mode A, a PM that takes charge corrections)', () =>
     edited.lines[0]!.units = edited.lines[0]!.units + 1;
 
     const res = await editClaim(
-      deps,
+      app.db,
       { tenantId: NORTHWIND, userId: USER, claimId },
       { kind: 'payload', payload: edited },
     );
-    expect(res).toMatchObject({ status: 'edited', pm: 'pushed' });
+    expect(res).toMatchObject({ status: 'edited', writeBack: true });
     if (res.status !== 'edited') return;
+    // Until claim.correct has run, the change is on its way to the PM and release must wait.
+    const pending = () => withTenant(app.db, { tenantId: NORTHWIND }, (tx) => correctionPending(tx, claimId));
+    expect(await pending()).toBe(true);
+    expect(await pushCorrection(deps, { tenantId: NORTHWIND, claimId })).toEqual({
+      status: 'pushed',
+      version: res.version,
+    });
+    expect(await pending()).toBe(false);
+    // Running it again has nothing left to send.
+    expect(await pushCorrection(deps, { tenantId: NORTHWIND, claimId })).toEqual({
+      status: 'not_needed',
+      reason: 'up_to_date',
+    });
+    expect(pushed).toHaveLength(1);
     expect(res.changes.map((c) => c.fieldPath)).toEqual(['lines[0].modifiers', 'lines[0].units']);
 
     const after = await current(claimId);
@@ -316,13 +330,13 @@ describe('edits by a person (Mode A, a PM that takes charge corrections)', () =>
     payer.payerId = '01a00000-0000-7000-8000-0000000000a5';
     expect(
       await editClaim(
-        deps,
+        app.db,
         { tenantId: NORTHWIND, userId: USER, claimId },
         { kind: 'payload', payload: payer },
       ),
     ).toEqual({ status: 'refused', reason: 'locked_field_changed' });
     expect(
-      await editClaim(deps, { tenantId: NORTHWIND, userId: USER, claimId }, { kind: 'payload', payload }),
+      await editClaim(app.db, { tenantId: NORTHWIND, userId: USER, claimId }, { kind: 'payload', payload }),
     ).toEqual({ status: 'refused', reason: 'no_change' });
     const [released] = await admin.db
       .select()
@@ -331,7 +345,7 @@ describe('edits by a person (Mode A, a PM that takes charge corrections)', () =>
       .limit(1);
     expect(
       await editClaim(
-        deps,
+        app.db,
         { tenantId: NORTHWIND, userId: USER, claimId: released!.id },
         { kind: 'fix', ruleIds: ['x'] },
       ),

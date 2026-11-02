@@ -14,6 +14,7 @@ import {
   applyClaimStatuses,
   buildClaimsForClient,
   holdCharges,
+  pushCorrection,
   releaseClaim,
   scrubVersion,
   versionsAwaitingScrub,
@@ -23,6 +24,7 @@ import { eq } from 'drizzle-orm';
 import { claimVersions, withTenant, workItems, recordAudit, type Database } from '@cleanpost/db';
 import {
   claimBuildPayload,
+  claimCorrectPayload,
   claimReleasePayload,
   claimScrubPayload,
   JOBS,
@@ -174,6 +176,14 @@ export async function handleClaimRelease(deps: WorkerDeps, data: unknown) {
   return result;
 }
 
+/** Mode A: write a person's edit to the PM, or give the biller a correction task (docs/04). */
+export async function handleClaimCorrect(deps: WorkerDeps, data: unknown) {
+  const payload = claimCorrectPayload.parse(data);
+  const result = await pushCorrection(releaseDeps(deps), payload);
+  deps.log.info({ claimId: payload.claimId, status: result.status }, 'claim correction');
+  return result;
+}
+
 /** Every minute: queue connections that are due, and mark stale ones degraded. */
 export async function handleTick(deps: WorkerDeps) {
   const now = deps.now?.() ?? new Date();
@@ -203,6 +213,7 @@ export async function handleDeadLetter(deps: WorkerDeps, data: unknown) {
   const sync = syncPullPayload.safeParse(data);
   const build = claimBuildPayload.safeParse(data);
   const scrub = claimScrubPayload.safeParse(data);
+  const correct = claimCorrectPayload.safeParse(data);
   const release = claimReleasePayload.safeParse(data);
   const failed = sync.success
     ? {
@@ -225,14 +236,21 @@ export async function handleDeadLetter(deps: WorkerDeps, data: unknown) {
             refs: { claimVersionId: scrub.data.claimVersionId },
             what: 'A claim scrub job',
           }
-        : release.success
+        : correct.success
           ? {
-              job: JOBS.claimRelease,
-              tenantId: release.data.tenantId,
-              refs: { claimId: release.data.claimId },
-              what: 'A claim release job',
+              job: JOBS.claimCorrect,
+              tenantId: correct.data.tenantId,
+              refs: { claimId: correct.data.claimId },
+              what: 'A claim correction job',
             }
-          : null;
+          : release.success
+            ? {
+                job: JOBS.claimRelease,
+                tenantId: release.data.tenantId,
+                refs: { claimId: release.data.claimId },
+                what: 'A claim release job',
+              }
+            : null;
   deps.log.error({ job: failed?.job ?? 'unknown', ...(failed?.refs ?? {}) }, 'job failed after retries');
   if (!failed) return;
   const now = deps.now?.() ?? new Date();
@@ -288,6 +306,9 @@ export async function registerWorkers(
   );
   await deps.boss.work(JOBS.claimRelease, { batchSize: 1, localConcurrency: 2 }, async ([job]) => {
     if (job) await handleClaimRelease(deps, job.data);
+  });
+  await deps.boss.work(JOBS.claimCorrect, { batchSize: 1, localConcurrency: 2 }, async ([job]) => {
+    if (job) await handleClaimCorrect(deps, job.data);
   });
   await deps.boss.work(JOBS.deadLetter, async ([job]) => {
     if (job) await handleDeadLetter(deps, job.data);
