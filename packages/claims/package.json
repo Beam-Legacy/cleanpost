@@ -15,6 +15,7 @@
     "@cleanpost/adapters": "workspace:*",
     "@cleanpost/db": "workspace:*",
     "@cleanpost/domain": "workspace:*",
+    "@cleanpost/eligibility": "workspace:*",
     "@cleanpost/log": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "zod": "^4.6.7"
