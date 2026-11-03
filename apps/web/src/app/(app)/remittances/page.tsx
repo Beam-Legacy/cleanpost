@@ -1,3 +1,4 @@
+import { now as clockNow } from '@cleanpost/clock';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Banknote } from 'lucide-react';
@@ -37,7 +38,7 @@ export default async function RemittancesPage({
     return `/remittances${p.size ? `?${p}` : ''}`;
   };
   const canUpload = policy.authorize(ctx.actor, 'payment.post').allowed;
-  const monthName = new Date().toLocaleString('en-US', { month: 'long', timeZone: 'America/Los_Angeles' });
+  const monthName = clockNow().toLocaleString('en-US', { month: 'long', timeZone: 'America/Los_Angeles' });
 
   return (
     <>

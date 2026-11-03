@@ -69,6 +69,7 @@ import {
   runSync,
   type SyncDeps,
 } from '@cleanpost/sync';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface WorkerDeps {
   db: Database;
@@ -118,7 +119,7 @@ async function applyRemittances(
       tx,
       { tenantId: ctx.tenantId, clientId: ctx.clientId, source: 'pm' },
       r,
-      new Date(),
+      clockNow(),
     );
     if (res.status === 'duplicate') counts.unchanged++;
     else counts.new++;
@@ -218,7 +219,7 @@ export async function handleClaimScrub(deps: WorkerDeps, data: unknown) {
  */
 async function waitForEligibility(deps: WorkerDeps, tenantId: string, versionIds: string[]) {
   if (!versionIds.length) return new Set<string>();
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   const { byCoverage, due } = await withTenant(deps.db, { tenantId }, async (tx) => {
     const rows = await tx
       .select({ versionId: claimVersions.id, coverageId: claims.coverageId })
@@ -320,7 +321,7 @@ export async function handleClaimStatusCheck(deps: WorkerDeps, data: unknown) {
 
 /** Daily (docs/04-modes.md): follow-ups for claims the payer has not answered, and their checks. */
 export async function handleStatusSweep(deps: WorkerDeps) {
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   const tenants = [...new Set((await listCandidates(deps.db)).map((c) => c.tenantId))];
   let opened = 0;
   let queued = 0;
@@ -337,7 +338,7 @@ export async function handleStatusSweep(deps: WorkerDeps) {
 
 /** Every minute: queue connections that are due, and mark stale ones degraded. */
 export async function handleTick(deps: WorkerDeps) {
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   const plan = planTick(await listCandidates(deps.db), now);
   let queued = 0;
   for (const c of plan.due) {
@@ -416,7 +417,7 @@ export async function handleDeadLetter(deps: WorkerDeps, data: unknown) {
               : null;
   deps.log.error({ job: failed?.job ?? 'unknown', ...(failed?.refs ?? {}) }, 'job failed after retries');
   if (!failed) return;
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   await withTenant(deps.db, { tenantId: failed.tenantId }, async (tx) => {
     const [item] = await tx
       .insert(workItems)

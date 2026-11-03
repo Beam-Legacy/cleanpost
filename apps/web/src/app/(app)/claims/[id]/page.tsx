@@ -1,3 +1,4 @@
+import { now as clockNow } from '@cleanpost/clock';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -69,7 +70,7 @@ export default async function ClaimPage({
     (c.status === 'needs_review' || c.status === 'ready') &&
     !d.scrub?.findings.some((f) => f.severity === 'block') &&
     !d.correctionPending;
-  const now = new Date();
+  const now = clockNow();
   const deadlineDays = c.filingDeadline
     ? Math.ceil((Date.parse(`${c.filingDeadline}T00:00:00Z`) - now.getTime()) / 86_400_000)
     : null;

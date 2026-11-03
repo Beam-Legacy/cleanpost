@@ -16,6 +16,7 @@ import {
 import { state } from '@cleanpost/domain';
 import { z } from 'zod';
 import { verifyInTx } from './verify';
+import { now as clockNow } from '@cleanpost/clock';
 
 export const mappingInputSchema = z.object({
   /** The client the item came from: its PM type is the one mapped. */
@@ -42,7 +43,7 @@ export async function saveMapping(
   tx: Tx,
   ctx: { tenantId: string; userId: string },
   input: MappingInput,
-  now = new Date(),
+  now = clockNow(),
 ): Promise<MappingOutcome> {
   const actor: AuditActor = `user:${ctx.userId}`;
   const [conn] = await tx

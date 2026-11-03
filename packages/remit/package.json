@@ -14,6 +14,7 @@
   "dependencies": {
     "@cleanpost/adapters": "workspace:*",
     "@cleanpost/claims": "workspace:*",
+    "@cleanpost/clock": "workspace:*",
     "@cleanpost/db": "workspace:*",
     "@cleanpost/domain": "workspace:*",
     "@cleanpost/log": "workspace:*",

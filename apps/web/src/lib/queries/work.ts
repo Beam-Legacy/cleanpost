@@ -1,4 +1,5 @@
 import 'server-only';
+import { now as clockNow, nowMs } from '@cleanpost/clock';
 import {
   and,
   asc,
@@ -131,7 +132,7 @@ function claimScope(ctx: ActiveContext): SQL | undefined {
 const LIMIT = 200;
 
 /** W-01: the queue, its chip counts and today's summary strip. */
-export async function listWork(ctx: ActiveContext, f: WorkFilters, now = new Date()): Promise<WorkQueue> {
+export async function listWork(ctx: ActiveContext, f: WorkFilters, now = clockNow()): Promise<WorkQueue> {
   const day = pacificDay(now);
   return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
     // Snoozed items whose time has come are back in the queue before it is read.
@@ -617,7 +618,7 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
     if (status)
       followUp = {
         reason: item.reasonCode,
-        daysWaiting: since ? Math.floor((Date.now() - since.at.getTime()) / 86_400_000) : null,
+        daysWaiting: since ? Math.floor((nowMs() - since.at.getTime()) / 86_400_000) : null,
         sinceLabel: since
           ? `${item.reasonCode === 'no_ack' ? 'Sent' : 'Accepted by payer'} ${formatDate(since.at.toISOString().slice(0, 10))}`
           : null,
@@ -715,7 +716,7 @@ export interface Assignee {
 export async function listAssignees(
   ctx: ActiveContext,
   clientIds: string[],
-  now = new Date(),
+  now = clockNow(),
 ): Promise<Assignee[]> {
   return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
     const people = await tx

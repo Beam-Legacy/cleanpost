@@ -29,6 +29,7 @@ Details:
 - Remits are read from the PM (or uploaded as 835 files when the PM cannot provide them, as with Tebra). Cleanpost does not post in Mode A; it verifies the PM's auto-posting and creates exceptions for unposted lines, wrong adjustments and denials. If the PM does not auto-post a remittance (or the practice posts by hand), Cleanpost creates a manual posting task with a worksheet (M-01, F-02) instead of an exception.
 - Requires: `pullCharges`, `pullClaimsAndStatus`, `pullRemittances`, `pushChargeCorrection`; `holdCharge`/`releaseCharge` preferred. Any of these may run at level 0 or 3 (manual task or file upload).
 - Tebra: hold and release map to its encounter review (an encounter waits in Review until Cleanpost approves it); corrections are manual tasks; 835s come by file upload. See `docs/05-adapters.md`.
+- If the PM refuses a release for good (the charge is not in a state it can release, such as a Tebra encounter still in Draft or sent back), the claim stays ready and gets one manual task, "Release the charge in {PM}": finish the encounter in the PM and release it there, or void the claim if the visit was voided. The next pull that shows the charge billed closes it.
 
 ## Mode B — Platform submits and receives
 

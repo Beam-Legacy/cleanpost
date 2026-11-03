@@ -14,6 +14,7 @@ import {
   type Tx,
 } from '@cleanpost/db';
 import { state, work } from '@cleanpost/domain';
+import { now as clockNow } from '@cleanpost/clock';
 
 export type WorkActionResult =
   | { ok: true }
@@ -53,7 +54,7 @@ async function move(
   if (!next.ok) return { ok: false, reason: 'invalid_transition' };
   await tx
     .update(workItems)
-    .set({ ...set, status: next.value, updatedAt: new Date() })
+    .set({ ...set, status: next.value, updatedAt: clockNow() })
     .where(eq(workItems.id, item.id));
   await recordAudit(tx, {
     actor,
@@ -73,7 +74,7 @@ export async function snoozeItem(
   itemId: string,
   until: Date,
 ): Promise<WorkActionResult> {
-  const now = ctx.now ?? new Date();
+  const now = ctx.now ?? clockNow();
   const check = work.checkSnooze(now, until);
   if (!check.ok) return { ok: false, reason: check.error };
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
@@ -118,7 +119,7 @@ export async function resolveItem(
       {
         resolvedBy: actor,
         resolution: note ? `${input.reason}: ${note}` : input.reason,
-        resolvedAt: ctx.now ?? new Date(),
+        resolvedAt: ctx.now ?? clockNow(),
         snoozedUntil: null,
       },
       actor,
@@ -201,7 +202,7 @@ export async function assignItem(
       );
       if (!res.ok) return res;
     } else {
-      await tx.update(workItems).set({ assigneeId, updatedAt: new Date() }).where(eq(workItems.id, item.id));
+      await tx.update(workItems).set({ assigneeId, updatedAt: clockNow() }).where(eq(workItems.id, item.id));
       await recordAudit(tx, {
         actor,
         action: assigneeId ? 'work_item.assigned' : 'work_item.unassigned',

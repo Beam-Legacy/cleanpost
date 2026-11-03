@@ -127,7 +127,9 @@ export const auditEvents = pgTable(
     ip: inet('ip'),
     userAgent: text('user_agent'),
     metadata: jsonb('metadata').notNull().default({}),
-    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+    at: timestamp('at', { withTimezone: true })
+      .notNull()
+      .default(sql`app.now()`),
   },
   (t) => [
     index('audit_events_tenant_at_idx').on(t.tenantId, t.at),

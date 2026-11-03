@@ -2,12 +2,13 @@ import 'server-only';
 import { z } from 'zod';
 import { createAuth, type Auth } from '@cleanpost/auth';
 import { authEnvSchema, dbEnvSchema, emailEnvSchema, parseEnv } from '@cleanpost/config';
-import { getDatabase, type Database } from '@cleanpost/db';
+import { clockSyncer, getDatabase, type Database } from '@cleanpost/db';
 import { createSmtpMailer, type Mailer } from '@cleanpost/email';
 
 /** Process-wide singletons for server code. Each validates its own env on first use. */
 let auth: Auth | undefined;
 let mailer: Mailer | undefined;
+let syncer: (() => Promise<void>) | undefined;
 
 export function getDb(): Database {
   parseEnv(dbEnvSchema);
@@ -31,4 +32,10 @@ export function getAuth(): Auth {
     });
   }
   return auth;
+}
+
+/** Demo time (DEC-18): picks up the shared clock offset, at most every 2 seconds. */
+export async function syncClock(): Promise<void> {
+  syncer ??= clockSyncer(getDb());
+  await syncer();
 }

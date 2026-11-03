@@ -20,6 +20,7 @@ import { state } from '@cleanpost/domain';
 import { applyClaimEvent } from './events';
 import { resolveAnsweredDenials, resolveFollowUps } from './answered';
 import { markReleased } from './release';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface StatusContext {
   tenantId: string;
@@ -100,7 +101,7 @@ export async function applyClaimStatuses(
       ),
     );
   const encounterOf = new Map(refs.map((r) => [r.externalId, r.encounterId]));
-  const now = new Date();
+  const now = clockNow();
   for (const item of items) {
     const encounterId = encounterOf.get(item.encounterExternalId);
     const [claim] = encounterId

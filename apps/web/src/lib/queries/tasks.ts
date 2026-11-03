@@ -1,4 +1,5 @@
 import 'server-only';
+import { nowMs } from '@cleanpost/clock';
 import { and, desc, eq, gte, inArray, ne, sql, type SQL } from 'drizzle-orm';
 import { clients, connections, manualTasks, users, withTenant, workItems } from '@cleanpost/db';
 import { policy } from '@cleanpost/domain';
@@ -52,7 +53,7 @@ export async function listManualTasks(ctx: ActiveContext, filter: { clientId: st
       .where(and(...base, ne(manualTasks.status, 'done')))
       .orderBy(desc(sql`${manualTasks.status} = 'escalated'`), desc(manualTasks.createdAt))
       .limit(200);
-    const since = new Date(Date.now() - 30 * 86_400_000);
+    const since = new Date(nowMs() - 30 * 86_400_000);
     const recent = await tx
       .select({
         operation: manualTasks.operation,

@@ -45,6 +45,7 @@ import {
 import type { Logger } from '@cleanpost/log';
 import { applyClaimEvent } from './events';
 import type { ClaimReviewer } from './review';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface ScrubDeps {
   db: Database;
@@ -357,7 +358,7 @@ export async function scrubVersion(
   ctx: { tenantId: string; claimVersionId: string },
   actor: AuditActor = 'automation:claim.scrub',
 ): Promise<ScrubOutcome> {
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   const today = now.toISOString().slice(0, 10);
   const loaded = await withTenant(deps.db, { tenantId: ctx.tenantId }, (tx) =>
     load(tx, ctx.claimVersionId, today),
@@ -492,7 +493,7 @@ export async function previewScrub(
   payload: ClaimPayload,
   opts: { now?: Date } = {},
 ): Promise<PreviewOutcome> {
-  const today = (opts.now ?? new Date()).toISOString().slice(0, 10);
+  const today = (opts.now ?? clockNow()).toISOString().slice(0, 10);
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
     const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId));
     if (!claim?.currentVersionId) return { status: 'refused', reason: 'not_found' };

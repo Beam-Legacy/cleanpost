@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { parseEnv } from '@cleanpost/config';
-import { createSystemDatabase } from '@cleanpost/db/system';
+import { createSystemDatabase, enableDemoTime } from '@cleanpost/db/system';
 import { createLogger } from '@cleanpost/log';
 import { seed, SEED_USERS } from './seed';
 
@@ -20,7 +20,9 @@ if (env.CLEANPOST_ENV === 'production') {
 
 const handle = createSystemDatabase(env.DATABASE_ADMIN_URL);
 seed(handle.db, env.SEED_PASSWORD)
-  .then(({ created }) => {
+  .then(async ({ created }) => {
+    // Demo time (DEC-18): the demo clock may move here; staging keeps the real clock.
+    if (env.CLEANPOST_ENV === 'local' || env.CLEANPOST_ENV === 'preview') await enableDemoTime(handle.db);
     log.info({ createdUsers: created.length }, 'seed complete');
     process.stdout.write(
       `Seeded synthetic data. Sign in as any of: ${SEED_USERS.map((u) => u.email).join(', ')}\n` +

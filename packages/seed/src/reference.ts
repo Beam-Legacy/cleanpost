@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { and, eq, sql } from 'drizzle-orm';
 import { codeSets, mueLimits, ncciEdits, rules, type Database } from '@cleanpost/db';
 import { parseRuleFile, referenceFileSchema, type RuleDef } from '@cleanpost/domain';
+import { now as clockNow } from '@cleanpost/clock';
 
 export const RULES_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'rules', 'seed');
 const EFFECTIVE_FROM = '2026-01-01';
@@ -44,7 +45,7 @@ export async function seedReference(
       .onConflictDoUpdate({
         target: rules.key,
         targetWhere: sql`${rules.tenantId} is null and ${rules.key} is not null`,
-        set: { ...values, version: sql`${rules.version} + 1`, updatedAt: new Date() },
+        set: { ...values, version: sql`${rules.version} + 1`, updatedAt: clockNow() },
       });
   }
 

@@ -31,6 +31,7 @@ import {
 import { formatCents, remit, state } from '@cleanpost/domain';
 import type { Logger } from '@cleanpost/log';
 import { createWorkItem } from './items';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface IngestDeps {
   db: Database;
@@ -55,7 +56,7 @@ async function move(tx: Tx, id: string, from: state.RemittanceState, event: stat
   if (!next.ok) throw new Error(`remittance ${from} cannot ${event}`);
   await tx
     .update(remittances)
-    .set({ status: next.value, updatedAt: new Date() })
+    .set({ status: next.value, updatedAt: clockNow() })
     .where(eq(remittances.id, id));
   return next.value;
 }
@@ -483,7 +484,7 @@ export async function ingestRemittance(
   ctx: IngestContext,
   r: remit.Remittance835,
 ): Promise<IngestOutcome> {
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   const outcome = await withTenant(deps.db, { tenantId: ctx.tenantId }, (tx) => ingestInTx(tx, ctx, r, now));
   deps.log.info({ remittanceId: outcome.remittanceId, status: outcome.status }, 'remittance ingested');
   return outcome;

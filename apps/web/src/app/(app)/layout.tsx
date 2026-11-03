@@ -1,10 +1,12 @@
 import { asc, eq, inArray, type SQL } from 'drizzle-orm';
 import type { ReactNode } from 'react';
 import { listCompanies } from '@cleanpost/auth';
+import { getOffset } from '@cleanpost/clock';
 import { clients, tenants, withTenant } from '@cleanpost/db';
 import { policy } from '@cleanpost/domain';
 import { TooltipProvider, ToastProvider } from '@cleanpost/ui';
 import { AppShell } from '@/components/app-shell';
+import { ClockOffset } from '@/components/clock-offset';
 import { getDb } from '@/lib/server';
 import { requireActiveContext } from '@/lib/session';
 
@@ -36,6 +38,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <TooltipProvider>
       <ToastProvider>
+        <ClockOffset ms={getOffset()} />
         <AppShell
           user={{ name: ctx.user.name, role: ctx.actor.role, isOwner: ctx.actor.isOwner }}
           tenantName={tenantName}

@@ -80,7 +80,9 @@ export const eligibilityChecks = pgTable(
     coverageId: uuid('coverage_id')
       .notNull()
       .references(() => coverages.id),
-    requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+    requestedAt: timestamp('requested_at', { withTimezone: true })
+      .notNull()
+      .default(sql`app.now()`),
     /** active | inactive | error | unknown */
     status: text('status').notNull(),
     summary: jsonb('summary').notNull().default({}),

@@ -20,6 +20,7 @@ import {
 import { state, type remit } from '@cleanpost/domain';
 import { applyMatch } from './ingest';
 import { verifyInTx } from './verify';
+import { now as clockNow } from '@cleanpost/clock';
 
 export const SET_ASIDE_REASONS = ['Before go-live', 'Not ours'] as const;
 export type SetAsideReason = (typeof SET_ASIDE_REASONS)[number];
@@ -133,7 +134,7 @@ export async function linkPayment(
   tx: Tx,
   ctx: { tenantId: string; userId: string },
   input: { itemId: string; claimId: string },
-  now = new Date(),
+  now = clockNow(),
 ): Promise<LinkOutcome> {
   const actor: AuditActor = `user:${ctx.userId}`;
   const found = await openItem(tx, input.itemId);
@@ -178,7 +179,7 @@ export async function setAsidePayment(
   tx: Tx,
   ctx: { tenantId: string; userId: string },
   input: { itemId: string; reason: SetAsideReason },
-  now = new Date(),
+  now = clockNow(),
 ): Promise<LinkOutcome> {
   const actor: AuditActor = `user:${ctx.userId}`;
   const found = await openItem(tx, input.itemId);

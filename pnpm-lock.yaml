@@ -151,6 +151,9 @@ importers:
       '@cleanpost/claims':
         specifier: workspace:*
         version: link:../../packages/claims
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../../packages/clock
       '@cleanpost/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -263,6 +266,9 @@ importers:
       '@cleanpost/claims':
         specifier: workspace:*
         version: link:../../packages/claims
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../../packages/clock
       '@cleanpost/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -318,6 +324,9 @@ importers:
 
   packages/adapters:
     dependencies:
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../clock
       '@cleanpost/domain':
         specifier: workspace:*
         version: link:../domain
@@ -390,6 +399,9 @@ importers:
       '@cleanpost/adapters':
         specifier: workspace:*
         version: link:../adapters
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../clock
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../db
@@ -431,6 +443,12 @@ importers:
         specifier: ^8.23.1
         version: 8.23.1
 
+  packages/clock:
+    devDependencies:
+      '@cleanpost/testing':
+        specifier: workspace:*
+        version: link:../testing
+
   packages/config:
     dependencies:
       zod:
@@ -443,6 +461,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../clock
       '@cleanpost/config':
         specifier: workspace:*
         version: link:../config
@@ -487,6 +508,9 @@ importers:
 
   packages/eligibility:
     dependencies:
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../clock
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../db
@@ -587,6 +611,9 @@ importers:
       '@cleanpost/claims':
         specifier: workspace:*
         version: link:../claims
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../clock
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../db
@@ -621,6 +648,9 @@ importers:
       '@cleanpost/auth':
         specifier: workspace:*
         version: link:../auth
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../clock
       '@cleanpost/config':
         specifier: workspace:*
         version: link:../config
@@ -655,6 +685,9 @@ importers:
       '@cleanpost/adapters':
         specifier: workspace:*
         version: link:../adapters
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../clock
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../db
@@ -754,6 +787,9 @@ importers:
 
   packages/work:
     dependencies:
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../clock
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../db

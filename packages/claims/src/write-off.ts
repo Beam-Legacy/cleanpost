@@ -28,6 +28,7 @@ import {
 import { formatCents, remit, state } from '@cleanpost/domain';
 import { autoResolve, resolveAnsweredDenials } from './answered';
 import { applyClaimEvent, recordClaimEvent } from './events';
+import { now as clockNow } from '@cleanpost/clock';
 
 export const WRITE_OFF_REASONS = [
   'Not worth pursuing',
@@ -199,7 +200,7 @@ export async function writeOffClaim(
   db: Database,
   ctx: { tenantId: string; userId: string; claimId: string; overLimit?: 'allowed' | 'refused' },
   input: WriteOffInput,
-  now = new Date(),
+  now = clockNow(),
 ): Promise<WriteOffOutcome> {
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
     const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId)).for('update');
@@ -219,7 +220,7 @@ export async function requestWriteOff(
   db: Database,
   ctx: { tenantId: string; userId: string; claimId: string },
   input: WriteOffInput,
-  now = new Date(),
+  now = clockNow(),
 ): Promise<RequestOutcome> {
   const actor: AuditActor = `user:${ctx.userId}`;
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
@@ -293,7 +294,7 @@ export async function decideWriteOff(
   ctx: { tenantId: string; userId: string; requestId: string },
   decision: 'approve' | 'decline',
   note: string | null,
-  now = new Date(),
+  now = clockNow(),
 ): Promise<DecideOutcome> {
   const actor: AuditActor = `user:${ctx.userId}`;
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
@@ -396,7 +397,7 @@ export async function writeOffDenials(
   ctx: { tenantId: string; userId: string },
   itemIds: string[],
   input: { reason: WriteOffReason; note: string | null; pmCode: string },
-  now = new Date(),
+  now = clockNow(),
 ): Promise<BulkWriteOffResult> {
   const out: BulkWriteOffResult = { writtenOff: 0, cents: 0, refused: [] };
   for (const itemId of itemIds) {

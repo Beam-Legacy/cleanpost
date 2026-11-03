@@ -1,4 +1,5 @@
 import 'server-only';
+import { now as clockNow } from '@cleanpost/clock';
 import { policy } from '@cleanpost/domain';
 import type { ActiveContext } from '@/lib/session';
 import { simConfig, simNow } from '@/lib/sim';
@@ -9,5 +10,11 @@ export async function SimClockSlot({ ctx }: { ctx: ActiveContext }) {
   const config = simConfig();
   if (!config || !policy.authorize(ctx.actor, 'integration.manage').allowed) return null;
   const now = await simNow(config);
-  return <SimClock now={now?.toISOString() ?? null} realNow={new Date().toISOString()} />;
+  return (
+    <SimClock
+      now={now?.toISOString() ?? null}
+      appNow={clockNow().toISOString()}
+      realNow={new Date().toISOString()}
+    />
+  );
 }

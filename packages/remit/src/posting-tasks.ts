@@ -24,6 +24,7 @@ import {
 } from '@cleanpost/db';
 import { formatCents, remit, state } from '@cleanpost/domain';
 import { createWorkItem } from './items';
+import { now as clockNow } from '@cleanpost/clock';
 
 export const POSTING_OPERATION = 'postPayment';
 
@@ -215,7 +216,7 @@ export async function confirmPosting(
   tx: Tx,
   ctx: { tenantId: string; userId: string },
   input: { itemId: string; pmReference: string },
-  now = new Date(),
+  now = clockNow(),
 ): Promise<PostingTaskOutcome> {
   const actor: AuditActor = `user:${ctx.userId}`;
   const ref = input.pmReference.trim();
@@ -289,7 +290,7 @@ export async function escalatePosting(
   tx: Tx,
   ctx: { tenantId: string; userId: string },
   input: { itemId: string; reason: (typeof ESCALATION_REASONS)[number]; note: string | null },
-  now = new Date(),
+  now = clockNow(),
 ): Promise<PostingTaskOutcome> {
   const actor: AuditActor = `user:${ctx.userId}`;
   const found = await postingTask(tx, input.itemId);

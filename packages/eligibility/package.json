@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cleanpost/clock": "workspace:*",
     "@cleanpost/db": "workspace:*",
     "@cleanpost/domain": "workspace:*",
     "@cleanpost/log": "workspace:*",

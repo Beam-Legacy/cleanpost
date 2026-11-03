@@ -3,12 +3,13 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { getSessionContext, type SessionContext } from '@cleanpost/auth';
-import { getAuth, getDb } from './server';
+import { getAuth, getDb, syncClock } from './server';
 
 export type ActiveContext = Extract<SessionContext, { status: 'ok' }>;
 
 /** The caller's session context, resolved once per request. */
 export const getContext = cache(async (): Promise<SessionContext> => {
+  await syncClock();
   return getSessionContext(getAuth(), getDb(), await headers());
 });
 

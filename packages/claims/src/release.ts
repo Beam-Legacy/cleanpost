@@ -6,6 +6,8 @@
  * - releaseCharge 'unavailable': the PM bills on its own schedule; the claim is submitted now.
  * - releaseCharge manual (0): one manual task and work item for a biller; the claim stays ready
  *   until the task is done or the PM shows the charge billed.
+ * - The PM refuses for good (the charge is not in a state it can release, e.g. a Tebra encounter
+ *   still in Draft or sent back): the same kind of manual task, so the claim never waits unseen.
  *
  * Every write goes through the claim state machine, with the actor, and is audit-logged.
  */
@@ -33,6 +35,7 @@ import type { Logger } from '@cleanpost/log';
 import { resubmissionTask } from './correct';
 import { applyClaimEvent } from './events';
 import { correctionPending, ensureManualTask } from './tasks';
+import { now as clockNow } from '@cleanpost/clock';
 
 export { ensureManualTask } from './tasks';
 
@@ -184,12 +187,23 @@ export async function markReleased(
   });
 }
 
+/** The PM would not release the charge as it stands; a biller finishes it there (no PHI here). */
+export const refusedReleaseTask = (pmName: string) => ({
+  operation: 'releaseCharge' as const,
+  title: `Release the charge in ${pmName}`,
+  instructions: [
+    `${pmName} would not release this charge as it stands (for example, the visit is still being entered or was sent back).`,
+    `Open the encounter in ${pmName}, finish or correct it, then release it there.`,
+    'If the visit was voided, void the claim in Cleanpost instead.',
+  ],
+});
+
 export async function releaseClaim(
   deps: ReleaseDeps,
   ctx: { tenantId: string; claimId: string },
   actor: AuditActor = 'automation:claim.release',
 ): Promise<ReleaseOutcome> {
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   const loaded = await withTenant(deps.db, { tenantId: ctx.tenantId }, (tx) => load(tx, ctx.claimId));
   if ('status' in loaded) return loaded;
   const { claim, conn, encounterExternalId } = loaded;
@@ -239,6 +253,13 @@ export async function releaseClaim(
     return { status: 'manual_task', workItemId };
   }
   deps.log.warn({ claimId: claim.id, code: res.code, retryable: res.retryable }, 'release failed');
+  if (!res.retryable && (res.code === 'CONFLICT' || res.code === 'VALIDATION')) {
+    const pmName = (conn.settings.pmName as string | undefined) ?? 'the PM';
+    const workItemId = await withTenant(deps.db, { tenantId: ctx.tenantId }, (tx) =>
+      ensureManualTask(tx, claim, conn, refusedReleaseTask(pmName), actor, now),
+    );
+    return { status: 'manual_task', workItemId };
+  }
   return { status: 'failed', code: res.code, retryable: res.retryable, message: res.message };
 }
 
@@ -310,8 +331,8 @@ export async function approveClaim(
           status: next.value,
           resolvedBy: actor,
           resolution: 'Approved',
-          resolvedAt: new Date(),
-          updatedAt: new Date(),
+          resolvedAt: clockNow(),
+          updatedAt: clockNow(),
         })
         .where(eq(workItems.id, item.id));
     }
@@ -368,7 +389,7 @@ export async function unapproveClaim(
             resolvedBy: null,
             resolution: null,
             resolvedAt: null,
-            updatedAt: new Date(),
+            updatedAt: clockNow(),
           })
           .where(eq(workItems.id, item.id));
     }
@@ -410,7 +431,7 @@ export async function voidClaim(
     if (!claim) return { ok: false, reason: 'not_found' };
     if (!state.isPreRelease(claim.status as state.ClaimState)) return { ok: false, reason: 'already_sent' };
     const actor: AuditActor = `user:${ctx.userId}`;
-    const now = new Date();
+    const now = clockNow();
     await applyClaimEvent(tx, claim, 'void', {
       actor,
       versionId: claim.currentVersionId,
@@ -509,7 +530,7 @@ export async function holdClaim(
   if (!(HOLD_REASONS as readonly string[]).includes(ctx.reason))
     return { ok: false, reason: 'unknown_reason' };
   if (ctx.reason === 'Other' && !ctx.note?.trim()) return { ok: false, reason: 'note_required' };
-  const now = ctx.now ?? new Date();
+  const now = ctx.now ?? clockNow();
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
     const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId)).for('update');
     if (!claim) return { ok: false, reason: 'not_found' };

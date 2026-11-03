@@ -3,6 +3,7 @@ import 'server-only';
  * C-15 status check result and W-15 follow-up facts: the claim's latest 277 in plain words (rules,
  * never an LLM), when the next check may run, and how long this payer usually takes to pay.
  */
+import { now as clockNow } from '@cleanpost/clock';
 import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import { CHECKABLE } from '@cleanpost/claims';
 import {
@@ -108,7 +109,7 @@ export async function lastStatus(
   };
 }
 
-export async function statusViewInTx(tx: Tx, claimId: string, now = new Date()): Promise<StatusView | null> {
+export async function statusViewInTx(tx: Tx, claimId: string, now = clockNow()): Promise<StatusView | null> {
   const [row] = await tx
     .select({ claim: claims, payerName: payers.name, patient: patients, clientName: clients.name })
     .from(claims)
@@ -208,7 +209,7 @@ export async function getStatusView(ctx: ActiveContext, claimId: string): Promis
 export async function typicalDaysToPay(
   tx: Tx,
   payerId: string | null,
-  now = new Date(),
+  now = clockNow(),
 ): Promise<number | null> {
   if (!payerId) return null;
   const since = new Date(now.getTime() - 180 * 24 * HOUR);

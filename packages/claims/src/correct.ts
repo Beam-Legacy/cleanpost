@@ -26,6 +26,7 @@ import {
 import { applyFix, diffPayload, state, type ClaimPayload, type SuggestedFix } from '@cleanpost/domain';
 import { applyClaimEvent } from './events';
 import { insertVersion } from './versions';
+import { now as clockNow } from '@cleanpost/clock';
 
 export type CorrectionRefusal =
   | 'not_found'
@@ -66,7 +67,7 @@ export async function buildCorrection(
   db: Database,
   ctx: { tenantId: string; userId: string; claimId: string; workItemId?: string },
   input: { fix?: { fix: SuggestedFix; lineNumbers: number[] } },
-  now = new Date(),
+  now = clockNow(),
 ): Promise<BuildCorrectionOutcome> {
   const actor: AuditActor = `user:${ctx.userId}`;
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {

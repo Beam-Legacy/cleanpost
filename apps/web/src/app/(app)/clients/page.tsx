@@ -1,3 +1,4 @@
+import { now as clockNow } from '@cleanpost/clock';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Plus, Search } from 'lucide-react';
@@ -44,7 +45,7 @@ export default async function ClientsPage({
     const p = new URLSearchParams({ ...(client ? { client } : {}), ...(q ? { q } : {}), ...extra });
     return `/clients?${p}`;
   };
-  const now = new Date();
+  const now = clockNow();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 

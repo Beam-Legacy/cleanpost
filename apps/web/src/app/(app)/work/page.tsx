@@ -1,3 +1,4 @@
+import { now as clockNow } from '@cleanpost/clock';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { CircleCheck } from 'lucide-react';
@@ -33,7 +34,7 @@ export default async function WorkPage({
     assignee: sp.assignee === 'me' || sp.assignee === 'unassigned' ? sp.assignee : 'anyone',
     snoozed: sp.snoozed === '1',
   };
-  const now = new Date();
+  const now = clockNow();
   const queue = await listWork(ctx, filters, now);
   const views = await listSavedViews(ctx);
   const currentQuery = viewQuery(sp as Record<string, unknown>);

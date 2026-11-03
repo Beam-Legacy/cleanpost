@@ -17,6 +17,7 @@
     "@cleanpost/adapters": "workspace:*",
     "@cleanpost/auth": "workspace:*",
     "@cleanpost/claims": "workspace:*",
+    "@cleanpost/clock": "workspace:*",
     "@cleanpost/config": "workspace:*",
     "@cleanpost/db": "workspace:*",
     "@cleanpost/domain": "workspace:*",

@@ -25,6 +25,7 @@ import {
 } from '@cleanpost/db';
 import type { Logger } from '@cleanpost/log';
 import type { EligibilityClient } from './stedi';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface CheckDeps {
   db: Database;
@@ -73,7 +74,7 @@ export async function checkCoverage(
   deps: CheckDeps,
   ctx: { tenantId: string; coverageId: string },
 ): Promise<CheckOutcome> {
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   const prepared = await withTenant(deps.db, { tenantId: ctx.tenantId }, async (tx) => {
     const [row] = await tx
       .select({ coverage: coverages, patient: patients, payer: payers, client: clients })

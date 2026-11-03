@@ -4,6 +4,7 @@
  * a second check within the hour asks first), and the 271 in plain terms. Missing values say
  * "Not returned by payer".
  */
+import { nowMs } from '@cleanpost/clock';
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Drawer, StatusChip, useToast } from '@cleanpost/ui';
@@ -29,7 +30,7 @@ export function CheckEligibilityButton({
   const [confirm, setConfirm] = useState(false);
   const toast = useToast();
   const router = useRouter();
-  const recent = coverage.latest && Date.now() - new Date(coverage.latest.requestedAt).getTime() < HOUR;
+  const recent = coverage.latest && nowMs() - new Date(coverage.latest.requestedAt).getTime() < HOUR;
   const run = () =>
     start(async () => {
       setConfirm(false);

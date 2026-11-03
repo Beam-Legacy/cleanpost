@@ -8,6 +8,7 @@ import { OPERATIONS } from '../profiles';
 import { manualTask } from '../results';
 import { manualInstructions } from '../stub';
 import { parseChargeCsv } from './charge-csv';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface StoredFile {
   id: string;
@@ -67,7 +68,7 @@ export function createFileBackedAdapter(key: AdapterKey, pmName: string, source:
     key,
     syncPolicy: { defaultIntervalMinutes: 60, preferOffHours: false },
     capabilities: async () => FILE_CAPS,
-    healthCheck: async () => ({ ok: true, checkedAt: new Date(), details: {} }),
+    healthCheck: async () => ({ ok: true, checkedAt: clockNow(), details: {} }),
     // A patient can appear in many uploads: return each once, from the newest file it appears in.
     pullPatientsAndCoverage: async (conn, since, cursor) => {
       const files = await source.list(conn, 'charges', since);

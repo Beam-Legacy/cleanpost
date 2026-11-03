@@ -11,7 +11,7 @@ import {
   DEFAULT_MODELS,
 } from '@cleanpost/ai';
 import { parseEnv } from '@cleanpost/config';
-import { createDatabase } from '@cleanpost/db';
+import { createDatabase, syncClock } from '@cleanpost/db';
 import { createStediClaimStatusClient, createStediEligibilityClient } from '@cleanpost/eligibility';
 import { createBoss } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
@@ -105,6 +105,11 @@ const claimStatusClient =
       : undefined;
 
 const handle = createDatabase(env.DATABASE_URL, { max: env.WORKER_CONCURRENCY + 2 });
+// Demo time (DEC-18): follow the shared clock offset (always 0 outside local and preview).
+const clockOffsetMs = await syncClock(handle.db);
+const clockTimer = setInterval(() => {
+  syncClock(handle.db).catch((err: unknown) => log.warn({ err }, 'clock sync failed'));
+}, 2000);
 const boss = createBoss(env.DATABASE_URL, 'worker');
 boss.on('error', (err) => log.error({ err }, 'job queue error'));
 await boss.start();
@@ -132,6 +137,7 @@ log.info(
     aiReview: aiMode,
     eligibility: eligibilityMode,
     concurrency: env.WORKER_CONCURRENCY,
+    demoClockDays: Math.round(clockOffsetMs / 86_400_000),
   },
   'worker started',
 );
@@ -153,6 +159,7 @@ async function stop() {
   if (stopping) return;
   stopping = true;
   log.info('worker stopping');
+  clearInterval(clockTimer);
   server.close();
   await boss.stop({ graceful: true, timeout: 30_000 });
   await handle.close();

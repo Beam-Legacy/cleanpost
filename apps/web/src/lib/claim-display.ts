@@ -1,4 +1,5 @@
 /** Claim words shared by W-01, C-01 and C-02 to C-05: status chips and plain-language events. */
+import { now as clockNow } from '@cleanpost/clock';
 import type { Status } from '@cleanpost/ui';
 import { claimStatus } from '@cleanpost/domain';
 import { formatMoney } from './format';
@@ -190,6 +191,6 @@ export function actorLabel(actor: string, name: string | null): string {
 }
 
 /** Whole days between two dates of service ("Age" in C-01). */
-export function daysSince(ymd: string, now = new Date()): number {
+export function daysSince(ymd: string, now = clockNow()): number {
   return Math.max(0, Math.floor((now.getTime() - Date.parse(`${ymd}T00:00:00Z`)) / 86_400_000));
 }

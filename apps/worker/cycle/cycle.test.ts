@@ -1,7 +1,7 @@
 /**
  * `pnpm test:cycle` (docs/12-testing.md "Cycle test"), Mode A: Northwind's mock-PM clients run the
- * whole loop on the real job queue, with pm-mock and payer-sim in process and the payer's clock
- * moved 45 days:
+ * whole loop on the real job queue, with pm-mock and payer-sim in process and the demo clock
+ * (DEC-18) moved 45 days, so Cleanpost and the PM keep the payer's date:
  *   sync -> build -> eligibility -> scrub -> a biller approves what is in review -> release in the
  *   PM (Tebra: approve the encounter; no-hold PM: its own billing batch) -> clearinghouse -> 277CA
  *   -> adjudication -> 835 -> the PM auto-posts -> Cleanpost reads the 835 (PM API) or a person
@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs';
 import { and, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { approveClaim } from '@cleanpost/claims';
+import { now as clockNow, setOffset } from '@cleanpost/clock';
 import {
   claims,
   connections,
@@ -23,10 +24,12 @@ import {
   remitClaims,
   remitLines,
   remittances,
+  setDemoOffset,
   users,
   withTenant,
   workItems,
 } from '@cleanpost/db';
+import { enableDemoTime } from '@cleanpost/db/system';
 import { testDatabaseUrls } from '@cleanpost/db/testing';
 import { createStediEligibilityClient } from '@cleanpost/eligibility';
 import { createBoss, sendClaimRelease, sendSyncPull } from '@cleanpost/jobs';
@@ -39,7 +42,7 @@ import { seed } from '@cleanpost/seed';
 import { CLIENTS, HARBOR_RCM, NORTHWIND } from '@cleanpost/seed/world';
 import { scanForPhi } from '@cleanpost/testing';
 import { parse835 } from '@cleanpost/x12';
-import { buildRegistry, registerWorkers, type WorkerDeps } from '../src/handlers';
+import { buildRegistry, handleStatusSweep, registerWorkers, type WorkerDeps } from '../src/handlers';
 
 const SECRET = 'pm-mock-cycle-test-secret-01';
 /** About 500 encounters across the three mock-PM practices (docs/12: 500). */
@@ -53,14 +56,20 @@ const app = createDatabase(urls.url, { max: 8 });
 const pm = createPmDb(urls.adminUrl, 3);
 const log = createLogger({ name: 'cycle-test' });
 const boss = createBoss(urls.url, 'worker');
-const pmApp = createPmMockApp({ db: pm.db, log, rateScale: 1000 });
+const pmApp = createPmMockApp({ db: pm.db, log, rateScale: 1000, now: clockNow });
 const pmFetch = ((input: string | URL | Request, init?: RequestInit) =>
   Promise.resolve(pmApp.request(String(input), init))) as typeof fetch;
 const simDb = createSimDb(urls.adminUrl, 2);
 const simApp = createPayerSimApp({ db: simDb.db, log });
 const simFetch = ((input: string | URL | Request, init?: RequestInit) =>
   Promise.resolve(simApp.request(String(input).replace('http://payer-sim.test', ''), init))) as typeof fetch;
-const clearinghouse = { db: pm.db, log, payerSimUrl: 'http://payer-sim.test', fetch: simFetch };
+const clearinghouse = {
+  db: pm.db,
+  log,
+  now: clockNow,
+  payerSimUrl: 'http://payer-sim.test',
+  fetch: simFetch,
+};
 
 const deps: WorkerDeps = {
   db: app.db,
@@ -108,7 +117,12 @@ async function syncAll() {
   await quiet();
 }
 
-const advance = (days: number) => simApp.request(`/clock/advance?days=${days}`, { method: 'POST' });
+/** Moves the payer's clock, and Cleanpost (this process and app.now()) and the PM with it. */
+async function advance(days: number) {
+  const res = await simApp.request(`/clock/advance?days=${days}`, { method: 'POST' });
+  const { now } = (await res.json()) as { now: string };
+  await setDemoOffset(app.db, Date.parse(now) - Date.now());
+}
 
 let biller = '';
 const uploaded = new Set<string>();
@@ -126,7 +140,7 @@ async function uploadTebraEras() {
       { ...ctx, source: 'file', actor: `user:${biller}` },
       parse835(raw),
     );
-    await withTenant(app.db, { tenantId: NORTHWIND }, (tx) => verifyInTx(tx, ctx, new Date()));
+    await withTenant(app.db, { tenantId: NORTHWIND }, (tx) => verifyInTx(tx, ctx, clockNow()));
   }
 }
 
@@ -134,6 +148,7 @@ const caught = { defective: 0, blocked: 0, clean: 0, falseBlocks: 0 };
 
 beforeAll(async () => {
   await seed(admin.db, 'cycle-test-password-123');
+  await enableDemoTime(admin.db);
   await seedPmMock(pm.db, { secret: SECRET, asOf: new Date(), scale: SCALE });
   await loadRoster(pm.db, { payerSimUrl: 'http://payer-sim.test', fetch: simFetch });
   const [u] = await admin.db.select().from(users).where(eq(users.email, 'marcus@northwind.test'));
@@ -205,10 +220,15 @@ beforeAll(async () => {
     await runClearinghouse(clearinghouse);
     await uploadTebraEras();
     await syncAll();
+    // The daily follow-up sweep (scheduled at 6:17 am in the worker), once per step.
+    await handleStatusSweep(deps);
+    await quiet();
   }
 });
 
 afterAll(async () => {
+  await setDemoOffset(app.db, 0);
+  setOffset(0);
   await boss.stop({ graceful: false });
   await Promise.all([admin.close(), app.close(), pm.close(), simDb.close()]);
 });
@@ -239,10 +259,15 @@ describe('the Mode A cycle', () => {
       .from(workItems)
       .where(and(isNotNull(workItems.claimId), ne(workItems.status, 'resolved')));
     const has = (id: string, type: string) => open.some((o) => o.claimId === id && o.type === type);
+    // A claim the PM would not release waits in ready, with a manual task for a biller.
     const NEEDS_ITEM: Record<string, string> = {
+      ready: 'manual_task',
       blocked: 'claim_blocked',
       rejected: 'rejection',
       denied: 'denial',
+      // Sent, but nothing back from the payer (or the PM never billed it): a person follows up.
+      submitted: 'no_response',
+      accepted: 'no_response',
     };
     const TERMINAL = new Set(['paid', 'partially_paid', 'closed', 'voided']);
     const wrong = rows.filter(

@@ -47,6 +47,7 @@ import type { Logger } from '@cleanpost/log';
 import { applyClaimEvent, recordClaimEvent } from './events';
 import { CORRECTION_EVENTS, CORRECTION_OPERATION, ensureManualTask } from './tasks';
 import { insertVersion, lastPmVersion } from './versions';
+import { now as clockNow } from '@cleanpost/clock';
 
 export type EditInput =
   /** Apply the suggested fixes of these findings on the current scrub, in order, as one version. */
@@ -115,7 +116,7 @@ export async function editClaim(
   input: EditInput,
   opts: { now?: Date } = {},
 ): Promise<EditOutcome> {
-  const now = opts.now ?? new Date();
+  const now = opts.now ?? clockNow();
   const actor: AuditActor = `user:${ctx.userId}`;
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
     const [claim] = await tx.select().from(claims).where(eq(claims.id, ctx.claimId)).for('update');
@@ -336,7 +337,7 @@ export async function pushCorrection(
   deps: CorrectionDeps,
   ctx: { tenantId: string; claimId: string },
 ): Promise<CorrectionOutcome> {
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   const p = await withTenant(deps.db, { tenantId: ctx.tenantId }, (tx) => plan(tx, ctx.claimId));
   if ('status' in p) return p;
   const markPushed = (tx: Tx) =>

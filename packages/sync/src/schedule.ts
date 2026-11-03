@@ -7,6 +7,7 @@ import { sql } from 'drizzle-orm';
 import { withTenant, type AuditActor, type Database } from '@cleanpost/db';
 import { syncIntervalMinutes } from './run';
 import { applyConnectionEvent, lockConnection } from './state';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface Candidate {
   tenantId: string;
@@ -87,7 +88,7 @@ export async function setPaused(
     const actor: AuditActor = `user:${ctx.userId}`;
     const res = await applyConnectionEvent(tx, conn, paused ? 'paused' : 'resumed', {
       actor,
-      now: new Date(),
+      now: clockNow(),
       // Resumed connections sync on the next tick.
       ...(paused ? {} : { set: { nextRunAt: null } }),
     });

@@ -219,6 +219,11 @@ export async function sendClaimCorrect(boss: PgBoss, payload: ClaimCorrectPayloa
   return boss.send(JOBS.claimCorrect, data, { singletonKey: data.claimId });
 }
 
+/** The daily claim status sweep, now (demo time: after the clock moves days at once). */
+export async function sendClaimStatusSweep(boss: PgBoss): Promise<string | null> {
+  return boss.send(JOBS.claimStatusSweep, {});
+}
+
 /** Undo: cancels a release that has not started. False if it already ran or is running. */
 export async function cancelClaimRelease(boss: PgBoss, jobId: string): Promise<boolean> {
   const job = await boss.getJobById(JOBS.claimRelease, jobId);

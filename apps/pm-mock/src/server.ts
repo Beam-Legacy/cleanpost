@@ -27,6 +27,27 @@ if (env.CLEANPOST_ENV === 'staging' || env.CLEANPOST_ENV === 'production') {
 
 await migratePmDb(env.PM_MOCK_DATABASE_URL);
 const handle = createPmDb(env.PM_MOCK_DATABASE_URL);
+
+// Demo time (DEC-18): the PM keeps the payer simulator's date, so the billing batch, ERA postings
+// and record timestamps match the demo clock. Read every few seconds and before each clearinghouse run.
+let clockOffsetMs = 0;
+const now = () => new Date(Date.now() + clockOffsetMs);
+const clockBody = z.object({ now: z.iso.datetime({ offset: true }) });
+async function followSimClock(): Promise<void> {
+  if (!env.PAYER_SIM_URL) return;
+  try {
+    const res = await fetch(`${env.PAYER_SIM_URL.replace(/\/$/, '')}/clock`, {
+      headers: env.PAYER_SIM_TOKEN ? { authorization: `Bearer ${env.PAYER_SIM_TOKEN}` } : {},
+      signal: AbortSignal.timeout(2000),
+    });
+    const body = res.ok ? clockBody.safeParse(await res.json()) : null;
+    if (body?.success) clockOffsetMs = Date.parse(body.data.now) - Date.now();
+  } catch {
+    // payer-sim not answering: keep the last offset.
+  }
+}
+await followSimClock();
+const clockTimer = env.PAYER_SIM_URL ? setInterval(() => void followSimClock(), 5000) : undefined;
 // The clearinghouse sends queued claims to payer-sim and reads 277CAs and 835s back, one run at a
 // time. PMs with no hold also bill their ready encounters once a day at 6 pm Pacific (billReady).
 let running: Promise<ClearinghouseRun> | null = null;
@@ -45,28 +66,32 @@ const pacific = (d: Date) =>
       .map((p) => [p.type, p.value]),
   );
 const clearinghouse = env.PAYER_SIM_URL
-  ? (opts: { bill?: boolean } = {}) => {
-      const p = pacific(new Date());
-      const today = `${p.year}-${p.month}-${p.day}`;
-      const batchDue = Number(p.hour) >= 18 && billedOn !== today;
-      if (batchDue) billedOn = today;
-      return (running ??= runClearinghouse(
-        {
-          db: handle.db,
-          log,
-          payerSimUrl: env.PAYER_SIM_URL!,
-          ...(env.PAYER_SIM_TOKEN ? { token: env.PAYER_SIM_TOKEN } : {}),
-        },
-        { bill: Boolean(opts.bill) || batchDue },
-      ).finally(() => {
+  ? (opts: { bill?: boolean } = {}) =>
+      (running ??= (async () => {
+        await followSimClock();
+        const p = pacific(now());
+        const today = `${p.year}-${p.month}-${p.day}`;
+        const batchDue = Number(p.hour) >= 18 && billedOn !== today;
+        if (batchDue) billedOn = today;
+        return runClearinghouse(
+          {
+            db: handle.db,
+            log,
+            now,
+            payerSimUrl: env.PAYER_SIM_URL!,
+            ...(env.PAYER_SIM_TOKEN ? { token: env.PAYER_SIM_TOKEN } : {}),
+          },
+          { bill: Boolean(opts.bill) || batchDue },
+        );
+      })().finally(() => {
         running = null;
-      }));
-    }
+      }))
   : undefined;
 const app = createPmMockApp({
   db: handle.db,
   log,
   adminPassword: env.PM_MOCK_ADMIN_PASSWORD,
+  now,
   ...(clearinghouse ? { clearinghouse } : {}),
 });
 const timer = clearinghouse
@@ -89,6 +114,7 @@ let current = listen('::');
 
 const stop = () => {
   if (timer) clearInterval(timer);
+  if (clockTimer) clearInterval(clockTimer);
   current.close();
   void handle.close().then(() => process.exit(0));
 };

@@ -1,3 +1,4 @@
+import { now as clockNow } from '@cleanpost/clock';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
@@ -38,7 +39,7 @@ export default async function ClaimsPage({
     for (const [k, v] of Object.entries({ ...sp, page: null, ...extra })) if (v) p.set(k, v);
     return `/claims${p.size ? `?${p}` : ''}`;
   };
-  const now = new Date();
+  const now = clockNow();
   const first = (page - 1) * data.pageSize + 1;
   const last = first + data.rows.length - 1;
 

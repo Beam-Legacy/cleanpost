@@ -6,6 +6,7 @@
  * After import the posting match runs at once against what the PM has posted (Modes A and C).
  * Files are read in memory only; nothing from them is logged.
  */
+import { now as clockNow } from '@cleanpost/clock';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { and, eq, inArray } from 'drizzle-orm';
@@ -169,10 +170,10 @@ export async function importUpload(form: FormData): Promise<ImportResult> {
         tx,
         { tenantId: ctx.tenantId, clientId: c.clientId, source: 'file', actor },
         p.r,
-        new Date(),
+        clockNow(),
       );
       if (out.status === 'ingested')
-        await verifyInTx(tx, { tenantId: ctx.tenantId, clientId: c.clientId }, new Date());
+        await verifyInTx(tx, { tenantId: ctx.tenantId, clientId: c.clientId }, clockNow());
       return out;
     });
     if (res.status === 'duplicate') skipped++;

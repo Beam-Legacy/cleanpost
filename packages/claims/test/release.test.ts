@@ -395,6 +395,31 @@ describe('release (Mode A, Tebra profile)', () => {
     expect(after!.status).toBe('ready');
   });
 
+  it('opens one manual task when the PM refuses to release a charge it is not done with', async () => {
+    const [c] = await inReview();
+    await approveClaim(app.db, { tenantId: NORTHWIND, userId: USER, claimId: c!.id });
+    // The practice pulled the visit back into Draft in Tebra: approving it there is refused.
+    const pmEnc = await pmEncounterOf(c!.id);
+    await pm.db
+      .update(pmSchema.encounters)
+      .set({ workflowStatus: 'Draft' })
+      .where(eq(pmSchema.encounters.id, pmEnc.id));
+    const first = await releaseClaim(deps, { tenantId: NORTHWIND, claimId: c!.id });
+    const second = await releaseClaim(deps, { tenantId: NORTHWIND, claimId: c!.id });
+    expect(first.status).toBe('manual_task');
+    expect(second).toEqual(first);
+    const items = await admin.db
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.claimId, c!.id), eq(workItems.type, 'manual_task')));
+    expect(items).toEqual([
+      expect.objectContaining({ summary: 'Release the charge in Tebra', reasonCode: 'releaseCharge' }),
+    ]);
+    const [after] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
+    expect(after!.status).toBe('ready');
+    expect((await pmEncounterOf(c!.id)).workflowStatus).toBe('Draft');
+  });
+
   it('submits at once when the PM bills on its own schedule (no hold)', async () => {
     const [c] = await inReview();
     await approveClaim(app.db, { tenantId: NORTHWIND, userId: USER, claimId: c!.id });

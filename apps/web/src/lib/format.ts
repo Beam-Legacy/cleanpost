@@ -1,8 +1,9 @@
+import { now as clockNow } from '@cleanpost/clock';
 import { formatCents } from '@cleanpost/domain';
 /** Formats from docs/10-design-system.md: "Oct 29, 2026", "2:14 pm PT", "94.2%", "$1,284.50". */
 const TZ = 'America/Los_Angeles';
 
-export function formatWhen(d: Date | null | undefined, now = new Date()): string {
+export function formatWhen(d: Date | null | undefined, now = clockNow()): string {
   if (!d) return '—';
   const sameDay =
     d.toLocaleDateString('en-US', { timeZone: TZ }) === now.toLocaleDateString('en-US', { timeZone: TZ });
@@ -23,7 +24,7 @@ export function formatDuration(start: Date, end: Date | null): string {
 export const formatCount = (n: number) => n.toLocaleString('en-US');
 
 /** Start and end of the Pacific-time day containing `now` (summary strip "today"). */
-export function pacificDay(now = new Date()): { start: Date; end: Date } {
+export function pacificDay(now = clockNow()): { start: Date; end: Date } {
   const ymd = now.toLocaleDateString('en-CA', { timeZone: TZ });
   for (const offset of ['-07:00', '-08:00']) {
     const start = new Date(`${ymd}T00:00:00${offset}`);

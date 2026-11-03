@@ -37,7 +37,7 @@ export async function savePreferences(input: z.input<typeof Prefs>) {
       .values({ tenantId: ctx.tenantId, userId: ctx.user.id, ...prefs })
       .onConflictDoUpdate({
         target: [userPreferences.tenantId, userPreferences.userId],
-        set: { ...prefs, updatedAt: sql`now()` },
+        set: { ...prefs, updatedAt: sql`app.now()` },
       }),
   );
 }

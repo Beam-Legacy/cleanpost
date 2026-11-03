@@ -148,6 +148,13 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** the 276 sends the patient as the subscriber, as the eligibility check does. Dependents (a child on a parent's plan) need the subscriber's own name and birth date from the coverage; that comes with P-02 (edit coverage) in M4.
 - **Also:** "usually pays in N days" (W-15) is the median days from acceptance to the payer's answer for the payer's claims answered in the last 180 days, shown from five claims up.
 
+## DEC-18 — Demo time: one clock in local and preview (Nov 3, 2026)
+
+- **Decision:** in local and preview, Cleanpost, the mock PM and the payer simulator share one date, so a demo can move weeks forward in minutes and the whole world follows: claims age, follow-ups come due, payments land on their dates, the work queue's due and overdue counts move. The payer simulator keeps the date (`/clock`); the admin's "+1, +7, +14 days" control (Work and Remittances, "Demo clock") moves it, sets Cleanpost's offset to match, runs the mock PM's clearinghouse, queues a sync per mock-PM practice and runs the daily follow-up sweep once (scheduled jobs run on the real clock, so days skipped at once would otherwise miss it).
+- **Decision:** Cleanpost's offset lives in `app.clock` (one row). Business timestamps default to `app.now()` (now plus the offset); code reads business time from `@cleanpost/clock` `now()`, which every process refreshes from `app.clock` every 2 seconds (web per request, worker on a timer) and the browser gets from the page. Sign-in, sessions, rate limits, timeouts, job delays and log times stay on the real clock. The mock PM reads the simulator's clock every 5 seconds and before each clearinghouse run.
+- **Decision:** two locks keep it out of staging and production. `app.clock.enabled` is false by default and only the system role can set it; the synthetic seed sets it in local and preview only (staging seeds keep it off). The app role may change only the offset, and the code refuses a non-zero offset, and reads a stored one as zero, when `CLEANPOST_ENV` is staging or production.
+- **Also:** `pnpm test:cycle` now runs on demo time: Cleanpost and the PM move with the payer's 45 days and the daily sweep runs at each step. That surfaced two gaps, now closed: a release the PM refuses for good (a Tebra encounter still in Draft or sent back, which Cleanpost builds after the 2-hour quiet period) opens a manual task "Release the charge in {PM}" instead of only a log line; and a claim the PM never bills gets its no-acknowledgment follow-up after 7 days.
+
 ## Open questions
 
 | Question | Owner | Needed by |

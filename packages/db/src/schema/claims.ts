@@ -210,7 +210,9 @@ export const claimEvents = pgTable(
     type: text('type').notNull(),
     payload: jsonb('payload').notNull().default({}),
     actor: text('actor').notNull(),
-    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
+    occurredAt: timestamp('occurred_at', { withTimezone: true })
+      .notNull()
+      .default(sql`app.now()`),
     ...timestamps,
   },
   (t) => [index('claim_events_claim_idx').on(t.claimId, t.occurredAt)],

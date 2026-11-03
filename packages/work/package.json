@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@cleanpost/clock": "workspace:*",
     "@cleanpost/db": "workspace:*",
     "@cleanpost/domain": "workspace:*",
     "drizzle-orm": "^0.45.4"

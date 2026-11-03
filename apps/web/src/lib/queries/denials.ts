@@ -1,4 +1,5 @@
 import 'server-only';
+import { now as clockNow } from '@cleanpost/clock';
 import { and, asc, desc, eq, gte, inArray, ne, sql, type SQL } from 'drizzle-orm';
 import {
   claimEvents,
@@ -115,7 +116,7 @@ export async function listDenials(
       byKind.set(r.kind, k);
     }
     // This month: denials closed by a corrected claim, and written off.
-    const monthStart = new Date(new Date().toISOString().slice(0, 7) + '-01T00:00:00Z');
+    const monthStart = new Date(clockNow().toISOString().slice(0, 7) + '-01T00:00:00Z');
     const closed = await tx
       .select({
         resolution: workItems.resolution,

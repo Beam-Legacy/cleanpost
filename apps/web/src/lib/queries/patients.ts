@@ -4,6 +4,7 @@ import 'server-only';
  * coverage), insurance cards and claims. Viewing is audit-logged (P-01 rules); DOB and member IDs
  * are masked until revealed (G-12).
  */
+import { now as clockNow } from '@cleanpost/clock';
 import { and, asc, desc, eq, inArray, ne, sql } from 'drizzle-orm';
 import {
   claims,
@@ -96,7 +97,7 @@ const OPEN = [
   'corrected',
 ];
 
-const ageAt = (dob: string, on = new Date()) => {
+const ageAt = (dob: string, on = clockNow()) => {
   const b = new Date(`${dob}T00:00:00Z`);
   let age = on.getUTCFullYear() - b.getUTCFullYear();
   const m = on.getUTCMonth() - b.getUTCMonth();

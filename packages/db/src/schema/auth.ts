@@ -6,7 +6,7 @@
  */
 import { sql } from 'drizzle-orm';
 import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
-import { id, timestamps } from './_columns';
+import { id, realTimestamps } from './_columns';
 
 export const users = pgTable('users', {
   id: id(),
@@ -25,7 +25,7 @@ export const users = pgTable('users', {
     .array()
     .notNull()
     .default(sql`'{}'::text[]`),
-  ...timestamps,
+  ...realTimestamps,
 });
 
 export const sessions = pgTable(
@@ -43,7 +43,7 @@ export const sessions = pgTable(
     activeTenantId: uuid('active_tenant_id'),
     /** Preview only (PREVIEW_ALLOW_SKIP_2FA): the user skipped two-factor setup for this session. */
     secondFactorSkippedAt: timestamp('second_factor_skipped_at', { withTimezone: true }),
-    ...timestamps,
+    ...realTimestamps,
   },
   (t) => [index('sessions_user_id_idx').on(t.userId)],
 );
@@ -64,7 +64,7 @@ export const accounts = pgTable(
     refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
     scope: text('scope'),
     password: text('password'),
-    ...timestamps,
+    ...realTimestamps,
   },
   (t) => [index('accounts_user_id_idx').on(t.userId)],
 );
@@ -76,7 +76,7 @@ export const verifications = pgTable(
     identifier: text('identifier').notNull(),
     value: text('value').notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    ...timestamps,
+    ...realTimestamps,
   },
   (t) => [index('verifications_identifier_idx').on(t.identifier)],
 );

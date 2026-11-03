@@ -1,3 +1,4 @@
+import { nowMs } from '@cleanpost/clock';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -52,7 +53,7 @@ export default async function ConnectionPage({ params }: { params: Promise<{ id:
   const lastByOp = (op: string) => runs.find((r) => r.operation === op);
   const lastOkByOp = (op: string) => runs.find((r) => r.operation === op && r.status === 'succeeded');
   const credentialAgeDays = c.credentialsRotatedAt
-    ? (Date.now() - c.credentialsRotatedAt.getTime()) / 86_400_000
+    ? (nowMs() - c.credentialsRotatedAt.getTime()) / 86_400_000
     : null;
 
   return (

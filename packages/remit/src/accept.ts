@@ -11,6 +11,7 @@ import { applyMatch, matchClaim } from './ingest';
 import { createWorkItem } from './items';
 import { storedPayment } from './link';
 import { verifyInTx } from './verify';
+import { now as clockNow } from '@cleanpost/clock';
 
 export type AcceptOutcome =
   | { ok: true; matched: number; unmatched: number; setAside: number; remittanceStatus: string }
@@ -20,7 +21,7 @@ export async function acceptDifference(
   tx: Tx,
   ctx: { tenantId: string; userId: string },
   input: { remittanceId: string; reason: string },
-  now = new Date(),
+  now = clockNow(),
 ): Promise<AcceptOutcome> {
   const actor: AuditActor = `user:${ctx.userId}`;
   const [r] = await tx.select().from(remittances).where(eq(remittances.id, input.remittanceId)).for('update');

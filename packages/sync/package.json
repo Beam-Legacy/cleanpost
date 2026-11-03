@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@cleanpost/adapters": "workspace:*",
+    "@cleanpost/clock": "workspace:*",
     "@cleanpost/db": "workspace:*",
     "@cleanpost/domain": "workspace:*",
     "@cleanpost/log": "workspace:*",

@@ -34,13 +34,19 @@ type ClaimRow = typeof claims.$inferSelect;
 const log = createLogger({ name: 'e2e-fixture' });
 const ACTOR = 'automation:e2e-fixture' as const;
 
-/** A denial this fixture already made (by its trace prefix). */
+/** An open denial this fixture already made (by its trace prefix); a resolved one is made again. */
 async function made(admin: Database, trace: string) {
   const [m] = await admin
     .select({ id: workItems.id })
     .from(workItems)
     .innerJoin(remittances, eq(remittances.id, workItems.remittanceId))
-    .where(and(eq(workItems.type, 'denial'), like(remittances.traceNumber, `${trace}%`)));
+    .where(
+      and(
+        eq(workItems.type, 'denial'),
+        ne(workItems.status, 'resolved'),
+        like(remittances.traceNumber, `${trace}%`),
+      ),
+    );
   return Boolean(m);
 }
 

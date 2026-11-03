@@ -4,6 +4,7 @@
  * the answer in plain words with its codes, the suggested next step (rules, labelled Suggested),
  * and Create task where the answer implies one.
  */
+import { nowMs } from '@cleanpost/clock';
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { claimStatus } from '@cleanpost/domain';
@@ -27,7 +28,7 @@ export function CheckStatusButton({
   const toast = useToast();
   const router = useRouter();
   if (!view.canCheck) return null;
-  const limited = view.manualAfter && view.manualAfter.getTime() > Date.now();
+  const limited = view.manualAfter && view.manualAfter.getTime() > nowMs();
   const reason = !view.configured
     ? 'Status checks are not set up here yet.'
     : limited

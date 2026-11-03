@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { bigint, timestamp, uuid } from 'drizzle-orm/pg-core';
 import { v7 as uuidv7 } from 'uuid';
+import { now as clockNow } from '@cleanpost/clock';
 
 /**
  * Primary key: UUIDv7. The app generates it; raw SQL (seeds, system tasks) gets the same from the
@@ -12,7 +13,19 @@ export const id = () =>
     .default(sql`uuidv7()`)
     .$defaultFn(() => uuidv7());
 
+/** Business tables: demo time in local and preview (app.now(), DEC-18); real time elsewhere. */
 export const timestamps = {
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .default(sql`app.now()`),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .default(sql`app.now()`)
+    .$onUpdate(() => clockNow()),
+};
+
+/** Sign-in and session tables stay on real time, so moving demo time never signs anyone out. */
+export const realTimestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true })
     .notNull()

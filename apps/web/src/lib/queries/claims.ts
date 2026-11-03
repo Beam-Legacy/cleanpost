@@ -1,4 +1,5 @@
 import 'server-only';
+import { now as clockNow } from '@cleanpost/clock';
 import {
   and,
   asc,
@@ -107,7 +108,7 @@ function scope(ctx: ActiveContext): SQL | undefined {
 }
 
 /** C-01: one page of claims for a saved view, with counts per view and open totals. */
-export async function listClaims(ctx: ActiveContext, f: ClaimFilters, now = new Date()) {
+export async function listClaims(ctx: ActiveContext, f: ClaimFilters, now = clockNow()) {
   const today = now.toISOString().slice(0, 10);
   return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
     const base: (SQL | undefined)[] = [scope(ctx)];

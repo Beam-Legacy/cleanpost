@@ -46,6 +46,7 @@ import {
   type Counts,
   type Rejected,
 } from './upsert';
+import { now as clockNow } from '@cleanpost/clock';
 
 /** Pulls sync always runs. Claim status joins when an applier is given (packages/claims). */
 export const SYNC_OPERATIONS = ['pullPatientsAndCoverage', 'pullCharges'] as const;
@@ -193,7 +194,7 @@ async function runOperation(
   op: SyncOperation,
   actor: AuditActor,
 ): Promise<OperationOutcome> {
-  const now = deps.now ?? (() => new Date());
+  const now = deps.now ?? (() => clockNow());
   const ctxTenant = { tenantId: conn.tenantId };
   const { runId, since } = await withTenant(deps.db, ctxTenant, async (tx) => {
     const [last] = await tx
@@ -322,7 +323,7 @@ async function runOperation(
 }
 
 export async function runSync(deps: SyncDeps, req: SyncRequest): Promise<SyncResult> {
-  const now = deps.now ?? (() => new Date());
+  const now = deps.now ?? (() => clockNow());
   const actor: AuditActor = req.userId ? `user:${req.userId}` : 'automation:sync.pull';
   const ctxTenant = { tenantId: req.tenantId };
 

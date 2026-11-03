@@ -57,7 +57,9 @@ export const syncRuns = pgTable(
       .notNull()
       .references(() => connections.id),
     operation: text('operation').notNull(),
-    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    startedAt: timestamp('started_at', { withTimezone: true })
+      .notNull()
+      .default(sql`app.now()`),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     /** running | succeeded | failed */
     status: text('status').notNull().default('running'),
@@ -121,7 +123,9 @@ export const rateLimitBuckets = pgTable(
     key: text('key').notNull(),
     endpoint: text('endpoint').notNull(),
     tokens: doublePrecision('tokens').notNull(),
-    refilledAt: timestamp('refilled_at', { withTimezone: true }).notNull().defaultNow(),
+    refilledAt: timestamp('refilled_at', { withTimezone: true })
+      .notNull()
+      .default(sql`app.now()`),
     ...timestamps,
   },
   (t) => [unique('rate_limit_buckets_key').on(t.tenantId, t.key, t.endpoint)],

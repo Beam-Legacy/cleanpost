@@ -1,4 +1,5 @@
 import 'server-only';
+import { now as clockNow } from '@cleanpost/clock';
 import { and, asc, count, desc, eq, inArray, ne, sql, type SQL } from 'drizzle-orm';
 import {
   chargeLines,
@@ -123,7 +124,7 @@ export async function listRemittances(ctx: ActiveContext, f: RemitFilters) {
       .groupBy(remittances.status);
     const n = (states: string[]) =>
       counts.filter((c) => states.includes(c.status)).reduce((s, c) => s + Number(c.n), 0);
-    const month = new Date().toISOString().slice(0, 7);
+    const month = clockNow().toISOString().slice(0, 7);
     const [period] = await tx
       .select({
         n: count(),

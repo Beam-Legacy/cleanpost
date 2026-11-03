@@ -1,4 +1,5 @@
 /** Platform records: agreements, exports, invoices, requests, break-glass, banners, usage, webhooks. */
+import { sql } from 'drizzle-orm';
 import { date, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 import { cents, id, tenantId, timestamps } from './_columns';
 import { users } from './auth';
@@ -59,7 +60,9 @@ export const breakGlassGrants = pgTable('break_glass_grants', {
   tenantId: tenantId(),
   operatorUserId: uuid('operator_user_id').notNull(),
   reason: text('reason').notNull(),
-  grantedAt: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
+  grantedAt: timestamp('granted_at', { withTimezone: true })
+    .notNull()
+    .default(sql`app.now()`),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
   ...timestamps,
@@ -100,7 +103,9 @@ export const webhookEvents = pgTable(
     id: id(),
     source: text('source').notNull(),
     externalId: text('external_id').notNull(),
-    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow(),
+    receivedAt: timestamp('received_at', { withTimezone: true })
+      .notNull()
+      .default(sql`app.now()`),
     processedAt: timestamp('processed_at', { withTimezone: true }),
     /** received | processed | failed | ignored */
     status: text('status').notNull().default('received'),

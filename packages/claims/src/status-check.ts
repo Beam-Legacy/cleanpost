@@ -35,6 +35,7 @@ import type { ClaimStatusClient } from '@cleanpost/eligibility';
 import type { Logger } from '@cleanpost/log';
 import { autoResolve, resolveFollowUps } from './answered';
 import { applyClaimEvent } from './events';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface StatusCheckDeps {
   db: Database;
@@ -90,7 +91,7 @@ export async function checkClaimStatus(
   ctx: { tenantId: string; claimId: string; trigger: StatusTrigger; userId?: string | null },
   opts: { timeoutMs?: number } = {},
 ): Promise<StatusCheckOutcome> {
-  const now = deps.now?.() ?? new Date();
+  const now = deps.now?.() ?? clockNow();
   const actor: AuditActor = ctx.userId ? `user:${ctx.userId}` : 'automation:claim.statusCheck';
   const prepared = await withTenant(
     deps.db,
@@ -269,7 +270,7 @@ export interface SweepResult {
 export async function statusSweep(
   db: Database,
   ctx: { tenantId: string },
-  now = new Date(),
+  now = clockNow(),
 ): Promise<SweepResult> {
   const actor: AuditActor = 'automation:claim.statusSweep';
   return withTenant(db, { tenantId: ctx.tenantId }, async (tx) => {
@@ -375,7 +376,7 @@ export async function createStatusTask(
   db: Database,
   ctx: { tenantId: string; userId: string; claimId: string },
   input: { advice: claimStatus.StatusAdvice },
-  now = new Date(),
+  now = clockNow(),
 ): Promise<
   | { status: 'created'; workItemId: string }
   | { status: 'refused'; reason: 'no_task' | 'not_found' | 'exists' | 'no_connection' }

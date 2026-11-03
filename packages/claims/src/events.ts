@@ -6,6 +6,7 @@
 import { eq } from 'drizzle-orm';
 import { claimEvents, claims, type AuditActor, type Tx } from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
+import { now as clockNow } from '@cleanpost/clock';
 
 export type ClaimRow = typeof claims.$inferSelect;
 
@@ -55,7 +56,7 @@ export async function applyClaimEvent(
   const from = claim.status as state.ClaimState;
   const next = state.nextClaimState(from, event);
   if (!next.ok) throw new ClaimTransitionError(from, event);
-  const now = opts.now ?? new Date();
+  const now = opts.now ?? clockNow();
   if (next.value !== from) {
     await tx.update(claims).set({ status: next.value, updatedAt: now }).where(eq(claims.id, claim.id));
   }
@@ -87,6 +88,6 @@ export async function recordClaimEvent(
     type,
     payload: opts.payload ?? {},
     actor: opts.actor,
-    occurredAt: opts.now ?? new Date(),
+    occurredAt: opts.now ?? clockNow(),
   });
 }

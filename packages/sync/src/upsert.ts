@@ -23,6 +23,7 @@ import {
   type Tx,
 } from '@cleanpost/db';
 import type { PayerMatcher } from './payers';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface SyncContext {
   tenantId: string;
@@ -170,7 +171,7 @@ async function upsertCoverages(
           ...fields,
           patientId,
           ...(memberChanged ? { memberIdEncrypted: encryptField(c.memberId) } : {}),
-          updatedAt: new Date(),
+          updatedAt: clockNow(),
         })
         .where(eq(coverages.id, id));
       changed++;
@@ -245,7 +246,7 @@ export async function upsertPatients(
     if (diff.length) {
       await tx
         .update(patients)
-        .set({ ...fields, updatedAt: new Date() })
+        .set({ ...fields, updatedAt: clockNow() })
         .where(eq(patients.id, id));
     }
     const cov = await upsertCoverages(tx, ctx, id, p.coverages, payers);
@@ -311,7 +312,7 @@ async function syncLines(tx: Tx, ctx: SyncContext, encounterId: string, e: ExtEn
     } else if (changedFields(row as unknown as Record<string, unknown>, fields).length) {
       await tx
         .update(chargeLines)
-        .set({ ...fields, updatedAt: new Date() })
+        .set({ ...fields, updatedAt: clockNow() })
         .where(eq(chargeLines.id, row.id));
       changed++;
     }
@@ -339,7 +340,7 @@ async function syncLines(tx: Tx, ctx: SyncContext, encounterId: string, e: ExtEn
     } else if (row.icd10 !== d.icd10) {
       await tx
         .update(diagnoses)
-        .set({ icd10: d.icd10, updatedAt: new Date() })
+        .set({ icd10: d.icd10, updatedAt: clockNow() })
         .where(eq(diagnoses.id, row.id));
       changed++;
     }
@@ -448,7 +449,7 @@ export async function upsertEncounters(
     if (diff.length) {
       await tx
         .update(encounters)
-        .set({ ...next, updatedAt: new Date() })
+        .set({ ...next, updatedAt: clockNow() })
         .where(eq(encounters.id, id));
     }
     const lines = await syncLines(tx, ctx, id, e);

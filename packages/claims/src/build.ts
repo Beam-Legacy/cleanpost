@@ -33,6 +33,7 @@ import {
 import { applyClaimEvent } from './events';
 import { resolveCorrectionTasks } from './tasks';
 import { insertVersion, lastPmVersion } from './versions';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface BuildOptions {
   now?: Date;
@@ -243,7 +244,7 @@ export async function buildClaimsForClient(
   ctx: { tenantId: string; clientId: string },
   options: BuildOptions = {},
 ): Promise<BuildResult> {
-  const now = options.now ?? new Date();
+  const now = options.now ?? clockNow();
   const opts = {
     now,
     quietPeriodMinutes: options.quietPeriodMinutes ?? 120,

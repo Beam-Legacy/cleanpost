@@ -36,6 +36,7 @@ import {
   toPosting,
   toRemittance,
 } from './map';
+import { now as clockNow } from '@cleanpost/clock';
 
 export type MockProfile = 'generic' | 'tebra' | 'managed_api';
 
@@ -296,7 +297,7 @@ export function createMockAdapter(deps: MockAdapterDeps): PmAdapter {
     capabilities: capsOf,
 
     async healthCheck(conn) {
-      const checkedAt = new Date();
+      const checkedAt = clockNow();
       try {
         profiles.delete(conn.id);
         const caps = await capsOf(conn);

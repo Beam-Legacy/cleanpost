@@ -5,6 +5,7 @@
 import type { AdapterKey, CapabilityMap, Connection, Operation, PmAdapter } from '../contract';
 import { manualTask } from '../results';
 import { OPERATIONS } from '../profiles';
+import { now as clockNow } from '@cleanpost/clock';
 
 export interface StubMeta {
   key: AdapterKey;
@@ -60,7 +61,7 @@ export function createStubAdapter(meta: StubMeta): PmAdapter {
     key: meta.key,
     syncPolicy: { defaultIntervalMinutes: 0, preferOffHours: false },
     capabilities: async () => MANUAL_CAPS,
-    healthCheck: async () => ({ ok: true, checkedAt: new Date(), details: {} }),
+    healthCheck: async () => ({ ok: true, checkedAt: clockNow(), details: {} }),
     pullPatientsAndCoverage: empty,
     pullCharges: empty,
     pullClaimsAndStatus: empty,

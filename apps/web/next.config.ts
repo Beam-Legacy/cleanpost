@@ -30,6 +30,7 @@ const config: NextConfig = {
     '@cleanpost/adapters',
     '@cleanpost/auth',
     '@cleanpost/claims',
+    '@cleanpost/clock',
     '@cleanpost/config',
     '@cleanpost/db',
     '@cleanpost/domain',
