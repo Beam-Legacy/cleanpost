@@ -6,6 +6,8 @@ import { createLogger } from '@cleanpost/log';
 import { createPmMockApp } from './app';
 import { runClearinghouse, type ClearinghouseRun } from './clearinghouse';
 import { createPmDb, migratePmDb } from './db';
+import { loadRoster } from './roster';
+import { resetPmMockForHistory } from './seed';
 
 const log = createLogger({ name: 'pm-mock' });
 const env = parseEnv(
@@ -87,12 +89,29 @@ const clearinghouse = env.PAYER_SIM_URL
         running = null;
       }))
   : undefined;
+// Demo history (DEC-19): payer-sim has already moved back; follow it, reload patients as of that
+// date with no visits, and send the payers their member files again.
+const demoReset = env.PAYER_SIM_URL
+  ? async () => {
+      await running;
+      await followSimClock();
+      const practices = await resetPmMockForHistory(handle.db, { asOf: now() });
+      billedOn = null;
+      const members = await loadRoster(handle.db, {
+        payerSimUrl: env.PAYER_SIM_URL!.replace(/\/$/, ''),
+        ...(env.PAYER_SIM_TOKEN ? { token: env.PAYER_SIM_TOKEN } : {}),
+      });
+      log.info({ practices: practices.length, members }, 'pm-mock reset for demo history');
+      return practices;
+    }
+  : undefined;
 const app = createPmMockApp({
   db: handle.db,
   log,
   adminPassword: env.PM_MOCK_ADMIN_PASSWORD,
   now,
   ...(clearinghouse ? { clearinghouse } : {}),
+  ...(demoReset ? { demoReset } : {}),
 });
 const timer = clearinghouse
   ? setInterval(() => {

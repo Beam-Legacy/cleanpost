@@ -6,6 +6,7 @@
  *   GET  /remits?source=&after=  835s for a submitter, after a control number (runs payments first)
  *   POST /payments/run      decide the claims that are due and batch them into 835s
  *   GET  /clock, POST /clock/advance?minutes=&days=   time control for tests and demos
+ *   POST /admin/reset       forget every claim, payment and member and set the clock (demo history)
  */
 import { Hono } from 'hono';
 import { bearerAuth } from 'hono/bearer-auth';
@@ -60,6 +61,7 @@ export function createPayerSimApp(deps: SimDeps) {
     app.use('/remits', auth);
     app.use('/payments/*', auth);
     app.use('/clock/*', auth);
+    app.use('/admin/*', auth);
     app.use('/members', auth);
     app.use('/2024-04-01/*', async (c, next) => {
       // Stedi sends the raw key in Authorization (no Bearer prefix); accept either here.
@@ -274,6 +276,31 @@ export function createPayerSimApp(deps: SimDeps) {
       .insert(clock)
       .values({ id: 1, offsetMs: ms })
       .onConflictDoUpdate({ target: clock.id, set: { offsetMs: sql`${clock.offsetMs} + ${ms}` } });
+    return c.json({ now: (await simNow(deps.db, realNow)).toISOString() });
+  });
+
+  // Demo history (DEC-19): start over at a date in the past. Local and preview only, like this app.
+  app.post('/admin/reset', async (c) => {
+    const body = z
+      .object({
+        offsetMs: z
+          .number()
+          .int()
+          .min(-400 * 86_400_000)
+          .max(400 * 86_400_000),
+      })
+      .safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'offsetMs must be a whole number of milliseconds' }, 422);
+    await deps.db.transaction(async (tx) => {
+      await tx.delete(remittances);
+      await tx.delete(submissions);
+      await tx.delete(members);
+      await tx
+        .insert(clock)
+        .values({ id: 1, offsetMs: body.data.offsetMs })
+        .onConflictDoUpdate({ target: clock.id, set: { offsetMs: body.data.offsetMs } });
+    });
+    deps.log.info({ offsetDays: Math.round(body.data.offsetMs / 86_400_000) }, 'payer-sim reset');
     return c.json({ now: (await simNow(deps.db, realNow)).toISOString() });
   });
 

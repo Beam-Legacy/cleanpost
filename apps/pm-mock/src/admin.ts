@@ -33,6 +33,8 @@ export interface AdminDeps {
    * billing batch of PMs with no hold. Absent without payer-sim.
    */
   clearinghouse?: (opts?: { bill?: boolean }) => Promise<unknown>;
+  /** Demo history (DEC-19): start over on the payer simulator's (past) date. */
+  demoReset?: () => Promise<unknown>;
 }
 
 const resubmitBody = z.object({
@@ -56,7 +58,12 @@ const faultBody = z.object({
   latencyMs: z.coerce.number().int().min(0).max(60_000).optional(),
 });
 
-const visitsBody = z.object({ count: z.coerce.number().int().min(1).max(50).default(5) });
+const visitsBody = z.object({
+  count: z.coerce.number().int().min(1).max(50).default(5),
+  /** The visits' date, up to 30 days back (demo history adds a few days at a time). */
+  dateOfService: z.iso.date().optional(),
+  openShare: z.number().min(0).max(1).optional(),
+});
 
 const STYLE = `
   :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
@@ -175,12 +182,24 @@ export function adminRoutes(deps: AdminDeps) {
   app.post('/api/practices/:id/visits', async (c) => {
     const body = visitsBody.safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ error: 'invalid' }, 422);
+    const now = deps.now();
+    const dos = body.data.dateOfService;
+    const today = now.toISOString().slice(0, 10);
+    if (dos && (dos > today || Date.parse(today) - Date.parse(dos) > 30 * 86_400_000))
+      return c.json({ error: 'dateOfService must be within the last 30 days' }, 422);
     const ids = await addVisits(db, {
       practiceId: c.req.param('id'),
       count: body.data.count,
-      now: deps.now(),
+      now,
+      ...(dos ? { dateOfService: dos } : {}),
+      ...(body.data.openShare !== undefined ? { openShare: body.data.openShare } : {}),
     });
     return c.json({ ok: true, encounters: ids });
+  });
+
+  app.post('/api/demo/reset', async (c) => {
+    if (!deps.demoReset) return c.json({ error: 'demo history needs payer-sim' }, 409);
+    return c.json({ ok: true, practices: await deps.demoReset() });
   });
 
   // ---------- HTML ----------

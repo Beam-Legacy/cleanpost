@@ -1,6 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { accounts, encounters, writeLog } from '../src/schema';
+import { accounts, encounters, patients, writeLog } from '../src/schema';
+import { resetPmMockForHistory } from '../src/seed';
 import { adminAuth, bearer, handle, seedTestWorld, testApp } from './helpers';
 
 const app = testApp();
@@ -343,5 +344,44 @@ describe('admin', () => {
         )})`,
       );
     expect(fresh.every((f) => f.w === 'Draft' || f.w === 'Review')).toBe(true);
+  });
+
+  it('adds visits on an earlier date, all finished when no share is left open (demo history)', async () => {
+    const day = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+    const res = await app.request('/admin/api/practices/willamette/visits', {
+      method: 'POST',
+      headers: { ...adminAuth, 'content-type': 'application/json' },
+      body: JSON.stringify({ count: 6, dateOfService: day, openShare: 0 }),
+    });
+    const body = (await res.json()) as { encounters: string[] };
+    const rows = await handle.db
+      .select({ dos: encounters.dateOfService, w: encounters.workflowStatus })
+      .from(encounters)
+      .where(
+        sql`${encounters.id} in (${sql.join(
+          body.encounters.map((id) => sql`${id}`),
+          sql`, `,
+        )})`,
+      );
+    expect(rows).toHaveLength(6);
+    expect(rows.every((r) => r.dos === day && r.w === 'Review')).toBe(true);
+    const tooOld = await app.request('/admin/api/practices/willamette/visits', {
+      method: 'POST',
+      headers: { ...adminAuth, 'content-type': 'application/json' },
+      body: JSON.stringify({ dateOfService: '2020-01-01' }),
+    });
+    expect(tooOld.status).toBe(422);
+  });
+
+  it('starts over for demo history: patients and coverage as of the date, no visits', async () => {
+    const asOf = new Date(Date.now() - 90 * 86_400_000);
+    const out = await resetPmMockForHistory(handle.db, { asOf, scale: 0.15 });
+    expect(out.map((p) => p.practiceId).sort()).toEqual(['cascade', 'lakeside', 'willamette']);
+    const [{ n } = { n: -1 }] = await handle.db.select({ n: sql<number>`count(*)::int` }).from(encounters);
+    expect(n).toBe(0);
+    const pts = await handle.db.select({ id: patients.id }).from(patients);
+    expect(pts.length).toBe(out.reduce((s, p) => s + p.patients, 0));
+    // The world loads again on top (the other suites seed in their own setup).
+    await seedTestWorld();
   });
 });

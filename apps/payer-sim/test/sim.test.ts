@@ -94,6 +94,25 @@ describe('payer-sim API', () => {
     expect(again.acks).toEqual([]);
   });
 
+  it('starts over at a date in the past on /admin/reset (demo history)', async () => {
+    expect((await app.request('/admin/reset', { method: 'POST', body: '{}' })).status).toBe(401);
+    const res = await app.request('/admin/reset', {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify({ offsetMs: -90 * 86_400_000 }),
+    });
+    expect(res.status).toBe(200);
+    const { now } = (await res.json()) as { now: string };
+    expect(Math.round((Date.parse(now) - Date.now()) / 86_400_000)).toBe(-90);
+    const left = await acks(app.request('/acks?source=pm-mock:test', { headers: auth }));
+    expect(left.acks).toEqual([]);
+    await app.request('/admin/reset', {
+      method: 'POST',
+      headers: auth,
+      body: JSON.stringify({ offsetMs: 0 }),
+    });
+  });
+
   it('refuses claims that do not match the shape', async () => {
     const res = await app.request('/claims', {
       method: 'POST',

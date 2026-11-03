@@ -155,20 +155,43 @@ export async function loadPractice(db: PmDb, practiceId: string, data: SynthPrac
     .where(eq(encounters.practiceId, practiceId));
   if (n > 0) return false;
   const profile = await profileOf(db, practiceId);
+  await loadPatients(db, practiceId, data);
+  await insertEncounters(db, practiceId, profile, data.encounters);
+  const facts = Object.entries(data.answerKey.encounters).map(([id, defects]) => ({
+    practiceId,
+    recordType: 'encounter',
+    recordId: id,
+    facts: {
+      defects,
+      ...(data.answerKey.duplicateOf[id] ? { duplicateOf: data.answerKey.duplicateOf[id] } : {}),
+    },
+  }));
+  for (const part of chunk(facts)) await db.insert(answerKey).values(part).onConflictDoNothing();
+  return true;
+}
+
+/**
+ * A practice's patients and their coverage, with the coverage facts payers know (inactive, really
+ * another payer's member), and no visits. Demo history (DEC-19) adds the visits day by day.
+ */
+export async function loadPatients(db: PmDb, practiceId: string, data: SynthPractice): Promise<void> {
   for (const part of chunk(data.patients)) {
-    await db.insert(patients).values(
-      part.map((p) => ({
-        id: p.externalId,
-        practiceId,
-        firstName: p.firstName,
-        lastName: p.lastName,
-        dob: p.dob,
-        sex: p.sex,
-        address: p.address,
-        phone: p.phone,
-        updatedAt: new Date(p.updatedAt),
-      })),
-    );
+    await db
+      .insert(patients)
+      .values(
+        part.map((p) => ({
+          id: p.externalId,
+          practiceId,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          dob: p.dob,
+          sex: p.sex,
+          address: p.address,
+          phone: p.phone,
+          updatedAt: new Date(p.updatedAt),
+        })),
+      )
+      .onConflictDoNothing();
     const pols = part.flatMap((p) =>
       p.coverages.map((c) => ({
         id: c.externalId,
@@ -184,34 +207,25 @@ export async function loadPractice(db: PmDb, practiceId: string, data: SynthPrac
         terminationDate: c.terminationDate ?? null,
       })),
     );
-    if (pols.length) await db.insert(policies).values(pols);
+    if (pols.length) await db.insert(policies).values(pols).onConflictDoNothing();
   }
-  await insertEncounters(db, practiceId, profile, data.encounters);
-  const facts = [
-    ...Object.entries(data.answerKey.encounters).map(([id, defects]) => ({
-      practiceId,
-      recordType: 'encounter',
-      recordId: id,
-      facts: {
-        defects,
-        ...(data.answerKey.duplicateOf[id] ? { duplicateOf: data.answerKey.duplicateOf[id] } : {}),
-      },
-    })),
-    ...Object.entries(data.answerKey.coverages).map(([id, f]) => ({
-      practiceId,
-      recordType: 'coverage',
-      recordId: id,
-      facts: f,
-    })),
-  ];
+  const facts = Object.entries(data.answerKey.coverages).map(([id, f]) => ({
+    practiceId,
+    recordType: 'coverage',
+    recordId: id,
+    facts: f,
+  }));
   for (const part of chunk(facts)) await db.insert(answerKey).values(part).onConflictDoNothing();
-  return true;
 }
 
 export interface VisitInput {
   practiceId: string;
   count: number;
   now: Date;
+  /** The visits' date (default today); entered now, so the next sync brings them. */
+  dateOfService?: string;
+  /** Share left open (Draft in Tebra) for the practice to finish later. Default a third. */
+  openShare?: number;
 }
 
 /**
@@ -258,14 +272,16 @@ export async function addVisits(db: PmDb, input: VisitInput): Promise<string[]> 
     windowDays: 0,
     defectRates: { duplicate: 0 },
   });
+  const openEvery =
+    input.openShare === undefined ? 3 : input.openShare > 0 ? Math.round(1 / input.openShare) : 0;
   const fresh = generated.encounters.map((e, i) => {
     const id = `${prefix}-E${next++}`;
     return {
       ...e,
       externalId: id,
       patientExternalId: pats[i % pats.length]!.id,
-      dateOfService: input.now.toISOString().slice(0, 10),
-      status: (i % 3 === 0 ? 'open' : 'ready') as 'open' | 'ready',
+      dateOfService: input.dateOfService ?? input.now.toISOString().slice(0, 10),
+      status: (openEvery && i % openEvery === 0 ? 'open' : 'ready') as 'open' | 'ready',
       lines: e.lines.map((l, n) => ({ ...l, externalId: `${id}-${n + 1}` })),
       updatedAt: input.now.toISOString(),
     };
