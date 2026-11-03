@@ -1,0 +1,24 @@
+{
+  "name": "@cleanpost/reports",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cleanpost/clock": "workspace:*",
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
+    "drizzle-orm": "^0.45.4"
+  },
+  "devDependencies": {
+    "@cleanpost/testing": "workspace:*",
+    "uuid": "^14.0.3"
+  }
+}
