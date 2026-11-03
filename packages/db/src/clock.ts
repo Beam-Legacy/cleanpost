@@ -53,7 +53,11 @@ export interface DemoHistory {
   day?: number;
   requestedAt?: string;
   startedAt?: string;
+  /** The replaying process's last sign of life; a replay silent for minutes is taken over. */
+  beatAt?: string;
   finishedAt?: string;
+  /** Why it failed (no patient data). */
+  error?: string;
 }
 
 export async function readDemoHistory(db: Database): Promise<DemoHistory> {
@@ -61,12 +65,19 @@ export async function readDemoHistory(db: Database): Promise<DemoHistory> {
   return res.rows[0]?.demo ?? {};
 }
 
-/** Takes a pending replay for this process. Null if none is pending (or another process took it). */
-export async function claimDemoHistory(db: Database): Promise<DemoHistory | null> {
+/**
+ * Takes a pending replay for this process, or one whose process went quiet (a worker restarted
+ * mid-replay: it carries on from the clock's date). Null when there is nothing to take.
+ */
+export async function claimDemoHistory(db: Database, staleAfterMs = 5 * 60_000): Promise<DemoHistory | null> {
   const res = await db.execute<{ demo: DemoHistory }>(
     sql`update app.clock
-        set demo = demo || jsonb_build_object('state', 'running', 'day', 0, 'startedAt', to_jsonb(now()))
-        where id = 1 and enabled and demo->>'state' = 'pending'
+        set demo = demo || jsonb_build_object('state', 'running', 'beatAt', to_jsonb(now()))
+          || case when demo->>'state' = 'pending' then jsonb_build_object('startedAt', to_jsonb(now()))
+             else '{}'::jsonb end
+        where id = 1 and enabled and (demo->>'state' = 'pending' or (demo->>'state' = 'running'
+          and coalesce(demo->>'beatAt', demo->>'startedAt')::timestamptz
+            < now() - make_interval(secs => ${staleAfterMs / 1000})))
         returning demo`,
   );
   return res.rows[0]?.demo ?? null;

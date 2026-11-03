@@ -15,7 +15,8 @@ import { createDatabase, syncClock } from '@cleanpost/db';
 import { createStediClaimStatusClient, createStediEligibilityClient } from '@cleanpost/eligibility';
 import { createBoss } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
-import { buildRegistry, registerWorkers } from './handlers';
+import { createHistoryRunner } from './demo-history';
+import { buildRegistry, handleStatusSweep, registerWorkers } from './handlers';
 
 const log = createLogger({ name: 'worker' });
 const env = parseEnv(
@@ -36,6 +37,8 @@ const env = parseEnv(
     STEDI_BASE_URL: z.url().optional(),
     PAYER_SIM_URL: z.url().optional(),
     PAYER_SIM_TOKEN: z.string().min(24).optional(),
+    /** Demo history (DEC-19): the mock PM's admin API, where the replay enters visits. */
+    PM_MOCK_ADMIN_PASSWORD: z.string().min(12).optional(),
   }),
 );
 
@@ -131,9 +134,46 @@ await registerWorkers(
   },
   { concurrency: env.WORKER_CONCURRENCY },
 );
+// Demo history (DEC-19): replay the 90 days `pnpm demo:reset` set up, when one is pending.
+const history =
+  synthetic && env.PM_MOCK_URL && env.PM_MOCK_ADMIN_PASSWORD && env.PAYER_SIM_URL
+    ? createHistoryRunner({
+        db: handle.db,
+        boss,
+        log,
+        pmMock: { url: env.PM_MOCK_URL.replace(/\/$/, ''), adminPassword: env.PM_MOCK_ADMIN_PASSWORD },
+        payerSim: {
+          url: env.PAYER_SIM_URL.replace(/\/$/, ''),
+          ...(env.PAYER_SIM_TOKEN ? { token: env.PAYER_SIM_TOKEN } : {}),
+        },
+        sweep: () =>
+          handleStatusSweep({
+            db: handle.db,
+            boss,
+            log,
+            registry,
+            ...(claimStatusClient ? { claimStatus: claimStatusClient } : {}),
+          }),
+      })
+    : undefined;
+let replaying = false;
+const historyTimer = history
+  ? setInterval(() => {
+      if (replaying || stopping) return;
+      replaying = true;
+      history
+        .run()
+        .catch((err: unknown) => log.error({ err }, 'demo history check failed'))
+        .finally(() => {
+          replaying = false;
+        });
+    }, 15_000)
+  : undefined;
+
 log.info(
   {
     mockPm: Boolean(env.PM_MOCK_URL),
+    demoHistory: Boolean(history),
     aiReview: aiMode,
     eligibility: eligibilityMode,
     concurrency: env.WORKER_CONCURRENCY,
@@ -160,6 +200,7 @@ async function stop() {
   stopping = true;
   log.info('worker stopping');
   clearInterval(clockTimer);
+  if (historyTimer) clearInterval(historyTimer);
   server.close();
   await boss.stop({ graceful: true, timeout: 30_000 });
   await handle.close();

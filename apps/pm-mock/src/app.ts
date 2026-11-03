@@ -18,6 +18,7 @@ export interface PmMockOptions {
   clearinghouse?: (opts?: { bill?: boolean }) => Promise<unknown>;
   /** Demo history reset, exposed at POST /admin/api/demo/reset. */
   demoReset?: () => Promise<unknown>;
+  refreshClock?: () => Promise<void>;
 }
 
 export function createPmMockApp(opts: PmMockOptions) {
@@ -46,6 +47,7 @@ export function createPmMockApp(opts: PmMockOptions) {
         now,
         ...(opts.clearinghouse ? { clearinghouse: opts.clearinghouse } : {}),
         ...(opts.demoReset ? { demoReset: opts.demoReset } : {}),
+        ...(opts.refreshClock ? { refreshClock: opts.refreshClock } : {}),
       }),
     );
   app.get('/', (c) => c.redirect(opts.adminPassword ? '/admin' : '/health'));

@@ -47,6 +47,28 @@ const ACTIVITY_TABLES = [
   'rate_limit_buckets',
 ] as const;
 
+/**
+ * The clock offset that puts demo time at 9 am Pacific `days` ago, so the simulated work happens in
+ * office hours (each replay day is exactly 24 hours).
+ */
+export function demoStartOffset(days = DEMO_HISTORY_DAYS, realNow = Date.now()): number {
+  const pt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' });
+  const date = pt.format(new Date(realNow - days * 86_400_000)); // YYYY-MM-DD
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  const hourIn = (ms: number) =>
+    Number(
+      new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Los_Angeles',
+        hour: 'numeric',
+        hourCycle: 'h23',
+      }).format(new Date(ms)),
+    );
+  // 9 am Pacific is 16:00 UTC in summer time and 17:00 in winter.
+  const summer = Date.UTC(y, m - 1, d, 16);
+  const start = hourIn(summer) === 9 ? summer : summer + 3_600_000;
+  return start - realNow;
+}
+
 export function demoHistoryAllowed(env = process.env.CLEANPOST_ENV ?? 'local'): boolean {
   return env === 'local' || env === 'preview';
 }
@@ -55,7 +77,12 @@ export function demoHistoryAllowed(env = process.env.CLEANPOST_ENV ?? 'local'): 
  * Clears the activity, starts every connection's sync over and moves the clock `days` back, with
  * the replay pending for the worker. Run after the payer simulator and the mock PM were reset.
  */
-export async function wipeForDemoHistory(db: Database, days = DEMO_HISTORY_DAYS): Promise<void> {
+export async function wipeForDemoHistory(
+  db: Database,
+  opts: { days?: number; offsetMs?: number } = {},
+): Promise<void> {
+  const days = opts.days ?? DEMO_HISTORY_DAYS;
+  const offsetMs = opts.offsetMs ?? demoStartOffset(days);
   if (!demoHistoryAllowed()) throw new Error('demo history is only available in local and preview');
   await db.transaction(async (tx) => {
     await tx.execute(sql.raw(`truncate ${ACTIVITY_TABLES.map((t) => `public.${t}`).join(', ')}`));
@@ -67,7 +94,7 @@ export async function wipeForDemoHistory(db: Database, days = DEMO_HISTORY_DAYS)
     // Jobs queued for the records just cleared.
     await tx.execute(sql`delete from pgboss.job where state in ('created', 'retry')
       and name not like '\\_\\_pgboss%'`);
-    await tx.execute(sql`update app.clock set enabled = true, offset_ms = ${-days * 86_400_000},
+    await tx.execute(sql`update app.clock set enabled = true, offset_ms = ${Math.trunc(offsetMs)},
       updated_at = now(),
       demo = jsonb_build_object('state', 'pending', 'days', ${days}::int, 'day', 0,
         'requestedAt', to_jsonb(now()))

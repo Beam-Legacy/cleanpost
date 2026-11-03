@@ -1,6 +1,6 @@
 /**
  * `pnpm demo:reset` (DEC-19): start the demo world over 90 days back; the worker then replays the
- * 90 days (about 15 minutes) and the Demo clock bar shows how far it has got. Local and preview only.
+ * 90 days (30 to 45 minutes) and the Demo clock bar shows how far it has got. Local and preview only.
  *
  *   --if-new   only when no history was ever built (the preview's release step uses this)
  *   --force    even while a replay is running (it stops at its next step)
@@ -10,7 +10,7 @@ import { parseEnv } from '@cleanpost/config';
 import { readDemoHistory } from '@cleanpost/db';
 import { createSystemDatabase } from '@cleanpost/db/system';
 import { createLogger } from '@cleanpost/log';
-import { DEMO_HISTORY_DAYS, demoHistoryAllowed, wipeForDemoHistory } from './demo';
+import { DEMO_HISTORY_DAYS, demoHistoryAllowed, demoStartOffset, wipeForDemoHistory } from './demo';
 
 const log = createLogger({ name: 'demo-reset' });
 const env = parseEnv(
@@ -48,7 +48,7 @@ try {
     log.error({ day: current.day }, 'a replay is running; wait for it, or pass --force');
     process.exitCode = 1;
   } else {
-    const offsetMs = -DEMO_HISTORY_DAYS * 86_400_000;
+    const offsetMs = demoStartOffset(DEMO_HISTORY_DAYS);
     const sim = await fetch(`${env.PAYER_SIM_URL.replace(/\/$/, '')}/admin/reset`, {
       method: 'POST',
       headers: {
@@ -67,15 +67,20 @@ try {
       signal: AbortSignal.timeout(300_000),
     });
     if (!pm.ok) throw new Error(`pm-mock refused the reset: ${pm.status}`);
-    await wipeForDemoHistory(handle.db, DEMO_HISTORY_DAYS);
+    await wipeForDemoHistory(handle.db, { days: DEMO_HISTORY_DAYS, offsetMs });
     log.info({ days: DEMO_HISTORY_DAYS }, 'demo reset; the worker replays the history next');
     process.stdout.write(
-      `Demo world reset to ${DEMO_HISTORY_DAYS} days ago. The worker replays the days next (about 15 minutes); the Demo clock on Work shows progress.\n`,
+      `Demo world reset to ${DEMO_HISTORY_DAYS} days ago. The worker replays the days next (30 to 45 minutes); the Demo clock on Work shows progress.\n`,
     );
   }
 } catch (err) {
-  log.error({ err }, 'demo reset failed');
-  process.exitCode = 1;
+  if (args.has('--if-new')) {
+    // A release step: the simulators may not be up yet. The next deploy tries again.
+    log.warn({ err }, 'demo history not started; the next deploy tries again');
+  } else {
+    log.error({ err }, 'demo reset failed');
+    process.exitCode = 1;
+  }
 } finally {
   await handle.close();
 }

@@ -10,6 +10,10 @@
  *   date of service CO-27, member unknown CO-31, filed too late CO-29, exact duplicate CO-18, an
  *   office visit with a procedure or preventive visit and no modifier 25 CO-4, an NCCI bundled pair
  *   CO-97, no prior authorization CO-197.
+ * - Edits no scrub can see, as real payers have: about 2.5% of lines on a first submission are
+ *   denied CO-16 missing information, CO-50 not medically necessary, CO-22 another payer is primary
+ *   or CO-96 not covered, chosen by the claim and line (the same every time). A corrected claim
+ *   (frequency 7) is not denied this way, so a correction gets paid.
  */
 import type { remit } from '@cleanpost/domain';
 import { CODE_GROUPS, NCCI_BYPASS_MODIFIERS } from '@cleanpost/domain/rules';
@@ -86,8 +90,20 @@ function lineDenial(
     if (!bypassed) return ['97', 'M15'];
   }
   if (input.payer.authRequired.includes(l.code) && !c.priorAuthNumber) return ['197', null];
+  if ((c.frequencyCode ?? '1') === '1') {
+    const h = hash(`payer-edit:${input.payer.id}:${c.patientControlNumber}:${l.code}:${c.lines.indexOf(l)}`);
+    if (h % 1000 < 25) return PAYER_EDITS[h % PAYER_EDITS.length]!;
+  }
   return null;
 }
+
+/** Denials from the payer's own records and policies, which no pre-submission check can see. */
+const PAYER_EDITS: [string, string | null][] = [
+  ['16', 'M51'],
+  ['50', 'N115'],
+  ['22', 'MA04'],
+  ['96', 'N130'],
+];
 
 /** Why the payer denies the whole claim, if it does. */
 function claimDenial(input: AdjudicationInput): [string, string | null] | null {

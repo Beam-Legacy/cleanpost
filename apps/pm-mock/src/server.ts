@@ -112,6 +112,7 @@ const app = createPmMockApp({
   now,
   ...(clearinghouse ? { clearinghouse } : {}),
   ...(demoReset ? { demoReset } : {}),
+  refreshClock: followSimClock,
 });
 const timer = clearinghouse
   ? setInterval(() => {

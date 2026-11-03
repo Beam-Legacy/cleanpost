@@ -3,7 +3,7 @@
  * faults to inject, and new visits to add. Protected by HTTP basic auth (PM_MOCK_ADMIN_PASSWORD).
  * Plain HTML styled with system colours; this is a stand-in for a third-party PM, not Cleanpost UI.
  */
-import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gt, inArray } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import { basicAuth } from 'hono/basic-auth';
 import { html, raw } from 'hono/html';
@@ -35,6 +35,8 @@ export interface AdminDeps {
   clearinghouse?: (opts?: { bill?: boolean }) => Promise<unknown>;
   /** Demo history (DEC-19): start over on the payer simulator's (past) date. */
   demoReset?: () => Promise<unknown>;
+  /** Reads the payer simulator's date now, so a just-moved demo clock is never a few seconds stale. */
+  refreshClock?: () => Promise<void>;
 }
 
 const resubmitBody = z.object({
@@ -182,6 +184,7 @@ export function adminRoutes(deps: AdminDeps) {
   app.post('/api/practices/:id/visits', async (c) => {
     const body = visitsBody.safeParse(await c.req.json().catch(() => ({})));
     if (!body.success) return c.json({ error: 'invalid' }, 422);
+    await deps.refreshClock?.();
     const now = deps.now();
     const dos = body.data.dateOfService;
     const today = now.toISOString().slice(0, 10);
@@ -195,6 +198,30 @@ export function adminRoutes(deps: AdminDeps) {
       ...(body.data.openShare !== undefined ? { openShare: body.data.openShare } : {}),
     });
     return c.json({ ok: true, encounters: ids });
+  });
+
+  // The ERA files a person downloads from the PM (Tebra has no ERA API), oldest first, received
+  // after `after` (demo history uploads them as a biller would).
+  app.get('/api/practices/:id/eras', async (c) => {
+    const after = z.iso.datetime({ offset: true }).optional().safeParse(c.req.query('after'));
+    if (!after.success) return c.json({ error: 'after must be a timestamp' }, 422);
+    const rows = await db
+      .select()
+      .from(remittances)
+      .where(
+        and(
+          eq(remittances.practiceId, c.req.param('id')),
+          after.data ? gt(remittances.receivedAt, new Date(after.data)) : undefined,
+        ),
+      )
+      .orderBy(asc(remittances.receivedAt), asc(remittances.id))
+      .limit(200);
+    return c.json({
+      eras: rows.flatMap((e) => {
+        const raw835 = (e.payload as { raw835?: string }).raw835;
+        return raw835 ? [{ id: e.id, receivedAt: e.receivedAt.toISOString(), raw835 }] : [];
+      }),
+    });
   });
 
   app.post('/api/demo/reset', async (c) => {

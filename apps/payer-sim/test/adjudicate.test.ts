@@ -144,4 +144,23 @@ describe('adjudicate', () => {
     expect(r.paidCents).toBeLessThan(0);
     expect(balances(r)).toBe(true);
   });
+
+  it('denies about 2.5% of first-submission lines for reasons no scrub can see, and never a correction', () => {
+    const carcs = new Map<string, number>();
+    let lines = 0;
+    for (let i = 0; i < 4000; i++) {
+      const c = claim({ patientControlNumber: `TST-E${i}` });
+      const p = adjudicate(input({ claim: c })).payment;
+      lines++;
+      const deny = p.lines[0]!.adjustments.find((a) => a.group === 'CO' && a.carc !== '45');
+      if (deny) carcs.set(deny.carc, (carcs.get(deny.carc) ?? 0) + 1);
+      expect(balances(p)).toBe(true);
+      const again = adjudicate(input({ claim: { ...c, frequencyCode: '7' } })).payment;
+      expect(again.lines[0]!.adjustments.some((a) => a.group === 'CO' && a.carc !== '45')).toBe(false);
+    }
+    const denied = [...carcs.values()].reduce((s, n) => s + n, 0);
+    expect(denied / lines).toBeGreaterThan(0.015);
+    expect(denied / lines).toBeLessThan(0.035);
+    expect([...carcs.keys()].sort()).toEqual(['16', '22', '50', '96']);
+  });
 });

@@ -8,7 +8,7 @@
 import { revalidatePath } from 'next/cache';
 import { and, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
-import { connections, recordAudit, setDemoOffset, withTenant } from '@cleanpost/db';
+import { connections, readDemoHistory, recordAudit, setDemoOffset, withTenant } from '@cleanpost/db';
 import { policy } from '@cleanpost/domain';
 import { sendClaimStatusSweep, sendSyncPull } from '@cleanpost/jobs';
 import { getBoss } from '@/lib/jobs';
@@ -30,6 +30,9 @@ export async function advanceClock(daysInput: number): Promise<SimResult> {
   if (!policy.authorize(ctx.actor, 'integration.manage').allowed)
     return { ok: false, message: 'Only admins can move the simulated clock.' };
   const days = z.number().int().min(1).max(30).parse(daysInput);
+  const history = await readDemoHistory(getDb());
+  if (history.state === 'pending' || history.state === 'running')
+    return { ok: false, message: 'Demo history is being built; the clock moves on its own until today.' };
   // Send what is queued at today's simulated date (with the PM's billing batch), move the clock,
   // then collect the 277CAs and 835s that came due.
   await runClearinghouse(config, { bill: true });
