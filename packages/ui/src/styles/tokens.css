@@ -20,7 +20,7 @@
   --danger: #b3261e;
   --danger-tint: #fdeceb;
   --chart-1: #2447d6;
-  --chart-2: #0e7c86;
+  --chart-2: #00919c;
   --chart-3: #b46a00;
   --chart-4: #8a3fa0;
   --chart-5: #5e6e84;
@@ -45,7 +45,8 @@
   --radius-pill: 999px;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
+/* Dark tokens are for screens; printed pages (F-01) always use the light ones. */
+@media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --canvas: #0a101c;
     --surface: #111a2a;
@@ -66,42 +67,44 @@
     --warning-tint: #2e2108;
     --danger: #ff8a80;
     --danger-tint: #33130f;
-    --chart-1: #8da2ff;
-    --chart-2: #4fc7d1;
-    --chart-3: #f2b451;
-    --chart-4: #d59be6;
-    --chart-5: #8693a8;
+    --chart-1: #6f87f5;
+    --chart-2: #139fa9;
+    --chart-3: #be8220;
+    --chart-4: #b072c8;
+    --chart-5: #687482;
     --scrim: rgba(0, 0, 0, 0.6);
     --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
     color-scheme: dark;
   }
 }
-:root[data-theme='dark'] {
-  --canvas: #0a101c;
-  --surface: #111a2a;
-  --surface-sunken: #182335;
-  --border: #263349;
-  --border-control: #5d6c85;
-  --ink: #e8edf5;
-  --ink-muted: #a9b5c7;
-  --ink-subtle: #8693a8;
-  --cobalt: #8da2ff;
-  --cobalt-hover: #a9b9ff;
-  --on-cobalt: #0a101c;
-  --cobalt-tint: #1a2552;
-  --cobalt-soft: #4a62d8;
-  --success: #4cc38a;
-  --success-tint: #0f2a1d;
-  --warning: #f2b451;
-  --warning-tint: #2e2108;
-  --danger: #ff8a80;
-  --danger-tint: #33130f;
-  --chart-1: #8da2ff;
-  --chart-2: #4fc7d1;
-  --chart-3: #f2b451;
-  --chart-4: #d59be6;
-  --chart-5: #8693a8;
-  --scrim: rgba(0, 0, 0, 0.6);
-  --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
-  color-scheme: dark;
+@media screen {
+  :root[data-theme='dark'] {
+    --canvas: #0a101c;
+    --surface: #111a2a;
+    --surface-sunken: #182335;
+    --border: #263349;
+    --border-control: #5d6c85;
+    --ink: #e8edf5;
+    --ink-muted: #a9b5c7;
+    --ink-subtle: #8693a8;
+    --cobalt: #8da2ff;
+    --cobalt-hover: #a9b9ff;
+    --on-cobalt: #0a101c;
+    --cobalt-tint: #1a2552;
+    --cobalt-soft: #4a62d8;
+    --success: #4cc38a;
+    --success-tint: #0f2a1d;
+    --warning: #f2b451;
+    --warning-tint: #2e2108;
+    --danger: #ff8a80;
+    --danger-tint: #33130f;
+    --chart-1: #6f87f5;
+    --chart-2: #139fa9;
+    --chart-3: #be8220;
+    --chart-4: #b072c8;
+    --chart-5: #687482;
+    --scrim: rgba(0, 0, 0, 0.6);
+    --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+    color-scheme: dark;
+  }
 }

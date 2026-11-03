@@ -17,7 +17,7 @@ Copy `ui/assets/tokens.css` into `packages/ui/tokens.css` unchanged and map Tail
 | Lines | `border` (decorative), `border-control` (inputs, 3:1) |
 | Brand and action | `cobalt`, `cobalt-hover`, `on-cobalt`, `cobalt-tint`; `cobalt-soft` for website graphics only |
 | Outcomes | `success`, `warning`, `danger` and their `-tint` backgrounds; reserved for status |
-| Charts | `chart-1` to `chart-5`, in order |
+| Charts | `chart-1` to `chart-4` in order for series; `chart-5` is the neutral "Other", placed next to `chart-1`. Validated for color-vision separation in both themes (dark has its own darker steps) |
 
 Light and dark values are defined for every token; both pass WCAG 2.2 AA for every text pairing named in the design system.
 
