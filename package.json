@@ -23,7 +23,8 @@
     "format:check": "prettier --check .",
     "scan:logs": "pnpm --filter @cleanpost/testing run scan:logs",
     "db:bootstrap": "pnpm --filter @cleanpost/db run bootstrap",
-    "release:preview": "pnpm db:bootstrap && pnpm db:migrate && pnpm seed"
+    "release:preview": "pnpm db:bootstrap && pnpm db:migrate && pnpm seed && pnpm --filter @cleanpost/seed run demo:reset --if-new",
+    "demo:reset": "pnpm --filter @cleanpost/seed run demo:reset"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

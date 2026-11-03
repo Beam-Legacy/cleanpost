@@ -42,3 +42,36 @@ export function clockSyncer(db: Database, intervalMs = 2000): () => Promise<void
     await syncClock(db).catch(() => undefined);
   };
 }
+
+export type DemoHistoryState = 'pending' | 'running' | 'done' | 'failed';
+
+/** The 90-day replay's progress (DEC-19); `{}` when no history was ever built. */
+export interface DemoHistory {
+  state?: DemoHistoryState;
+  days?: number;
+  /** Days replayed so far. */
+  day?: number;
+  requestedAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export async function readDemoHistory(db: Database): Promise<DemoHistory> {
+  const res = await db.execute<{ demo: DemoHistory }>(sql`select demo from app.clock where id = 1`);
+  return res.rows[0]?.demo ?? {};
+}
+
+/** Takes a pending replay for this process. Null if none is pending (or another process took it). */
+export async function claimDemoHistory(db: Database): Promise<DemoHistory | null> {
+  const res = await db.execute<{ demo: DemoHistory }>(
+    sql`update app.clock
+        set demo = demo || jsonb_build_object('state', 'running', 'day', 0, 'startedAt', to_jsonb(now()))
+        where id = 1 and enabled and demo->>'state' = 'pending'
+        returning demo`,
+  );
+  return res.rows[0]?.demo ?? null;
+}
+
+export async function reportDemoHistory(db: Database, patch: DemoHistory): Promise<void> {
+  await db.execute(sql`update app.clock set demo = demo || ${JSON.stringify(patch)}::jsonb where id = 1`);
+}

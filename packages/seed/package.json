@@ -6,12 +6,14 @@
   "exports": {
     ".": "./src/seed.ts",
     "./world": "./src/world.ts",
-    "./reference": "./src/reference.ts"
+    "./reference": "./src/reference.ts",
+    "./demo": "./src/demo.ts"
   },
   "scripts": {
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "seed": "tsx src/cli.ts"
+    "seed": "tsx src/cli.ts",
+    "demo:reset": "tsx src/demo-cli.ts"
   },
   "dependencies": {
     "@cleanpost/adapters": "workspace:*",

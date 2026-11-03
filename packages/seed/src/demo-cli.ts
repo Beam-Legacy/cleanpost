@@ -1,0 +1,81 @@
+/**
+ * `pnpm demo:reset` (DEC-19): start the demo world over 90 days back; the worker then replays the
+ * 90 days (about 15 minutes) and the Demo clock bar shows how far it has got. Local and preview only.
+ *
+ *   --if-new   only when no history was ever built (the preview's release step uses this)
+ *   --force    even while a replay is running (it stops at its next step)
+ */
+import { z } from 'zod';
+import { parseEnv } from '@cleanpost/config';
+import { readDemoHistory } from '@cleanpost/db';
+import { createSystemDatabase } from '@cleanpost/db/system';
+import { createLogger } from '@cleanpost/log';
+import { DEMO_HISTORY_DAYS, demoHistoryAllowed, wipeForDemoHistory } from './demo';
+
+const log = createLogger({ name: 'demo-reset' });
+const env = parseEnv(
+  z.object({
+    CLEANPOST_ENV: z.enum(['local', 'preview', 'staging', 'production']).default('local'),
+    DATABASE_ADMIN_URL: z.string().min(1),
+    PAYER_SIM_URL: z.url().optional(),
+    PAYER_SIM_TOKEN: z.string().optional(),
+    PM_MOCK_URL: z.url().optional(),
+    PM_MOCK_ADMIN_PASSWORD: z.string().optional(),
+  }),
+);
+const args = new Set(process.argv.slice(2));
+
+if (!demoHistoryAllowed(env.CLEANPOST_ENV)) {
+  log.error('demo history is only available in local and preview');
+  process.exit(1);
+}
+if (!env.PAYER_SIM_URL || !env.PM_MOCK_URL || !env.PM_MOCK_ADMIN_PASSWORD) {
+  const message = 'demo history needs PAYER_SIM_URL, PM_MOCK_URL and PM_MOCK_ADMIN_PASSWORD';
+  if (args.has('--if-new')) {
+    log.info(`${message}; skipped`);
+    process.exit(0);
+  }
+  log.error(message);
+  process.exit(1);
+}
+
+const handle = createSystemDatabase(env.DATABASE_ADMIN_URL);
+try {
+  const current = await readDemoHistory(handle.db);
+  if (args.has('--if-new') && current.state) {
+    log.info({ state: current.state }, 'demo history already built; skipped');
+  } else if (current.state === 'running' && !args.has('--force')) {
+    log.error({ day: current.day }, 'a replay is running; wait for it, or pass --force');
+    process.exitCode = 1;
+  } else {
+    const offsetMs = -DEMO_HISTORY_DAYS * 86_400_000;
+    const sim = await fetch(`${env.PAYER_SIM_URL.replace(/\/$/, '')}/admin/reset`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(env.PAYER_SIM_TOKEN ? { authorization: `Bearer ${env.PAYER_SIM_TOKEN}` } : {}),
+      },
+      body: JSON.stringify({ offsetMs }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!sim.ok) throw new Error(`payer-sim refused the reset: ${sim.status}`);
+    const pm = await fetch(`${env.PM_MOCK_URL.replace(/\/$/, '')}/admin/api/demo/reset`, {
+      method: 'POST',
+      headers: {
+        authorization: `Basic ${Buffer.from(`admin:${env.PM_MOCK_ADMIN_PASSWORD}`).toString('base64')}`,
+      },
+      signal: AbortSignal.timeout(300_000),
+    });
+    if (!pm.ok) throw new Error(`pm-mock refused the reset: ${pm.status}`);
+    await wipeForDemoHistory(handle.db, DEMO_HISTORY_DAYS);
+    log.info({ days: DEMO_HISTORY_DAYS }, 'demo reset; the worker replays the history next');
+    process.stdout.write(
+      `Demo world reset to ${DEMO_HISTORY_DAYS} days ago. The worker replays the days next (about 15 minutes); the Demo clock on Work shows progress.\n`,
+    );
+  }
+} catch (err) {
+  log.error({ err }, 'demo reset failed');
+  process.exitCode = 1;
+} finally {
+  await handle.close();
+}
