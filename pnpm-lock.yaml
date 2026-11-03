@@ -293,6 +293,9 @@ importers:
       '@cleanpost/sync':
         specifier: workspace:*
         version: link:../../packages/sync
+      '@cleanpost/work':
+        specifier: workspace:*
+        version: link:../../packages/work
       '@cleanpost/x12':
         specifier: workspace:*
         version: link:../../packages/x12

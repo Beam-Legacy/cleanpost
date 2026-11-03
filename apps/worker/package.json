@@ -23,6 +23,7 @@
     "@cleanpost/log": "workspace:*",
     "@cleanpost/remit": "workspace:*",
     "@cleanpost/sync": "workspace:*",
+    "@cleanpost/work": "workspace:*",
     "@cleanpost/x12": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "zod": "^4.6.7"

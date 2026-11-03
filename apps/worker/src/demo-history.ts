@@ -16,7 +16,7 @@
  */
 import { createHash } from 'node:crypto';
 import { and, eq, inArray, lt, ne, sql } from 'drizzle-orm';
-import { approveClaim, voidClaim, writeOffClaim } from '@cleanpost/claims';
+import { approveClaim, voidClaim, WRITE_OFF_OPERATION, writeOffClaim } from '@cleanpost/claims';
 import { getOffset, now as clockNow } from '@cleanpost/clock';
 import {
   adjustmentMappings,
@@ -35,6 +35,7 @@ import { JOBS, sendClaimRelease, sendSyncPull } from '@cleanpost/jobs';
 import type { Logger } from '@cleanpost/log';
 import { ingestInTx, saveMapping, verifyInTx } from '@cleanpost/remit';
 import { listCandidates } from '@cleanpost/sync';
+import { resolveItem } from '@cleanpost/work';
 import type { WorkerDeps } from './handlers';
 import { parse835 } from '@cleanpost/x12';
 
@@ -197,15 +198,55 @@ export function createHistoryRunner(deps: HistoryDeps) {
           and(
             ne(workItems.status, 'resolved'),
             lt(workItems.createdAt, settled),
-            inArray(workItems.type, ['claim_review', 'claim_blocked', 'denial', 'mapping_needed']),
+            inArray(workItems.type, [
+              'claim_review',
+              'claim_blocked',
+              'denial',
+              'mapping_needed',
+              'posting_exception',
+              'manual_task',
+            ]),
           ),
         ),
     );
-    const done = { approved: 0, voided: 0, writtenOff: 0, mapped: 0 };
+    const done = { approved: 0, voided: 0, writtenOff: 0, mapped: 0, resolved: 0 };
     for (const { item, claimStatus, balance } of open) {
       const key = `${item.id}:${day}`;
       const biller = billerFor(staff, item.clientId, key);
-      if (!biller || !item.claimId) continue;
+      if (!biller) continue;
+      const age = now.getTime() - item.createdAt.getTime();
+      try {
+        // Hand work done in the PM (posting a write-off there), and posting differences checked.
+        if (item.type === 'manual_task' && item.reasonCode === WRITE_OFF_OPERATION && chance(key, 0.7)) {
+          const res = await resolveItem(deps.db, { tenantId, userId: biller, now }, item.id, {
+            reason: 'Done in the PM',
+          });
+          if (res.ok) done.resolved++;
+          continue;
+        }
+        if (item.type === 'posting_exception' && age > 4 * DAY && chance(key, 0.3)) {
+          const reason = chance(`${item.id}:reason`, 0.5) ? 'Corrected in the PM' : 'Accepted as posted';
+          const res = await resolveItem(deps.db, { tenantId, userId: biller, now }, item.id, { reason });
+          if (res.ok) done.resolved++;
+          continue;
+        }
+        if (!item.claimId) continue;
+        await claimWork(item, claimStatus, balance, biller, key, age);
+      } catch (err) {
+        // One item a simulated biller cannot work is left for the backlog; the replay goes on.
+        deps.log.warn({ err, workItemId: item.id }, 'demo biller skipped an item');
+      }
+    }
+
+    async function claimWork(
+      item: (typeof open)[number]['item'],
+      claimStatus: string | null,
+      balance: number | string | bigint | null,
+      biller: string,
+      key: string,
+      age: number,
+    ) {
+      if (!item.claimId) return;
       if (item.type === 'claim_review' && claimStatus === 'needs_review' && chance(key, 0.88)) {
         const res = await approveClaim(deps.db, { tenantId, userId: biller, claimId: item.claimId });
         if (res.ok) {
@@ -227,7 +268,7 @@ export function createHistoryRunner(deps: HistoryDeps) {
       } else if (
         item.type === 'claim_blocked' &&
         item.reasonCode.startsWith('eligibility.') &&
-        now.getTime() - item.createdAt.getTime() > 4 * DAY &&
+        age > 4 * DAY &&
         chance(key, 0.3)
       ) {
         // Coverage the payer does not know or has ended: the practice bills the patient instead.
@@ -242,7 +283,7 @@ export function createHistoryRunner(deps: HistoryDeps) {
         item.type === 'denial' &&
         (item.amountCents ?? 0) > 0 &&
         (item.amountCents ?? 0) <= 15_000 &&
-        now.getTime() - item.createdAt.getTime() > 3 * DAY &&
+        age > 3 * DAY &&
         chance(key, 0.35)
       ) {
         const res = await writeOffClaim(
