@@ -30,6 +30,7 @@ import {
   type AuditActor,
   type Database,
   type Tx,
+  tenants,
 } from '@cleanpost/db';
 import {
   checkEdit,
@@ -42,6 +43,8 @@ import {
   type Finding,
   type RuleDef,
   type ScrubInput,
+  isRuleOff,
+  rulesOff,
 } from '@cleanpost/domain';
 import type { Logger } from '@cleanpost/log';
 import { applyClaimEvent } from './events';
@@ -68,11 +71,19 @@ function ageAt(dob: string, dos: string): number {
   return y - by - (m < bm || (m === bm && d < bd) ? 1 : 0);
 }
 
-async function loadRules(tx: Tx, tenantId: string): Promise<{ rules: RuleDef[]; version: string }> {
-  const rows = await tx
+async function loadRules(
+  tx: Tx,
+  tenantId: string,
+  clientId: string,
+): Promise<{ rules: RuleDef[]; version: string }> {
+  const all = await tx
     .select()
     .from(rules)
     .where(and(eq(rules.enabled, true), or(isNull(rules.tenantId), eq(rules.tenantId, tenantId))));
+  // S-05: built-in rules the company switched off, for everyone or for this client.
+  const [t] = await tx.select({ settings: tenants.settings }).from(tenants).where(eq(tenants.id, tenantId));
+  const off = rulesOff(t?.settings);
+  const rows = all.filter((r) => !isRuleOff(off, r.key ?? r.id, clientId));
   const defs: RuleDef[] = [];
   for (const r of rows) {
     const parsed = ruleSchema.safeParse({
@@ -95,7 +106,11 @@ async function loadRules(tx: Tx, tenantId: string): Promise<{ rules: RuleDef[]; 
       rows
         .map((r) => `${r.id}:${r.version}:${r.enabled}`)
         .sort()
-        .join('|'),
+        .join('|') +
+        `|off:${off
+          .map((o) => `${o.ruleId}@${o.clientId ?? '*'}`)
+          .sort()
+          .join(',')}`,
     )
     .digest('hex')
     .slice(0, 12);
@@ -223,7 +238,7 @@ async function load(
         )
     : [{ n: 0 }];
 
-  const { rules: ruleDefs, version: rulesVersion } = await loadRules(tx, claim.tenantId);
+  const { rules: ruleDefs, version: rulesVersion } = await loadRules(tx, claim.tenantId, claim.clientId);
   return {
     claim,
     version,

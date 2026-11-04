@@ -189,6 +189,13 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** the simulation ("at N, about X% of the last 30 days' claims would have gone out") uses each claim's first scrub in the last 30 days, from its `scrubbed` event (decision and score); blocked claims count in the total and never release. Lowering the default by more than 5 asks first (G-11). Every change is audited with before and after; changes apply to claims scrubbed after the save. The client table shows the last 30 days' share released without review and the first-pass rate of those claims (RP-01's definitions).
 - **Not yet:** the design's "apply transform rules" and "resubmit rejections with an exact fix" toggles are not shown, because neither behaviour exists yet (transforms stay suggestions). Client-payer thresholds stay on client settings (CL-), not built yet.
 
+## DEC-24 — Rules settings: switches, not edits, for built-in rules (Nov 4, 2026)
+
+- **Decision:** built-in rules (global seed rules) are shared by every company and never edited by one. A company switches a built-in rule off for itself or for one client, stored as a short list in `tenants.settings.rulesOff` rather than a new table: it is small, read once per scrub, and tenant-scoped by the tenants row. A company's own rules switch with their `enabled` column and move to a new version. The rules version hash on each scrub includes the switches, so a scrub result says which rules were in play.
+- **Decision:** S-05's figures are claims, not findings: hits are claims whose scrub in the last 30 days found the rule; overridden are those whose version with the finding a person approved and released unchanged. The built-in code checks (structural, codes, NCCI, eligibility, duplicates) are listed with their hits and are always on.
+- **Decision:** S-06 renders the rule from its JSON (`describeCondition`, `describeOutcome`), so the words cannot drift from what runs. "Test on last 30 days" evaluates the current version of each claim built in the period; it reads claim content, so it is audited (counts only).
+- **Not yet:** the structured rule editor and "New rule" (S-06 edit mode), and S-07 proposals from billers' corrections (a nightly grouping job); both next.
+
 ## Open questions
 
 | Question | Owner | Needed by |

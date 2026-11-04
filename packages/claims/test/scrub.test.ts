@@ -2,9 +2,17 @@
  * M2 acceptance, end to end on synced mock-PM data: the scrub catches at least 95% of seeded defects
  * with at most 5% false blocks, and routes every claim through the state machine with work items.
  */
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { chargeLines, claims, claimVersions, externalRefs, scrubResults, workItems } from '@cleanpost/db';
+import {
+  chargeLines,
+  claims,
+  claimVersions,
+  externalRefs,
+  scrubResults,
+  tenants,
+  workItems,
+} from '@cleanpost/db';
 import { pmSchema } from '@cleanpost/pm-mock';
 import { seedReference } from '@cleanpost/seed/reference';
 import { scanForPhi } from '@cleanpost/testing';
@@ -258,6 +266,38 @@ describe('claim.scrub on synced data', () => {
     expect((await admin.db.select({ id: scrubResults.id }).from(scrubResults)).length).toBe(before);
     const [after] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
     expect(after!.status).toBe('needs_review');
+  });
+
+  it('leaves out a built-in rule the company switched off for this client (S-05), and only there', async () => {
+    const [c] = await admin.db
+      .select()
+      .from(claims)
+      .where(and(inArray(claims.clientId, clientIds()), eq(claims.status, 'needs_review')))
+      .limit(1);
+    const [v] = await admin.db.select().from(claimVersions).where(eq(claimVersions.id, c!.currentVersionId!));
+    const ctx = { tenantId: NORTHWIND, userId: await userIdOf(), claimId: c!.id, versionId: v!.id };
+    // A lateral procedure with no side: the laterality rule warns.
+    const lateral = structuredClone(v!.payload as ClaimPayload);
+    lateral.lines[0]!.code = '29881';
+    lateral.lines[0]!.modifiers = [];
+    const ids = async () => {
+      const r = await previewScrub(app.db, ctx, lateral);
+      return r.status === 'scored' ? r.findings.map((f) => f.ruleId) : [];
+    };
+    expect(await ids()).toContain('seed.coding.laterality');
+    const setOff = (rulesOff: unknown[]) =>
+      admin.db
+        .update(tenants)
+        .set({ settings: sql`settings || ${JSON.stringify({ rulesOff })}::jsonb` })
+        .where(eq(tenants.id, NORTHWIND));
+    try {
+      await setOff([{ ruleId: 'seed.coding.laterality', clientId: c!.clientId }]);
+      expect(await ids()).not.toContain('seed.coding.laterality');
+      await setOff([{ ruleId: 'seed.coding.laterality', clientId: '00000000-0000-7000-8000-000000000000' }]);
+      expect(await ids()).toContain('seed.coding.laterality');
+    } finally {
+      await setOff([]);
+    }
   });
 
   it('holds a claim in review, snoozes its item, and re-scrubs it when the hold is released (C-12)', async () => {

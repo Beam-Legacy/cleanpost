@@ -62,6 +62,9 @@ const VERB: Record<string, string> = {
   two_factor_reset: 'Reset two-factor',
   sessions_revoked: 'Signed out everywhere',
   threshold_changed: 'Changed release threshold',
+  turned_off: 'Turned off',
+  turned_on: 'Turned back on',
+  tested: 'Tested',
 };
 
 const RECORD: Record<string, string> = {
@@ -79,6 +82,7 @@ const RECORD: Record<string, string> = {
   invitation: 'Invite',
   user: 'User',
   adjustment_mapping: 'Adjustment mapping',
+  rule: 'Rule',
   encounter: 'Visit',
   manual_task: 'Manual task',
   write_off_request: 'Write-off request',

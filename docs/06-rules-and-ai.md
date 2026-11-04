@@ -70,6 +70,8 @@ How it is built (M2):
 - **Jobs.** The worker chain is `sync.pull` → `claim.build` → `claim.scrub`.
 - **Accuracy.** Measured against the generator's answer key: on 1,800 synthetic claims across three specialties every planted defect is caught with no false blocks (`packages/domain/test/scrub.test.ts`). The M2 bar is at least 95% and at most 5%; the same check runs end to end on synced mock-PM data.
 
+Managing rules (S-05, S-06; DEC-24): admins see every rule that applies to the company with its last 30 days' hits (claims whose scrub found it) and overrides (of those, the version with the finding was approved by a person and released as it was; over 20% flags the rule). S-06 shows the rule in plain words generated from its JSON by `packages/domain/rules/describe.ts`, never written by hand. Built-in (global) rules are not edited: a company switches one off for itself or for one client (`tenants.settings.rulesOff`), and the scrub leaves it out for those claims; a company's own rules switch with their `enabled` flag, as a new version. The rules version recorded on each scrub covers the switches. "Test on last 30 days" runs the condition against the current version of each claim built in the last 30 days (patient sex and age are not part of the claim and are not tested); the run is audited as a PHI read.
+
 ## Learning from corrections
 
 When a biller edits a claim in review, each field change is saved to `corrections`. A nightly job groups identical corrections (same client-payer, same condition pattern, same change). When a pattern repeats N times (default 5) with no reversals, it proposes a rule. A tenant admin approves it in Settings › Rules (S-05, S-07); approved rules are `source: promoted`. Nothing is promoted without human approval.

@@ -46,6 +46,8 @@ const removeHanaFromNorthwind = () =>
     await c.query(`delete from invitations where email like 'e2e-invite-%'`);
     // The S-08 test maps OA-94 company-wide.
     await c.query(`delete from adjustment_mappings where carc = '94' and client_id is null`);
+    // The S-05 test switches a built-in rule off and back on; start from none off.
+    await c.query(`update tenants set settings = settings - 'rulesOff' where name = 'Northwind Billing'`);
   });
 
 test.beforeAll(async ({ browser }, info) => {
@@ -334,6 +336,51 @@ test('S-04 sets the default threshold with a simulation, asks before lowering a 
   await expect(row).toContainText('Default (90)');
 
   await page.goto('/audit?action=automation.threshold_changed&days=1');
+  await expect(page.getByRole('table', { name: 'Audit events' }).locator('tbody tr').first()).toContainText(
+    'Priya Shah',
+  );
+});
+
+test('S-05 lists rules with hits; S-06 explains one, tests it, and turns a built-in off and back on', async () => {
+  test.setTimeout(120_000);
+  await page.goto('/settings/rules');
+  await expect(page.getByRole('heading', { name: 'Rules', level: 2 })).toBeVisible();
+  const table = page.getByRole('table', { name: 'Rules' });
+  await expect(table.getByRole('row', { name: /Side of the body on lateral procedures/ })).toContainText(
+    'Built in',
+  );
+  await expectAccessible(page, 'S-05');
+
+  await table.getByRole('button', { name: 'Side of the body on lateral procedures' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Side of the body on lateral procedures' });
+  await expect(drawer.getByRole('region', { name: 'When' })).toContainText(
+    'A line has one of the procedures done on one side of the body',
+  );
+  await expect(drawer.getByRole('region', { name: 'Then' })).toContainText('Flag a warning');
+  await expectAccessible(page, 'S-06');
+  await drawer.getByRole('button', { name: 'Test on last 30 days' }).click();
+  await expect(drawer.getByRole('status')).toContainText('On the last 30 days this rule would have matched');
+
+  const pick = drawer.getByLabel('Turn off for one client');
+  const client = (await pick.locator('option').nth(1).innerText()).trim();
+  await pick.selectOption({ label: client });
+  await drawer.getByRole('button', { name: 'Turn off for this client' }).click();
+  await expect(drawer.getByText(`Off for ${client}`, { exact: true })).toBeVisible();
+  await drawer.getByRole('button', { name: `Turn back on for ${client}` }).click();
+  await expect(drawer.getByText(`Off for ${client}`, { exact: true })).toHaveCount(0);
+
+  await drawer.getByRole('button', { name: 'Turn off for the company' }).click();
+  await page
+    .getByRole('alertdialog', { name: /Turn off "Side of the body/ })
+    .getByRole('button', { name: 'Turn off for the company' })
+    .click();
+  await expect(drawer.getByRole('button', { name: 'Turn back on' })).toBeVisible();
+  await drawer.getByRole('button', { name: 'Turn back on' }).click();
+  await expect(drawer.getByRole('button', { name: 'Turn off for the company' })).toBeVisible();
+  await expect(drawer.getByRole('region', { name: 'History' })).toContainText('Turned back on');
+  await page.keyboard.press('Escape');
+
+  await page.goto('/audit?action=rule.turned_off&days=1');
   await expect(page.getByRole('table', { name: 'Audit events' }).locator('tbody tr').first()).toContainText(
     'Priya Shah',
   );
