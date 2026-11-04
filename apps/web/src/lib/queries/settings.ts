@@ -5,8 +5,10 @@ import 'server-only';
  */
 import { and, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import {
+  adjustmentMappings,
   auditEvents,
   clients,
+  connections,
   invitations,
   memberships,
   passkeys,
@@ -16,7 +18,7 @@ import {
   withTenant,
   workItems,
 } from '@cleanpost/db';
-import { state } from '@cleanpost/domain';
+import { remit, state } from '@cleanpost/domain';
 import { getDb } from '../server';
 import type { ActiveContext } from '../session';
 
@@ -298,3 +300,123 @@ function actorLabel(actor: string): string {
 
 /** For the export: the same filters, every row up to a cap (no paging). */
 export const AUDIT_EXPORT_CAP = 10_000;
+
+/* S-08 Adjustment mappings ---------------------------------------------------------------------- */
+
+const PM_FALLBACK: Record<string, string> = {
+  mock: 'Mock PM',
+  tebra: 'Tebra',
+  manual: 'Manual entry',
+  file: 'File import',
+  athenaone: 'athenaOne',
+  advancedmd: 'AdvancedMD',
+  simplepractice: 'SimplePractice',
+};
+
+export interface PmTab {
+  pmType: string;
+  pmName: string;
+  clients: number;
+  unmapped: number;
+}
+
+export interface MappingRow {
+  groupCode: string;
+  carc: string;
+  pmCode: string | null;
+  action: remit.MappingAction | null;
+  /** yours: the company's mapping; default: Cleanpost's built-in; unmapped: lines wait for one. */
+  source: 'yours' | 'default' | 'unmapped';
+  /** Clients with their own mapping for this code (set from W-19 or the client's settings). */
+  overrides: number;
+  /** Open "map this code" items, one per client waiting. */
+  waiting: number;
+}
+
+/** S-08: the PM types in use, and for one of them every code with its mapping and what waits. */
+export async function listMappings(
+  ctx: ActiveContext,
+  wanted: string | undefined,
+): Promise<{ tabs: PmTab[]; pmType: string | null; rows: MappingRow[] }> {
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const conns = await tx
+      .select({
+        pmType: connections.adapterKey,
+        clientId: connections.clientId,
+        settings: connections.settings,
+      })
+      .from(connections);
+    const waiting = await tx
+      .select({ clientId: workItems.clientId, pair: workItems.reasonCode })
+      .from(workItems)
+      .where(and(eq(workItems.type, 'mapping_needed'), sql`${workItems.status} <> 'resolved'`));
+    const typeOf = new Map(conns.map((c) => [c.clientId, c.pmType]));
+    const byType = new Map<string, PmTab>();
+    for (const c of conns) {
+      const t = byType.get(c.pmType) ?? {
+        pmType: c.pmType,
+        pmName: ((c.settings ?? {}) as { pmName?: string }).pmName ?? PM_FALLBACK[c.pmType] ?? c.pmType,
+        clients: 0,
+        unmapped: 0,
+      };
+      t.clients++;
+      byType.set(c.pmType, t);
+    }
+    const waitingByType = new Map<string, Map<string, number>>();
+    for (const w of waiting) {
+      const t = w.clientId ? typeOf.get(w.clientId) : undefined;
+      if (!t) continue;
+      const m = waitingByType.get(t) ?? new Map<string, number>();
+      m.set(w.pair, (m.get(w.pair) ?? 0) + 1);
+      waitingByType.set(t, m);
+    }
+    for (const [t, m] of waitingByType) {
+      const tab = byType.get(t);
+      if (tab) tab.unmapped = m.size;
+    }
+    const tabs = [...byType.values()].sort((a, b) => a.pmName.localeCompare(b.pmName));
+    const pmType = tabs.find((t) => t.pmType === wanted)?.pmType ?? tabs[0]?.pmType ?? null;
+    if (!pmType) return { tabs, pmType, rows: [] };
+
+    const rows = await tx.select().from(adjustmentMappings).where(eq(adjustmentMappings.pmType, pmType));
+    const out = new Map<string, MappingRow>();
+    const key = (g: string, c: string) => `${g}-${c}`;
+    const blank = (g: string, c: string): MappingRow => ({
+      groupCode: g,
+      carc: c,
+      pmCode: null,
+      action: null,
+      source: 'unmapped',
+      overrides: 0,
+      waiting: 0,
+    });
+    for (const [pair, m] of Object.entries(remit.DEFAULT_ADJUSTMENT_MAPPINGS)) {
+      const [g, c] = pair.split('-') as [string, string];
+      out.set(pair, { ...blank(g, c), pmCode: m.pmAdjustmentCode, action: m.action, source: 'default' });
+    }
+    for (const r of rows) {
+      const k = key(r.groupCode, r.carc);
+      const row = out.get(k) ?? blank(r.groupCode, r.carc);
+      if (r.clientId) row.overrides++;
+      else {
+        row.pmCode = r.pmAdjustmentCode;
+        row.action = r.action as remit.MappingAction;
+        row.source = 'yours';
+      }
+      out.set(k, row);
+    }
+    for (const [pair, n] of waitingByType.get(pmType) ?? []) {
+      const [g, c] = pair.split('-') as [string, string];
+      const row = out.get(pair) ?? blank(g, c);
+      row.waiting = n;
+      out.set(pair, row);
+    }
+    const sorted = [...out.values()].sort(
+      (a, b) =>
+        Number(b.source === 'unmapped') - Number(a.source === 'unmapped') ||
+        a.groupCode.localeCompare(b.groupCode) ||
+        a.carc.localeCompare(b.carc, 'en', { numeric: true }),
+    );
+    return { tabs, pmType, rows: sorted };
+  });
+}

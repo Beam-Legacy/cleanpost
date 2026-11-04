@@ -46,6 +46,14 @@ export const isDenialAdjustment = (a: Adjustment) =>
   a.amountCents > 0 && (a.group === 'CO' || a.group === 'PI') && !CONTRACTUAL.has(a.carc);
 const isDenial = isDenialAdjustment;
 
+/**
+ * S-08 / W-19: a group code and CARC that mean a denial (CO or PI, not contractual). These never get
+ * an adjustment mapping: the balance stays open for the denial queue, and a mapping would make
+ * verification expect the PM to adjust it off (docs/07).
+ */
+export const isDenialCode = (group: string, carc: string) =>
+  (group === 'CO' || group === 'PI') && !CONTRACTUAL.has(carc);
+
 export function denialCategory(carc: string): DenialCategory {
   if (AUTH_ELIGIBILITY.has(carc)) return 'auth_eligibility';
   if (CODING.has(carc)) return 'coding';

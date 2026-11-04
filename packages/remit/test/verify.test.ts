@@ -5,6 +5,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
+  adjustmentMappings,
   claimLines,
   claims,
   claimVersions,
@@ -29,6 +30,7 @@ import {
   linkCandidates,
   linkPayment,
   saveMapping,
+  savePmTypeMapping,
   setAsidePayment,
   storePmPostings,
   verifyInTx,
@@ -358,6 +360,54 @@ describe('posting match', () => {
       .where(inArray(remittances.traceNumber, ['TRC-VER-5', 'TRC-VER-6']));
     expect(remits.map((r) => r.status)).toEqual(['reconciled', 'reconciled']);
     for (const r of remits) expect(await lineStatuses(r.id)).toEqual(['verified']);
+  });
+
+  it('S-08 maps for every client on a PM type; neither S-08 nor W-19 maps a denial code', async () => {
+    const [julia] = await admin.db.select().from(users).where(eq(users.email, 'julia@northwind.test'));
+    const ctx = { tenantId: NORTHWIND, userId: julia!.id };
+    const run = <T>(fn: (tx: Parameters<Parameters<typeof withTenant>[2]>[0]) => Promise<T>) =>
+      withTenant(app.db, { tenantId: NORTHWIND }, fn);
+    expect(
+      await run((tx) =>
+        savePmTypeMapping(tx, ctx, {
+          pmType: 'mock',
+          groupCode: 'CO',
+          carc: '4',
+          pmAdjustmentCode: 'WO',
+          action: 'write_off',
+        }),
+      ),
+    ).toEqual({ ok: false, reason: 'denial_code' });
+    expect(
+      await run((tx) =>
+        saveMapping(tx, ctx, {
+          clientId: client.id,
+          groupCode: 'PI',
+          carc: '204',
+          pmAdjustmentCode: 'WO',
+          action: 'adjust',
+          scope: 'client',
+        }),
+      ),
+    ).toEqual({ ok: false, reason: 'denial_code' });
+    expect(
+      await run((tx) =>
+        savePmTypeMapping(tx, ctx, {
+          pmType: 'mock',
+          groupCode: 'OA',
+          carc: '94',
+          pmAdjustmentCode: 'oa94',
+          action: 'adjust',
+        }),
+      ),
+    ).toMatchObject({ ok: true, pmType: 'mock' });
+    const rows = await admin.db
+      .select()
+      .from(adjustmentMappings)
+      .where(and(eq(adjustmentMappings.tenantId, NORTHWIND), eq(adjustmentMappings.carc, '94')));
+    expect(rows).toMatchObject([
+      { clientId: null, pmType: 'mock', pmAdjustmentCode: 'OA94', action: 'adjust' },
+    ]);
   });
 
   it('links an unmatched payment to the claim a person picks, then checks the posting (W-17)', async () => {

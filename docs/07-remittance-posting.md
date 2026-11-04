@@ -47,7 +47,7 @@ Two checks with fixed names, used the same way in the UI (W-18, R-06, R-04):
 - `OA-23` (prior payer adjudication) → transfer to secondary when a secondary coverage exists.
 - Unmapped pairs → posting of that claim is held and a mapping work item is created; once an admin maps it, posting resumes.
 
-Each tenant gets defaults per PM type; clients can override.
+Each tenant gets defaults per PM type; clients can override. Precedence: the client's own mapping, then the company's for the PM type, then Cleanpost's built-in defaults (`remit.DEFAULT_ADJUSTMENT_MAPPINGS`). Admins set company mappings on S-08 (per PM type, unmapped codes first, with the built-in defaults shown as such) or from the queue on W-19 (company or one client). Denial codes (CO and PI that are not contractual, `remit.isDenialCode`) are refused on both: a mapping would make verification expect the PM to adjust the denied amount off, and the balance must stay open for the denial queue.
 
 ## Posting
 

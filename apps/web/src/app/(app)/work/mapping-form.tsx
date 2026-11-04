@@ -6,14 +6,10 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, useToast } from '@cleanpost/ui';
+import { MAPPING_ACTIONS } from '@/lib/mapping-display';
 import { mapAdjustmentCode } from './actions';
 
-const ACTIONS = [
-  { value: 'write_off', label: 'Write off (contractual)' },
-  { value: 'transfer_to_patient', label: 'Transfer to patient' },
-  { value: 'adjust', label: 'Adjust' },
-  { value: 'info_only', label: 'Information only (no posting)' },
-] as const;
+const ACTIONS = MAPPING_ACTIONS;
 
 export function MappingForm({
   itemId,

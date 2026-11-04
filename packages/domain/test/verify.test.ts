@@ -120,3 +120,14 @@ describe('posting match', () => {
     expect(l('CO', '197')).toBeNull();
   });
 });
+
+describe('denial codes are never mapped (S-08, W-19)', () => {
+  it('CO and PI that are not contractual are denials; contractual and PR, OA are not', () => {
+    expect(remit.isDenialCode('CO', '4')).toBe(true);
+    expect(remit.isDenialCode('PI', '204')).toBe(true);
+    expect(remit.isDenialCode('CO', '45')).toBe(false);
+    expect(remit.isDenialCode('CO', '253')).toBe(false);
+    expect(remit.isDenialCode('PR', '1')).toBe(false);
+    expect(remit.isDenialCode('OA', '23')).toBe(false);
+  });
+});

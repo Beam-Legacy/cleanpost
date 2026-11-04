@@ -467,7 +467,14 @@ export async function mapAdjustmentCode(
   );
   revalidatePath('/work');
   revalidatePath('/remittances');
-  if (!res.ok) return { ok: false, message: 'This client has no PM connection to map codes for.' };
+  if (!res.ok)
+    return {
+      ok: false,
+      message:
+        res.reason === 'denial_code'
+          ? `${item.reasonCode} is a denial: it stays open for the denial queue and is never mapped.`
+          : 'This client has no PM connection to map codes for.',
+    };
   log.info({ itemId: id, itemsClosed: res.itemsClosed }, 'adjustment code mapped');
   return {
     ok: true,

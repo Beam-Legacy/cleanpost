@@ -44,6 +44,8 @@ const removeHanaFromNorthwind = () =>
       `delete from memberships where user_id in (select id from users where email like 'e2e-invite-%')`,
     );
     await c.query(`delete from invitations where email like 'e2e-invite-%'`);
+    // The S-08 test maps OA-94 company-wide.
+    await c.query(`delete from adjustment_mappings where carc = '94' and client_id is null`);
   });
 
 test.beforeAll(async ({ browser }, info) => {
@@ -269,6 +271,37 @@ test('someone with an account signs in from the link, sets up two-factor and joi
   await expect(drawer.getByRole('button', { name: 'Reset two-factor' })).toBeDisabled();
   await expect(drawer).toContainText('They also work in another company');
   await page.keyboard.press('Escape');
+});
+
+test("S-08 shows each PM's mappings, maps a code company-wide, and refuses a denial code", async () => {
+  test.setTimeout(90_000);
+  await page.goto('/settings/mappings');
+  await expect(page.getByRole('heading', { name: 'Adjustment mappings' })).toBeVisible();
+  const table = page.getByRole('table', { name: /adjustment mappings$/ });
+  await expect(table.getByRole('row', { name: /CO-45/ })).toContainText('Cleanpost default');
+  await expectAccessible(page, 'S-08');
+
+  const add = page.getByRole('form', { name: 'Add a code' });
+  await add.getByLabel('Group').selectOption('OA');
+  await add.getByLabel('Reason code').fill('94');
+  await add.getByLabel(/^(?!Reason).+ code$/).fill('oa94');
+  await add.getByLabel('What it does').selectOption('adjust');
+  await add.getByRole('button', { name: 'Add code' }).click();
+  const row = table.getByRole('row', { name: /OA-94/ });
+  await expect(row).toContainText('OA94');
+  await expect(row).toContainText('Your mapping');
+
+  await row.getByRole('button', { name: 'Edit OA-94' }).click();
+  await row.getByRole('textbox').fill('OA94X');
+  await row.getByRole('button', { name: 'Save OA-94' }).click();
+  await expect(row).toContainText('OA94X');
+
+  await add.getByLabel('Group').selectOption('CO');
+  await add.getByLabel('Reason code').fill('4');
+  await add.getByLabel(/^(?!Reason).+ code$/).fill('WO');
+  await add.getByRole('button', { name: 'Add code' }).click();
+  await expect(page.getByText('CO-4 is a denial')).toBeVisible();
+  await expect(table.getByRole('row', { name: /CO-4\b/ })).toHaveCount(0);
 });
 
 test('a biller can open neither settings nor the audit log', async ({ browser }, info) => {

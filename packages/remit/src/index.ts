@@ -16,7 +16,15 @@ export {
   type VerifyContext,
   type VerifyOutcome,
 } from './verify';
-export { mappingInputSchema, saveMapping, type MappingInput, type MappingOutcome } from './mappings';
+export {
+  mappingInputSchema,
+  pmTypeMappingInputSchema,
+  saveMapping,
+  savePmTypeMapping,
+  type MappingInput,
+  type MappingOutcome,
+  type PmTypeMappingInput,
+} from './mappings';
 export {
   linkCandidates,
   linkPayment,

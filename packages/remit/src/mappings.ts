@@ -1,8 +1,9 @@
 /**
- * W-19 Map an adjustment code (docs/07 "Adjustment mapping"): a group code and CARC from an 835 to the
- * PM's own adjustment code and what it does. A mapping applies to every client on that PM type
- * (tenant default) or to one client (override). Saving it closes the `mapping_needed` items it
+ * W-19 and S-08 Map an adjustment code (docs/07 "Adjustment mapping"): a group code and CARC from an
+ * 835 to the PM's own adjustment code and what it does. A mapping applies to every client on that PM
+ * type (tenant default) or to one client (override). Saving it closes the `mapping_needed` items it
  * answers and runs the posting match again, so lines held for the mapping are checked at once.
+ * Denial codes are refused: their balance stays open for the denial queue (remit.isDenialCode).
  */
 import { and, eq, inArray, ne } from 'drizzle-orm';
 import {
@@ -13,31 +14,55 @@ import {
   type AuditActor,
   type Tx,
 } from '@cleanpost/db';
-import { state } from '@cleanpost/domain';
+import { remit, state } from '@cleanpost/domain';
 import { z } from 'zod';
 import { verifyInTx } from './verify';
 import { now as clockNow } from '@cleanpost/clock';
 
+const pmCode = z
+  .string()
+  .trim()
+  .min(1)
+  .max(20)
+  .regex(/^[A-Za-z0-9_.-]+$/, 'Letters, numbers, dot, dash or underscore');
+const pair = {
+  groupCode: z.enum(['CO', 'PR', 'OA', 'PI', 'CR']),
+  carc: z.string().regex(/^[A-Z0-9]{1,5}$/),
+  pmAdjustmentCode: pmCode,
+  action: z.enum(['adjust', 'transfer_to_patient', 'write_off', 'info_only']),
+};
+
+/** W-19, from a work item: the client it came from gives the PM type. */
 export const mappingInputSchema = z.object({
   /** The client the item came from: its PM type is the one mapped. */
   clientId: z.uuid(),
-  groupCode: z.enum(['CO', 'PR', 'OA', 'PI', 'CR']),
-  carc: z.string().regex(/^[A-Z0-9]{1,5}$/),
-  pmAdjustmentCode: z
-    .string()
-    .trim()
-    .min(1)
-    .max(20)
-    .regex(/^[A-Za-z0-9_.-]+$/, 'Letters, numbers, dot, dash or underscore'),
-  action: z.enum(['adjust', 'transfer_to_patient', 'write_off', 'info_only']),
+  ...pair,
   /** pm_type: every client on this PM type; client: this client only. */
   scope: z.enum(['pm_type', 'client']),
 });
 export type MappingInput = z.infer<typeof mappingInputSchema>;
 
+/** S-08: a company-wide mapping for one PM type. */
+export const pmTypeMappingInputSchema = z.object({
+  pmType: z.string().regex(/^[a-z0-9_]{2,40}$/),
+  ...pair,
+});
+export type PmTypeMappingInput = z.infer<typeof pmTypeMappingInputSchema>;
+
 export type MappingOutcome =
   | { ok: true; pmType: string; itemsClosed: number; clientsChecked: number }
-  | { ok: false; reason: 'no_connection' };
+  | { ok: false; reason: 'no_connection' | 'denial_code' };
+
+/** S-08: save the mapping for every client on the PM type. */
+export async function savePmTypeMapping(
+  tx: Tx,
+  ctx: { tenantId: string; userId: string },
+  input: PmTypeMappingInput,
+  now = clockNow(),
+): Promise<MappingOutcome> {
+  if (remit.isDenialCode(input.groupCode, input.carc)) return { ok: false, reason: 'denial_code' };
+  return apply(tx, ctx, { ...input, clientId: null, auditClientId: null }, now);
+}
 
 export async function saveMapping(
   tx: Tx,
@@ -45,15 +70,44 @@ export async function saveMapping(
   input: MappingInput,
   now = clockNow(),
 ): Promise<MappingOutcome> {
-  const actor: AuditActor = `user:${ctx.userId}`;
+  if (remit.isDenialCode(input.groupCode, input.carc)) return { ok: false, reason: 'denial_code' };
   const [conn] = await tx
     .select({ adapterKey: connections.adapterKey })
     .from(connections)
     .where(eq(connections.clientId, input.clientId))
     .limit(1);
   if (!conn) return { ok: false, reason: 'no_connection' };
-  const pmType = conn.adapterKey;
-  const clientId = input.scope === 'client' ? input.clientId : null;
+  return apply(
+    tx,
+    ctx,
+    {
+      pmType: conn.adapterKey,
+      clientId: input.scope === 'client' ? input.clientId : null,
+      auditClientId: input.clientId,
+      groupCode: input.groupCode,
+      carc: input.carc,
+      pmAdjustmentCode: input.pmAdjustmentCode,
+      action: input.action,
+    },
+    now,
+  );
+}
+
+async function apply(
+  tx: Tx,
+  ctx: { tenantId: string; userId: string },
+  input: Omit<PmTypeMappingInput, 'pmType'> & {
+    pmType: string;
+    /** null: every client on the PM type. */
+    clientId: string | null;
+    /** The client the change came from, for the audit row (null from S-08). */
+    auditClientId: string | null;
+  },
+  now: Date,
+): Promise<MappingOutcome> {
+  const actor: AuditActor = `user:${ctx.userId}`;
+  const pmType = input.pmType;
+  const clientId = input.clientId;
   const values = {
     tenantId: ctx.tenantId,
     clientId,
@@ -82,20 +136,24 @@ export async function saveMapping(
     action: 'adjustment_mapping.saved',
     entityType: 'adjustment_mapping',
     entityId: row!.id,
-    clientId: input.clientId,
-    metadata: { pmType, scope: input.scope, pair: `${input.groupCode}-${input.carc}`, action: input.action },
+    clientId: input.auditClientId,
+    metadata: {
+      pmType,
+      scope: clientId ? 'client' : 'pm_type',
+      pair: `${input.groupCode}-${input.carc}`,
+      action: input.action,
+    },
   });
 
   // The clients this answers: the one client, or every client on the PM type.
-  const clientIds =
-    input.scope === 'client'
-      ? [input.clientId]
-      : (
-          await tx
-            .selectDistinct({ clientId: connections.clientId })
-            .from(connections)
-            .where(eq(connections.adapterKey, pmType))
-        ).map((r) => r.clientId);
+  const clientIds = clientId
+    ? [clientId]
+    : (
+        await tx
+          .selectDistinct({ clientId: connections.clientId })
+          .from(connections)
+          .where(eq(connections.adapterKey, pmType))
+      ).map((r) => r.clientId);
   const open = await tx
     .select()
     .from(workItems)
