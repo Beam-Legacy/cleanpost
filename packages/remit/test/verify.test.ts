@@ -29,6 +29,7 @@ import {
   ingestRemittance,
   linkCandidates,
   linkPayment,
+  resetClientMapping,
   saveMapping,
   savePmTypeMapping,
   setAsidePayment,
@@ -408,6 +409,40 @@ describe('posting match', () => {
     expect(rows).toMatchObject([
       { clientId: null, pmType: 'mock', pmAdjustmentCode: 'OA94', action: 'adjust' },
     ]);
+  });
+
+  it('CL-06 resets a client override back to the company mapping', async () => {
+    const [julia] = await admin.db.select().from(users).where(eq(users.email, 'julia@northwind.test'));
+    const ctx = { tenantId: NORTHWIND, userId: julia!.id };
+    const run = <T>(fn: (tx: Parameters<Parameters<typeof withTenant>[2]>[0]) => Promise<T>) =>
+      withTenant(app.db, { tenantId: NORTHWIND }, fn);
+    await run((tx) =>
+      saveMapping(tx, ctx, {
+        clientId: client.id,
+        groupCode: 'OA',
+        carc: '94',
+        pmAdjustmentCode: 'MINE',
+        action: 'adjust',
+        scope: 'client',
+      }),
+    );
+    const own = () =>
+      admin.db
+        .select()
+        .from(adjustmentMappings)
+        .where(and(eq(adjustmentMappings.clientId, client.id), eq(adjustmentMappings.carc, '94')));
+    expect(await own()).toHaveLength(1);
+    expect(
+      await run((tx) => resetClientMapping(tx, ctx, { clientId: client.id, groupCode: 'OA', carc: '94' })),
+    ).toEqual({
+      ok: true,
+    });
+    expect(await own()).toHaveLength(0);
+    expect(
+      await run((tx) => resetClientMapping(tx, ctx, { clientId: client.id, groupCode: 'OA', carc: '94' })),
+    ).toEqual({
+      ok: false,
+    });
   });
 
   it('links an unmatched payment to the claim a person picks, then checks the posting (W-17)', async () => {

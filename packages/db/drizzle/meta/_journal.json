@@ -134,6 +134,13 @@
       "when": 1793783671297,
       "tag": "0018_client_baseline_pause",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793784570423,
+      "tag": "0019_client_settings",
+      "breakpoints": true
     }
   ]
 }

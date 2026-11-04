@@ -19,7 +19,12 @@ export function effectiveReleaseThreshold(t: {
   clientPayer?: number | null;
   client?: number | null;
   company: number;
+  /** CL-03 / O-09: review everything through this date (YYYY-MM-DD, the client's calendar). */
+  reviewUntil?: string | null;
+  /** Today in the client's calendar, YYYY-MM-DD. */
+  today?: string;
 }): number {
+  if (t.reviewUntil && t.today && t.today <= t.reviewUntil) return REVIEW_EVERYTHING;
   return t.clientPayer ?? t.client ?? t.company;
 }
 

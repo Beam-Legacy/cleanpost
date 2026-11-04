@@ -184,3 +184,37 @@ async function apply(
   for (const c of clientIds) await verifyInTx(tx, { tenantId: ctx.tenantId, clientId: c, actor }, now);
   return { ok: true, pmType, itemsClosed: open.length, clientsChecked: clientIds.length };
 }
+
+/**
+ * CL-06 Reset to default: remove one client's own mapping for a code, so the company's (or
+ * Cleanpost's built-in) mapping applies again, and check that client's lines again. Audited.
+ */
+export async function resetClientMapping(
+  tx: Tx,
+  ctx: { tenantId: string; userId: string },
+  input: { clientId: string; groupCode: string; carc: string },
+  now = clockNow(),
+): Promise<{ ok: boolean }> {
+  const actor: AuditActor = `user:${ctx.userId}`;
+  const removed = await tx
+    .delete(adjustmentMappings)
+    .where(
+      and(
+        eq(adjustmentMappings.clientId, input.clientId),
+        eq(adjustmentMappings.groupCode, input.groupCode),
+        eq(adjustmentMappings.carc, input.carc),
+      ),
+    )
+    .returning({ id: adjustmentMappings.id });
+  if (!removed.length) return { ok: false };
+  await recordAudit(tx, {
+    actor,
+    action: 'adjustment_mapping.reset',
+    entityType: 'adjustment_mapping',
+    entityId: removed[0]!.id,
+    clientId: input.clientId,
+    metadata: { pair: `${input.groupCode}-${input.carc}` },
+  });
+  await verifyInTx(tx, { tenantId: ctx.tenantId, clientId: input.clientId, actor }, now);
+  return { ok: true };
+}

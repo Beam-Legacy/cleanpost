@@ -9,6 +9,7 @@ import {
   smallint,
   text,
   time,
+  date,
   timestamp,
   unique,
   uuid,
@@ -119,6 +120,11 @@ export const clients = pgTable(
     /** S-04: null follows the company default (tenants.settings.autoReleaseThreshold); 100 = review everything. */
     autoReleaseThreshold: smallint('auto_release_threshold'),
     pmBatchTime: time('pm_batch_time'),
+    /** CL-03 / O-09: every claim waits for a person through this date (client's calendar), then the threshold applies. */
+    reviewUntil: date('review_until'),
+    /** CL-03: who works this client first, and who covers. Members of the tenant (billers or admins). */
+    primaryBillerId: uuid('primary_biller_id'),
+    backupBillerId: uuid('backup_biller_id'),
     goLiveAt: timestamp('go_live_at', { withTimezone: true }),
     offboardedAt: timestamp('offboarded_at', { withTimezone: true }),
     /** CL-02 / O-10: the practice's figures before Cleanpost (domain ClientBaseline); totals only. */

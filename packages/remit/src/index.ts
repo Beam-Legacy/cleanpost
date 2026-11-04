@@ -19,6 +19,7 @@ export {
 export {
   mappingInputSchema,
   pmTypeMappingInputSchema,
+  resetClientMapping,
   saveMapping,
   savePmTypeMapping,
   type MappingInput,

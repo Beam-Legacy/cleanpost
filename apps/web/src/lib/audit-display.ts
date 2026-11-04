@@ -68,6 +68,9 @@ const VERB: Record<string, string> = {
   paused: 'Paused',
   resumed: 'Resumed',
   baseline_recorded: 'Recorded the baseline',
+  settings_changed: 'Changed settings',
+  reset: 'Reset to default',
+  added: 'Added',
 };
 
 const RECORD: Record<string, string> = {
@@ -86,6 +89,9 @@ const RECORD: Record<string, string> = {
   user: 'User',
   adjustment_mapping: 'Adjustment mapping',
   rule: 'Rule',
+  provider: 'Provider',
+  location: 'Location',
+  client_payer: 'Client payer',
   encounter: 'Visit',
   manual_task: 'Manual task',
   write_off_request: 'Write-off request',

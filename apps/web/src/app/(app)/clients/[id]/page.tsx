@@ -179,7 +179,11 @@ export default async function ClientOverviewPage({ params }: { params: Promise<{
             </div>
             <div className="card-body">
               <dl className="kv dense">
-                <dt>Billers</dt>
+                <dt>Primary biller</dt>
+                <dd>{c.primaryBiller ?? 'Not set'}</dd>
+                <dt>Backup biller</dt>
+                <dd>{c.backupBiller ?? 'Not set'}</dd>
+                <dt>Who can work it</dt>
                 <dd>
                   {team.billers.length === 0
                     ? 'No biller assigned'
@@ -195,8 +199,12 @@ export default async function ClientOverviewPage({ params }: { params: Promise<{
                 </dd>
                 <dt>Release threshold</dt>
                 <dd>
-                  {c.threshold >= 100 ? 'Review everything' : c.threshold}
-                  {c.ownThreshold ? '' : ' (company default)'}
+                  {c.reviewUntil
+                    ? `Review everything until ${formatDate(c.reviewUntil)}`
+                    : c.threshold >= 100
+                      ? 'Review everything'
+                      : c.threshold}
+                  {c.reviewUntil || c.ownThreshold ? '' : ' (company default)'}
                 </dd>
                 <dt>Payers</dt>
                 <dd>{team.payers} set up</dd>

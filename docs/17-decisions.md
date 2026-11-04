@@ -201,6 +201,12 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** the client state machine is now code (`state.nextClientState`): onboarding → live (go live, O-10), live ⇄ paused (CL-08), live or paused → offboarded (CL-11). While paused, releases are refused (`client_paused`) and PM corrections wait; syncing, eligibility and the scrub keep running, so claims reach "ready" and wait. Resume queues the release of every ready claim and the PM correction of every claim with one pending. The pause keeps its reason, note and an optional planned resume date (a reminder on the banner; resuming stays a person's decision).
 - **Decision:** the onboarding baseline is the practice's own figures before Cleanpost (collections in a typical month, first-pass acceptance, denial rate, days in A/R, and where they came from), typed by an admin into `clients.baseline`. CL-02, RP-02 and the practice report compare against it; the first 30 days live show no comparison. O-10 will record it at go-live; clients already live record it from CL-02.
 
+## DEC-26 — Client settings tabs: what they change now and what waits (Nov 4, 2026)
+
+- **Decision:** CL-03 adds "review everything until" (`clients.review_until`, the client's calendar): through that date the effective threshold is 100 whatever else is set, then the threshold applies (`effectiveReleaseThreshold`, scrub and release alike). O-09 will set it for new clients. CL-03 also stores the primary and backup biller (`clients.primary_biller_id`, `backup_biller_id`, people who can work the client); CL-02 shows them. New work items are not assigned to them yet: items are created in eleven places, and assignment needs one shared creation path that goes through the work-item state machine, so it comes with that.
+- **Decision:** CL-04 checks an NPI's check digit before saving a provider or facility NPI; the NPPES lookup (name and taxonomy from the registry) waits for a network-enabled environment, so names and taxonomies are typed. Deactivating a provider is left out until the scrub flags a deactivated rendering provider, so the switch would do something.
+- **Decision:** CL-05 edits the timely filing limit (30 to 730 days); mode overrides and ERA enrollment come with Modes B and C (CL-09, CL-10). CL-06 shows what applies to each code for this client (its own override, the company's mapping, or Cleanpost's default) and resets an override back (`resetClientMapping`, audited, the client's lines checked again).
+
 ## Open questions
 
 | Question | Owner | Needed by |

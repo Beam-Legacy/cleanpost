@@ -15,6 +15,10 @@ describe('release threshold (S-04, docs/06)', () => {
     expect(effectiveReleaseThreshold({ company: 85 })).toBe(85);
     expect(effectiveReleaseThreshold({ client: 92, company: 85 })).toBe(92);
     expect(effectiveReleaseThreshold({ clientPayer: 70, client: 92, company: 85 })).toBe(70);
+    // Review everything until a date (CL-03, O-09), the client's calendar, inclusive.
+    const until = { client: 92, company: 85, reviewUntil: '2026-11-18' };
+    expect(effectiveReleaseThreshold({ ...until, today: '2026-11-18' })).toBe(100);
+    expect(effectiveReleaseThreshold({ ...until, today: '2026-11-19' })).toBe(92);
   });
 
   it('100 means review everything, even a perfect score', () => {
