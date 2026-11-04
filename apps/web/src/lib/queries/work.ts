@@ -41,8 +41,16 @@ import {
   withTenant,
   workItems,
   type Tx,
+  tenants,
 } from '@cleanpost/db';
-import { policy, remit, work, type ClaimPayload, type Finding } from '@cleanpost/domain';
+import {
+  companyReleaseThreshold,
+  policy,
+  remit,
+  work,
+  type ClaimPayload,
+  type Finding,
+} from '@cleanpost/domain';
 import { payerClaimNumber } from '@cleanpost/claims';
 import { linkCandidates } from '@cleanpost/remit';
 import { wakeDueItems } from '@cleanpost/work';
@@ -415,6 +423,10 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
     .where(and(eq(workItems.id, id), ...scopeWhere(ctx)));
   if (!item) return null;
   const [client] = item.clientId ? await tx.select().from(clients).where(eq(clients.id, item.clientId)) : [];
+  const [company] = await tx
+    .select({ settings: tenants.settings })
+    .from(tenants)
+    .where(eq(tenants.id, ctx.tenantId));
   const [conn] = item.clientId
     ? await tx.select().from(connections).where(eq(connections.clientId, item.clientId)).limit(1)
     : item.connectionId
@@ -661,7 +673,7 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
   return {
     item,
     clientName: client?.name ?? null,
-    threshold: client?.autoReleaseThreshold ?? 90,
+    threshold: client?.autoReleaseThreshold ?? companyReleaseThreshold(company?.settings),
     remittance,
     denial,
     writeOffRequest,

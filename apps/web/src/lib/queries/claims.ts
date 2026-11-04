@@ -34,8 +34,15 @@ import {
   withTenant,
   workItems,
   type Tx,
+  tenants,
 } from '@cleanpost/db';
-import { diffPayload, policy, type ClaimPayload, type Finding } from '@cleanpost/domain';
+import {
+  companyReleaseThreshold,
+  diffPayload,
+  policy,
+  type ClaimPayload,
+  type Finding,
+} from '@cleanpost/domain';
 import { getDb } from '../server';
 import type { ActiveContext } from '../session';
 import { patientLabel } from './work';
@@ -274,11 +281,13 @@ async function loadClaim(tx: Tx, ctx: ActiveContext, id: string): Promise<ClaimD
       claim: claims,
       clientName: clients.name,
       threshold: clients.autoReleaseThreshold,
+      companySettings: tenants.settings,
       payerName: payers.name,
       patient: patients,
     })
     .from(claims)
     .innerJoin(clients, eq(clients.id, claims.clientId))
+    .innerJoin(tenants, eq(tenants.id, claims.tenantId))
     .innerJoin(patients, eq(patients.id, claims.patientId))
     .leftJoin(payers, eq(payers.id, claims.payerId))
     .where(and(eq(claims.id, id), scope(ctx)));
@@ -356,7 +365,7 @@ async function loadClaim(tx: Tx, ctx: ActiveContext, id: string): Promise<ClaimD
   return {
     claim: c,
     clientName: row.clientName,
-    threshold: row.threshold,
+    threshold: row.threshold ?? companyReleaseThreshold(row.companySettings),
     pmName: ((conn?.settings ?? {}) as { pmName?: string }).pmName ?? 'the PM',
     payerName: row.payerName ?? payload.payerName,
     patient: patientLabel(row.patient)!,

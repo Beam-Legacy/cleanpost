@@ -18,7 +18,8 @@ import {
   withTenant,
   workItems,
 } from '@cleanpost/db';
-import { remit, state } from '@cleanpost/domain';
+import { companyReleaseThreshold, remit, reports as r, state } from '@cleanpost/domain';
+import { getAutomationReport, todayPacific } from '@cleanpost/reports';
 import { getDb } from '../server';
 import type { ActiveContext } from '../session';
 
@@ -419,4 +420,57 @@ export async function listMappings(
     );
     return { tabs, pmType, rows: sorted };
   });
+}
+
+/* S-04 Automation ------------------------------------------------------------------------------- */
+
+export interface AutomationClient {
+  id: string;
+  name: string;
+  /** null: follows the company default. */
+  threshold: number | null;
+  /** Last 30 days. */
+  releasedWithoutReview: number | null;
+  autoFirstPass: number | null;
+}
+
+export interface AutomationSettings {
+  company: number;
+  clients: AutomationClient[];
+  /** Last 30 days' first scrub scores, for the simulation. */
+  scores: number[];
+  scrubbed: number;
+}
+
+export async function automationSettings(ctx: ActiveContext): Promise<AutomationSettings> {
+  const period = r.periodFor('last_30', todayPacific());
+  const [base, report] = await Promise.all([
+    withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+      const [t] = await tx
+        .select({ settings: tenants.settings })
+        .from(tenants)
+        .where(eq(tenants.id, ctx.tenantId));
+      const list = await tx
+        .select({ id: clients.id, name: clients.name, threshold: clients.autoReleaseThreshold })
+        .from(clients)
+        .where(sql`${clients.status} <> 'offboarded'`)
+        .orderBy(clients.name);
+      return { company: companyReleaseThreshold(t?.settings), list };
+    }),
+    getAutomationReport(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id, clients: 'all' }, period),
+  ]);
+  const byClient = new Map(report.clients.map((c) => [c.clientId, c]));
+  return {
+    company: base.company,
+    clients: base.list.map((c) => {
+      const s = byClient.get(c.id);
+      return {
+        ...c,
+        releasedWithoutReview: s ? r.rate(s.auto, s.released) : null,
+        autoFirstPass: s ? r.rate(s.autoFirstPass.accepted, s.autoFirstPass.total) : null,
+      };
+    }),
+    scores: report.scores,
+    scrubbed: report.scrubbed,
+  };
 }

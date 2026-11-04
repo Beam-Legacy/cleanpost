@@ -120,6 +120,13 @@
       "when": 1793777531504,
       "tag": "0016_member_elsewhere",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793779099426,
+      "tag": "0017_company_release_threshold",
+      "breakpoints": true
     }
   ]
 }

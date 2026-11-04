@@ -3,8 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { v7 as uuid } from 'uuid';
 import { createDatabase, type DatabaseHandle } from '@cleanpost/db';
 import { testDatabaseUrls } from '@cleanpost/db/testing';
+import { simulateRelease } from '@cleanpost/domain';
 import {
   getAging,
+  getAutomationReport,
   getDenialsReport,
   getOverview,
   getPayerResults,
@@ -235,5 +237,68 @@ describe('report figures (RP-01 to RP-05)', () => {
         overdueNow: 1,
       }),
     ]);
+  });
+
+  it('S-04: released without review and their first pass, and first scrub scores for the simulation', async () => {
+    const r = await getAutomationReport(app.db, scope, OCT);
+    // October releases at A: a1 (no approval, accepted), a2 (approved first), a3 (no approval, rejected).
+    expect(r.clients).toEqual([
+      { clientId: A, released: 3, auto: 2, autoFirstPass: { accepted: 1, total: 2 } },
+    ]);
+
+    // Scrub scores, in a company of their own so the other reports' world stays as it is.
+    const T2 = uuid();
+    const C1 = uuid();
+    const C2 = uuid();
+    await admin.db.execute(sql`insert into tenants (id, name) values (${T2}, 'Automation Test Billing')`);
+    await admin.db.execute(
+      sql`insert into clients (id, tenant_id, name) values (${C1}, ${T2}, 'One'), (${C2}, ${T2}, 'Two')`,
+    );
+    const scrubbed = async (client: string, day: string, decision: string, confidence: number) => {
+      const p = uuid();
+      const e = uuid();
+      const c = uuid();
+      await admin.db.execute(sql`insert into patients (id, tenant_id, client_id, first_name, last_name, dob)
+        values (${p}, ${T2}, ${client}, 'Test', 'Patient', '1980-01-01')`);
+      await admin.db
+        .execute(sql`insert into encounters (id, tenant_id, client_id, patient_id, date_of_service)
+        values (${e}, ${T2}, ${client}, ${p}, '2026-10-14')`);
+      await admin.db
+        .execute(sql`insert into claims (id, tenant_id, client_id, patient_id, encounter_id, payer_id,
+        mode, status, total_charge_cents, balance_cents)
+        values (${c}, ${T2}, ${client}, ${p}, ${e}, ${PAYER}, 'A', 'draft', 1000, 1000)`);
+      return async (more: [string, string, number][] = []) => {
+        for (const [d, dec, conf] of [[day, decision, confidence] as [string, string, number], ...more])
+          await admin.db.execute(sql`insert into claim_events (tenant_id, client_id, claim_id, type, actor,
+            occurred_at, payload)
+            values (${T2}, ${client}, ${c}, 'scrubbed', 'automation:test', ${noonPt(d)},
+              ${JSON.stringify({ decision: dec, confidence: conf })}::jsonb)`);
+      };
+    };
+    // A later scrub does not count: the simulation uses each claim's first in the period.
+    await (
+      await scrubbed(C1, '2026-10-15', 'auto_release', 100)
+    )();
+    await (
+      await scrubbed(C1, '2026-10-15', 'review', 85)
+    )([['2026-10-16', 'auto_release', 100]]);
+    await (
+      await scrubbed(C1, '2026-10-15', 'blocked', 40)
+    )();
+    await (
+      await scrubbed(C2, '2026-10-15', 'review', 70)
+    )();
+    await (
+      await scrubbed(C2, '2026-09-15', 'review', 95)
+    )();
+
+    const all = await getAutomationReport(app.db, { tenantId: T2, clients: 'all' }, OCT);
+    expect(all.scrubbed).toBe(4);
+    expect([all.scores[100], all.scores[85], all.scores[70], all.scores[40]]).toEqual([1, 1, 1, 0]);
+    expect(simulateRelease(all.scores, all.scrubbed, 90)).toBeCloseTo(1 / 4);
+    expect(simulateRelease(all.scores, all.scrubbed, 70)).toBeCloseTo(3 / 4);
+    expect(simulateRelease(all.scores, all.scrubbed, 100)).toBe(0);
+    const onlyTwo = await getAutomationReport(app.db, { tenantId: T2, clients: [C2] }, OCT);
+    expect(onlyTwo.scrubbed).toBe(1);
   });
 });

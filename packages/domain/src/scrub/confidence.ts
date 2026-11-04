@@ -4,13 +4,15 @@
  *   start at 100; a block finding means blocked whatever the score; each warn minus its weight
  *   (default 15); each info minus 2; first claim for this client-payer pair minus 20; payer
  *   first-pass acceptance under 90% over 60 days minus 10; an AI concern minus 10; clamp 0..100.
- *   auto_release when nothing blocks and the score meets the effective threshold, else review.
+ *   auto_release when nothing blocks and the score meets the effective threshold (below 100: 100
+ *   means review everything), else review.
  */
 import type { ScrubDecision } from '../state/claim';
 import type { Finding } from './steps';
+import { releasesWithoutReview } from './threshold';
 
 export interface ConfidenceContext {
-  /** Effective threshold: client-payer override, else client default (default 90). */
+  /** Effective threshold (effectiveReleaseThreshold); 100 means review everything. */
   threshold: number;
   firstClaimForClientPayer: boolean;
   /** Share of this client's claims to this payer accepted first time over 60 days; null = not enough data. */
@@ -38,7 +40,7 @@ export function scoreClaim(findings: Finding[], ctx: ConfidenceContext): Confide
   const confidence = Math.max(0, Math.min(100, 100 - deductions.reduce((s, d) => s + d.points, 0)));
   const decision: ScrubDecision = findings.some((f) => f.severity === 'block')
     ? 'blocked'
-    : confidence >= ctx.threshold
+    : releasesWithoutReview(confidence, ctx.threshold)
       ? 'auto_release'
       : 'review';
   return { confidence, decision, deductions };

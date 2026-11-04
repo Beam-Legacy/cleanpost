@@ -1,7 +1,7 @@
 /** The settings sections, their view IDs, and whether each is built yet (docs/16 for the rest). */
 export const SETTINGS_SECTIONS = [
   { key: 'users', label: 'Users and roles', view: 'S-01', built: true },
-  { key: 'automation', label: 'Automation', view: 'S-04', built: false },
+  { key: 'automation', label: 'Automation', view: 'S-04', built: true },
   { key: 'rules', label: 'Rules', view: 'S-05', built: false },
   { key: 'mappings', label: 'Adjustment mappings', view: 'S-08', built: true },
   { key: 'notifications', label: 'Notifications', view: 'S-09', built: false },

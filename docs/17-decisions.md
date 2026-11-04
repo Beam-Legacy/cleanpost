@@ -182,6 +182,13 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** the owner's membership and your own are not edited in S-03 (no Edit on those rows; the server refuses too). Deactivating hands their open work items back to the queue unassigned, and removing clients hands back their items for those clients, each through the work-item state machine (`assigned` or `in_progress` -unassign-> `open`, the latter added for this) and audited on the item. Every S-03 change is audited on the membership.
 - **Not yet:** primary and backup biller per client (S-03's "Primary"/"Backup" labels and the "choose a new primary biller" prompt) come with client settings (CL-), where the assignment is set; until then the queue assigns as before.
 
+## DEC-23 — Release threshold: a company default, and 100 means review everything (Nov 4, 2026)
+
+- **Decision:** S-04 sets a company default release threshold (`tenants.settings.autoReleaseThreshold`, 90 unless changed). `clients.auto_release_threshold` is now nullable: null follows the company default, a number is the client's own (migration 0017 moved clients at the old default, 90, to null, so nothing changed on the day). The effective threshold is the client-payer override, else the client's number, else the company default, else 90 (`effectiveReleaseThreshold`, used by scrub and release alike).
+- **Decision:** 100 means "Review everything", as S-04's design labels it: nothing goes out without a person, even a claim scoring 100. docs/06 said a score at or above the threshold releases, which let a perfect claim through at 100; the more conservative reading of the design wins (`releasesWithoutReview`).
+- **Decision:** the simulation ("at N, about X% of the last 30 days' claims would have gone out") uses each claim's first scrub in the last 30 days, from its `scrubbed` event (decision and score); blocked claims count in the total and never release. Lowering the default by more than 5 asks first (G-11). Every change is audited with before and after; changes apply to claims scrubbed after the save. The client table shows the last 30 days' share released without review and the first-pass rate of those claims (RP-01's definitions).
+- **Not yet:** the design's "apply transform rules" and "resubmit rejections with an exact fix" toggles are not shown, because neither behaviour exists yet (transforms stay suggestions). Client-payer thresholds stay on client settings (CL-), not built yet.
+
 ## Open questions
 
 | Question | Owner | Needed by |

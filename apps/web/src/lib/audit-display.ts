@@ -61,6 +61,7 @@ const VERB: Record<string, string> = {
   reactivated: 'Reactivated',
   two_factor_reset: 'Reset two-factor',
   sessions_revoked: 'Signed out everywhere',
+  threshold_changed: 'Changed release threshold',
 };
 
 const RECORD: Record<string, string> = {

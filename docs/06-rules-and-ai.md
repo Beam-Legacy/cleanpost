@@ -30,7 +30,7 @@ AI concern present    → minus 10
 clamp 0..100
 ```
 
-`decision = auto_release` if no block findings and score ≥ effective threshold (client-payer override, else client default; default 90). Otherwise `review`. Weights are config, tuned in the pilot from correction data.
+`decision = auto_release` if no block findings and score ≥ effective threshold (client-payer override, else the client's own threshold, else the company default set on S-04, else 90), and the threshold is below 100: 100 means review everything (DEC-23). Otherwise `review`. Weights are config, tuned in the pilot from correction data.
 
 ## Rule definition
 

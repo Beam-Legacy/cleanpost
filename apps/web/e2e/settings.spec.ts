@@ -304,6 +304,41 @@ test("S-08 shows each PM's mappings, maps a code company-wide, and refuses a den
   await expect(table.getByRole('row', { name: /CO-4\b/ })).toHaveCount(0);
 });
 
+test('S-04 sets the default threshold with a simulation, asks before lowering a lot, and sets a client', async () => {
+  test.setTimeout(90_000);
+  await page.goto('/settings/automation');
+  await expect(page.getByRole('heading', { name: 'Automation', level: 2 })).toBeVisible();
+  const number = page.getByLabel('Default release threshold, number');
+  await expect(number).toHaveValue('90');
+  await expectAccessible(page, 'S-04');
+
+  await number.fill('80');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  const confirm = page.getByRole('alertdialog', { name: 'Lower the default to 80?' });
+  await confirm.getByRole('button', { name: 'Lower to 80' }).click();
+  await expect(page.getByText('Default threshold 90 → 80.')).toBeVisible();
+  await number.fill('90');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Default threshold 80 → 90.')).toBeVisible();
+
+  const table = page.getByRole('table', { name: 'Client release thresholds' });
+  const row = table.locator('tbody tr').first();
+  const name = (await row.locator('th').innerText()).trim();
+  await row.getByRole('button', { name: `Edit ${name}` }).click();
+  await row.getByLabel(`Threshold for ${name}`).selectOption('review');
+  await row.getByRole('button', { name: `Save ${name}` }).click();
+  await expect(row).toContainText('Review everything');
+  await row.getByRole('button', { name: `Edit ${name}` }).click();
+  await row.getByLabel(`Threshold for ${name}`).selectOption('default');
+  await row.getByRole('button', { name: `Save ${name}` }).click();
+  await expect(row).toContainText('Default (90)');
+
+  await page.goto('/audit?action=automation.threshold_changed&days=1');
+  await expect(page.getByRole('table', { name: 'Audit events' }).locator('tbody tr').first()).toContainText(
+    'Priya Shah',
+  );
+});
+
 test('a biller can open neither settings nor the audit log', async ({ browser }, info) => {
   const biller = await signedInPage(browser, info.project.use, 'marcus@northwind.test');
   for (const path of ['/settings/users', '/audit']) {

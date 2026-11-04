@@ -11,6 +11,7 @@
  *
  * Every write goes through the claim state machine, with the actor, and is audit-logged.
  */
+import { releaseThresholdFor } from './threshold';
 import { and, desc, eq, inArray, ne } from 'drizzle-orm';
 import type { AdapterRegistry, Connection } from '@cleanpost/adapters';
 import {
@@ -139,7 +140,7 @@ async function load(
     state: claim.status as state.ClaimState,
     decision: (result?.decision ?? null) as state.ScrubDecision | null,
     confidence: result?.confidence ?? null,
-    threshold: settings?.autoReleaseThresholdOverride ?? client?.autoReleaseThreshold ?? 90,
+    threshold: await releaseThresholdFor(tx, claim.tenantId, client, settings),
     approvedBy: approval?.actor ?? null,
   });
   if (!allowed.ok) return { status: 'refused', reason: allowed.error };

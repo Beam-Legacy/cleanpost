@@ -6,6 +6,7 @@
  * Reads happen in one tenant transaction, the AI call outside any transaction, and the writes in a
  * second transaction that first checks the claim has not moved on (a newer version, an edit).
  */
+import { releaseThresholdFor } from './threshold';
 import { createHash } from 'node:crypto';
 import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import {
@@ -227,7 +228,7 @@ async function load(
     claim,
     version,
     rulesVersion,
-    threshold: settings?.autoReleaseThresholdOverride ?? client?.autoReleaseThreshold ?? 90,
+    threshold: await releaseThresholdFor(tx, claim.tenantId, client, settings),
     firstClaimForClientPayer: (priorForPayer[0]?.n ?? 0) === 0,
     input: {
       clientId: claim.clientId,

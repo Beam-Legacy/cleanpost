@@ -20,6 +20,7 @@
  * `ready -> submitted` also needs an auto-release decision at or above threshold, or a human
  * approval: `canRelease` checks that; the table only says the move exists.
  */
+import { releasesWithoutReview } from '../scrub/threshold';
 import { transition, type Result, type TransitionTable } from './machine';
 
 export type ClaimState =
@@ -133,7 +134,7 @@ export function canRelease(input: {
 }): Result<true, 'not_ready' | 'needs_approval'> {
   if (input.state !== 'ready' && input.state !== 'corrected') return { ok: false, error: 'not_ready' };
   if (input.approvedBy?.startsWith('user:')) return { ok: true, value: true };
-  if (input.decision === 'auto_release' && (input.confidence ?? 0) >= input.threshold) {
+  if (input.decision === 'auto_release' && releasesWithoutReview(input.confidence ?? 0, input.threshold)) {
     return { ok: true, value: true };
   }
   return { ok: false, error: 'needs_approval' };

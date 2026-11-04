@@ -950,3 +950,84 @@ export async function getTeamReport(
     };
   });
 }
+
+// ---------- S-04 automation ----------
+
+export interface AutomationClientRow {
+  clientId: string;
+  /** Claims first released in the period, and how many of those went out without review. */
+  released: number;
+  auto: number;
+  /** First payer answer (277CA accepted or rejected) for the claims released without review. */
+  autoFirstPass: { accepted: number; total: number };
+}
+
+export interface AutomationReport {
+  clients: AutomationClientRow[];
+  /** Per confidence 0..100: claims whose first scrub in the period had no blocking finding. */
+  scores: number[];
+  /** Claims first scrubbed in the period, blocked ones included (the simulation's denominator). */
+  scrubbed: number;
+}
+
+/**
+ * S-04: what automation did over the period (same definitions as RP-01: a release without review is
+ * a first release with no approval before it; first pass is the first 277CA or rejection), and the
+ * first scrub score of each claim, for "at this threshold, this share would have gone out".
+ */
+export async function getAutomationReport(
+  db: Database,
+  scope: ReportScope,
+  period: reports.Period,
+): Promise<AutomationReport> {
+  const ids = scopeIds(scope);
+  return withTenant(db, tenantOf(scope), async (tx) => {
+    const rel = await tx.execute<{
+      client_id: string;
+      total: number;
+      auto: number;
+      auto_answered: number;
+      auto_accepted: number;
+    }>(sql`
+      with first_release as (
+        select distinct on (claim_id) claim_id, client_id, occurred_at from claim_events
+        where type = 'released' and ${inScope(ids, sql`client_id`)} order by claim_id, occurred_at),
+      r as (
+        select f.claim_id, f.client_id, not exists (select 1 from claim_events a
+          where a.claim_id = f.claim_id and a.type = 'approved' and a.occurred_at <= f.occurred_at) as auto
+        from first_release f where ${pacificDate(sql`f.occurred_at`)} between ${period.from} and ${period.to}),
+      answer as (
+        select distinct on (claim_id) claim_id, type from claim_events
+        where type in ('ack_277ca', 'rejected') and ${inScope(ids, sql`client_id`)} order by claim_id, occurred_at)
+      select r.client_id, count(*)::int as total, count(*) filter (where r.auto)::int as auto,
+        count(a.claim_id) filter (where r.auto)::int as auto_answered,
+        count(*) filter (where r.auto and a.type = 'ack_277ca')::int as auto_accepted
+      from r left join answer a on a.claim_id = r.claim_id
+      group by 1`);
+    const scrub = await tx.execute<{ confidence: number | null; decision: string | null; n: number }>(sql`
+      with s as (
+        select distinct on (claim_id) claim_id, payload from claim_events
+        where type = 'scrubbed' and ${inScope(ids, sql`client_id`)}
+          and ${pacificDate(sql`occurred_at`)} between ${period.from} and ${period.to}
+        order by claim_id, occurred_at)
+      select (payload->>'confidence')::int as confidence, payload->>'decision' as decision, count(*)::int as n
+      from s group by 1, 2`);
+    const scores = Array.from({ length: 101 }, () => 0);
+    let scrubbed = 0;
+    for (const r of scrub.rows) {
+      scrubbed += r.n;
+      if (r.decision !== 'blocked' && r.confidence !== null && r.confidence >= 0 && r.confidence <= 100)
+        scores[r.confidence] = (scores[r.confidence] ?? 0) + r.n;
+    }
+    return {
+      clients: rel.rows.map((r) => ({
+        clientId: r.client_id,
+        released: r.total,
+        auto: r.auto,
+        autoFirstPass: { accepted: r.auto_accepted, total: r.auto_answered },
+      })),
+      scores,
+      scrubbed,
+    };
+  });
+}

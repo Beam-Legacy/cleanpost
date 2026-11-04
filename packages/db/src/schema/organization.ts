@@ -116,7 +116,8 @@ export const clients = pgTable(
     /** onboarding | live | paused | offboarded */
     status: text('status').notNull().default('onboarding'),
     defaultMode: text('default_mode').notNull().default('A'),
-    autoReleaseThreshold: smallint('auto_release_threshold').notNull().default(90),
+    /** S-04: null follows the company default (tenants.settings.autoReleaseThreshold); 100 = review everything. */
+    autoReleaseThreshold: smallint('auto_release_threshold'),
     pmBatchTime: time('pm_batch_time'),
     goLiveAt: timestamp('go_live_at', { withTimezone: true }),
     offboardedAt: timestamp('offboarded_at', { withTimezone: true }),
