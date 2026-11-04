@@ -8,6 +8,9 @@ describe('work item state machine', () => {
     expect(state.nextWorkItemState('in_progress', 'resolve')).toEqual({ ok: true, value: 'resolved' });
     expect(state.nextWorkItemState('snoozed', 'wake')).toEqual({ ok: true, value: 'open' });
     expect(state.nextWorkItemState('resolved', 'reopen')).toEqual({ ok: true, value: 'open' });
+    // Back to the queue, from W-05 or when the assignee is deactivated (S-03).
+    expect(state.nextWorkItemState('assigned', 'unassign')).toEqual({ ok: true, value: 'open' });
+    expect(state.nextWorkItemState('in_progress', 'unassign')).toEqual({ ok: true, value: 'open' });
   });
 
   it('lets automation resolve from any open state but not resolve twice', () => {

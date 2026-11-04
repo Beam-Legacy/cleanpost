@@ -11,6 +11,8 @@ test.describe.configure({ mode: 'serial' });
 let page: Page;
 
 const HANA = 'hana@harbor-rcm.test';
+/** The person the S-02 test invites; S-03 then edits them. */
+let invitee = '';
 
 async function admin<T>(fn: (c: pg.Client) => Promise<T>): Promise<T> {
   const c = new pg.Client({
@@ -127,6 +129,7 @@ test('S-02 invites a biller; A-06 makes their sign-in, two-factor, then they joi
 }, info) => {
   test.setTimeout(150_000);
   const email = `e2e-invite-${Date.now()}@northwind.test`;
+  invitee = email;
   const password = 'a long enough e2e password';
   await page.goto('/settings/users');
   await page.getByRole('button', { name: 'Invite user' }).click();
@@ -169,6 +172,47 @@ test('S-02 invites a biller; A-06 makes their sign-in, two-factor, then they joi
   await expect(row).toContainText('Biller');
   await expect(row).toContainText('Authenticator');
   await expect(row).not.toContainText('Invite pending');
+});
+
+test('S-03 changes role and clients, signs them out, resets two-factor, deactivates and reactivates', async () => {
+  test.setTimeout(120_000);
+  expect(invitee).not.toBe('');
+  await page.goto('/settings/users');
+  const users = page.getByRole('table', { name: 'Users' });
+  const row = users.getByRole('row', { name: invitee });
+  await row.getByRole('button', { name: 'Edit Robin Vale' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Robin Vale' });
+  await expect(drawer).toContainText('Authenticator app');
+  await expectAccessible(page, 'S-03');
+  await drawer.getByLabel(/^Viewer ·/).check();
+  await drawer.getByRole('group', { name: 'Clients' }).getByRole('checkbox').nth(1).check();
+  await drawer.getByRole('button', { name: 'Save' }).click();
+  await expect(drawer).toBeHidden();
+  await expect(row).toContainText('Viewer');
+  await expect(row).toContainText('2 clients');
+
+  await row.getByRole('button', { name: 'Edit Robin Vale' }).click();
+  await drawer.getByRole('button', { name: 'Sign out everywhere' }).click();
+  await expect(page.getByText(/Signed out of \d+ sessions?\./)).toBeVisible();
+  await drawer.getByRole('button', { name: 'Reset two-factor' }).click();
+  await expect(page.getByText('Two-factor reset.')).toBeVisible();
+  await expect(drawer).toContainText('Not set up yet');
+  await drawer.getByRole('button', { name: 'Deactivate' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Deactivate Robin Vale?' })
+    .getByRole('button', { name: 'Deactivate Robin Vale' })
+    .click();
+  await expect(row).toContainText('Deactivated');
+
+  await row.getByRole('button', { name: 'Edit Robin Vale' }).click();
+  await drawer.getByRole('button', { name: 'Reactivate' }).click();
+  await expect(row).not.toContainText('Deactivated');
+  await expect(row).toContainText('Not set up');
+
+  await page.goto('/audit?action=user.deactivated&days=1');
+  await expect(page.getByRole('table', { name: 'Audit events' }).locator('tbody tr').first()).toContainText(
+    'Priya Shah',
+  );
 });
 
 test('Resend retires the old link; Withdraw ends the invite', async ({ browser }, info) => {
@@ -219,6 +263,12 @@ test('someone with an account signs in from the link, sets up two-factor and joi
   const row = page.getByRole('table', { name: 'Users' }).getByRole('row', { name: /Hana Okoye/ });
   await expect(row).toContainText('Viewer');
   await expect(row).toContainText('Authenticator');
+  // She works in Harbor RCM too, so her two-factor is not Northwind's to reset (DEC-22).
+  await row.getByRole('button', { name: 'Edit Hana Okoye' }).click();
+  const drawer = page.getByRole('dialog', { name: 'Hana Okoye' });
+  await expect(drawer.getByRole('button', { name: 'Reset two-factor' })).toBeDisabled();
+  await expect(drawer).toContainText('They also work in another company');
+  await page.keyboard.press('Escape');
 });
 
 test('a biller can open neither settings nor the audit log', async ({ browser }, info) => {

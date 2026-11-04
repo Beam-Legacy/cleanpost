@@ -176,6 +176,12 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** where email is off (`SMTP_HOST=log`, the preview), S-02 and Resend show the admin the invite link to pass on, so invites can be demonstrated. Only in local and preview (`inviteLinksShown`, packages/config); staging and production send the link by email only, which is how an invite proves the person owns the address. CI runs with email off too, which the e2e uses. A failed send keeps the invite (Resend tries again) and logs only the error code.
 - **Also:** an address that is already a member, or already has a live invite, is refused inline; a member of another company can be invited (A-07 lets them switch).
 
+## DEC-22 — What one company's admin can do to a person's sign-in (Nov 4, 2026)
+
+- **Decision:** a person can work in several companies (A-07) with one sign-in, so S-03 keeps each admin's reach inside their own company. Role, clients, deactivate and reactivate change only this company's membership. Sign out everywhere ends only the sessions that have this company open; deactivating does the same at once (and the session check already refuses a deactivated membership). Reset two-factor removes the person's authenticator and passkeys and ends all their sessions, so it is allowed only when they are active in no other company (`app.member_elsewhere`, migration 0016, answers yes or no and only for the caller's own members); otherwise the person uses a recovery code or Cleanpost support.
+- **Decision:** the owner's membership and your own are not edited in S-03 (no Edit on those rows; the server refuses too). Deactivating hands their open work items back to the queue unassigned, and removing clients hands back their items for those clients, each through the work-item state machine (`assigned` or `in_progress` -unassign-> `open`, the latter added for this) and audited on the item. Every S-03 change is audited on the membership.
+- **Not yet:** primary and backup biller per client (S-03's "Primary"/"Backup" labels and the "choose a new primary biller" prompt) come with client settings (CL-), where the assignment is set; until then the queue assigns as before.
+
 ## Open questions
 
 | Question | Owner | Needed by |

@@ -6,10 +6,12 @@ import {
   listClientChoices,
   listInvitations,
   listMembers,
+  tenantName,
   type InviteRow,
   type MemberRow,
 } from '@/lib/queries/settings';
 import { requireActiveContext } from '@/lib/session';
+import { EditUserDrawer } from './edit-user-drawer';
 import { InviteDialog } from './invite-dialog';
 import { InviteRowActions } from './invite-row-actions';
 
@@ -37,10 +39,11 @@ function clientsText(m: Pick<MemberRow, 'clients'>) {
 export default async function UsersPage() {
   const ctx = await requireActiveContext();
   const now = clockNow();
-  const [members, invites, clientChoices] = await Promise.all([
+  const [members, invites, clientChoices, company] = await Promise.all([
     listMembers(ctx),
     listInvitations(ctx, now),
     listClientChoices(ctx),
+    tenantName(ctx),
   ]);
   const active = members.filter((m) => m.status !== 'deactivated').length;
   const waiting = invites.filter((i) => !i.expired).length;
@@ -111,7 +114,27 @@ export default async function UsersPage() {
                         ? formatWhen(m.lastActiveAt, realNow)
                         : 'Never signed in'}
                   </td>
-                  <td />
+                  <td>
+                    {!m.isOwner && m.userId !== ctx.user.id && (
+                      <EditUserDrawer
+                        member={{
+                          membershipId: m.membershipId,
+                          name: m.name,
+                          email: m.email,
+                          role: m.role,
+                          clientIds: m.clients === 'all' ? 'all' : m.clientIds,
+                          status: m.status,
+                          twoFactor: m.twoFactor,
+                          joined: formatDate(m.joinedAt.toISOString().slice(0, 10)),
+                          sessions: m.sessions,
+                          openItems: m.openItems,
+                          elsewhere: m.elsewhere,
+                        }}
+                        clients={clientChoices}
+                        tenantName={company}
+                      />
+                    )}
+                  </td>
                 </tr>
               ))}
               {invites.map((i) => (

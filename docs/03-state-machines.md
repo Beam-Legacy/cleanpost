@@ -59,6 +59,7 @@ Mode A and C: Cleanpost does not post; `verify` reads the PM's postings back. If
 
 ```
 open ──assign──► assigned ──start──► in_progress ──resolve──► resolved
+assigned/in_progress ──unassign──► open   (W-05 back to the queue; the assignee deactivated or no longer sees the client, S-03)
 open/assigned ──snooze(until)──► snoozed ──time passes──► open
 any ──auto-resolve (underlying record fixed)──► resolved (actor = automation)
 resolved ──reopen──► open
@@ -94,7 +95,7 @@ active -deactivate-> deactivated  sessions in the company end at once; their ope
 deactivated -reactivate-> active
 ```
 
-The owner cannot be deactivated or change role here; nobody changes their own role.
+The owner cannot be deactivated or change role here; nobody changes their own role or status. Deactivating ends their sessions in this company and hands their open work items back to the queue (DEC-22).
 
 ## Connection and sync
 

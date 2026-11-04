@@ -4,7 +4,15 @@ import { auditEvents, createDatabase, notifications, users, withTenant, workItem
 import { testDatabaseUrls } from '@cleanpost/db/testing';
 import { seed } from '@cleanpost/seed';
 import { CLIENTS, NORTHWIND } from '@cleanpost/seed/world';
-import { assignItem, reopenItem, resolveItem, snoozeItem, wakeDueItems, wakeItem } from '../src';
+import {
+  assignItem,
+  reopenItem,
+  resolveItem,
+  snoozeItem,
+  unassignItemsOf,
+  wakeDueItems,
+  wakeItem,
+} from '../src';
 
 const urls = testDatabaseUrls();
 const admin = createDatabase(urls.adminUrl, { max: 2 });
@@ -12,12 +20,12 @@ const app = createDatabase(urls.url, { max: 4 });
 let userId = '';
 const ctx = () => ({ tenantId: NORTHWIND, userId });
 
-async function newItem(type = 'claim_review') {
+async function newItem(type = 'claim_review', clientId = CLIENTS[0]!.id) {
   const [row] = await admin.db
     .insert(workItems)
     .values({
       tenantId: NORTHWIND,
-      clientId: CLIENTS[0]!.id,
+      clientId,
       type,
       priority: 2,
       dueAt: new Date(Date.now() + 24 * 3_600_000),
@@ -136,5 +144,24 @@ describe('work item actions', () => {
     expect(note!.summary).toBe('Assigned to you: Claim review');
     expect(await assignItem(app.db, ctx(), item.id, null)).toEqual({ ok: true });
     expect(await get(item.id)).toMatchObject({ status: 'open', assigneeId: null });
+  });
+
+  it('S-03: hands back what a deactivated person had, or what is outside the clients they keep', async () => {
+    const [dana] = await admin.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, 'dana@northwind.test'));
+    const a = await newItem('claim_review', CLIENTS[0]!.id);
+    const b = await newItem('claim_review', CLIENTS[1]!.id);
+    const c = await newItem('claim_review', CLIENTS[1]!.id);
+    for (const i of [a, b, c]) await assignItem(app.db, ctx(), i.id, dana!.id);
+    await admin.db.update(workItems).set({ status: 'in_progress' }).where(eq(workItems.id, c.id));
+    expect(await unassignItemsOf(app.db, ctx(), dana!.id, 'all')).toBe(0);
+    expect(await unassignItemsOf(app.db, ctx(), dana!.id, [CLIENTS[0]!.id])).toBe(2);
+    expect(await get(a.id)).toMatchObject({ status: 'assigned', assigneeId: dana!.id });
+    expect(await get(b.id)).toMatchObject({ status: 'open', assigneeId: null });
+    expect(await get(c.id)).toMatchObject({ status: 'open', assigneeId: null });
+    expect(await unassignItemsOf(app.db, ctx(), dana!.id, 'none')).toBeGreaterThanOrEqual(1);
+    expect(await get(a.id)).toMatchObject({ status: 'open', assigneeId: null });
   });
 });

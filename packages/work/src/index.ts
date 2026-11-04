@@ -3,7 +3,7 @@
  * the work-item state machine (CLAUDE.md rule 6), recorded with the actor and audit-logged.
  * Authorization (work.resolve) is the caller's: these run inside the caller's tenant.
  */
-import { and, eq, lte } from 'drizzle-orm';
+import { and, eq, lte, ne } from 'drizzle-orm';
 import {
   notifications,
   recordAudit,
@@ -185,7 +185,7 @@ export async function assignItem(
         ? null
         : assigneeId
           ? 'assign'
-          : item.status === 'assigned'
+          : item.status === 'assigned' || item.status === 'in_progress'
             ? 'unassign'
             : null;
     if (event) {
@@ -224,4 +224,30 @@ export async function assignItem(
     }
     return { ok: true };
   });
+}
+
+/**
+ * S-03: hand back the open items assigned to someone who was deactivated (keep: 'none') or no longer
+ * sees some clients (keep: the clients they still have). Each goes back to the queue unassigned,
+ * through assignItem, so the change is recorded on the item and audited. Returns how many.
+ */
+export async function unassignItemsOf(
+  db: Database,
+  ctx: Ctx,
+  userId: string,
+  keep: 'all' | 'none' | string[],
+): Promise<number> {
+  if (keep === 'all') return 0;
+  const items = await withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, (tx) =>
+    tx
+      .select({ id: workItems.id, clientId: workItems.clientId })
+      .from(workItems)
+      .where(and(eq(workItems.assigneeId, userId), ne(workItems.status, 'resolved'))),
+  );
+  let n = 0;
+  for (const item of items) {
+    if (keep !== 'none' && item.clientId && keep.includes(item.clientId)) continue;
+    if ((await assignItem(db, ctx, item.id, null)).ok) n++;
+  }
+  return n;
 }

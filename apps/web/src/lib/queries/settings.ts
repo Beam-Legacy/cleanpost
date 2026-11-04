@@ -11,8 +11,10 @@ import {
   memberships,
   passkeys,
   sessions,
+  tenants,
   users,
   withTenant,
+  workItems,
 } from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
 import { getDb } from '../server';
@@ -32,6 +34,14 @@ export interface MemberRow {
   twoFactor: 'passkey' | 'authenticator' | null;
   lastActiveAt: Date | null;
   deactivatedAt: Date | null;
+  /** S-03 */
+  joinedAt: Date;
+  /** Their signed-in sessions with this company open. */
+  sessions: number;
+  /** Work items assigned to them and not resolved. */
+  openItems: number;
+  /** Active in another company too (two-factor is then theirs to manage, DEC-22). */
+  elsewhere: boolean;
 }
 
 export interface InviteRow {
@@ -68,6 +78,14 @@ export async function listInvitations(ctx: ActiveContext, now: Date): Promise<In
   });
 }
 
+/** The company's name, for S-03's wording. */
+export async function tenantName(ctx: ActiveContext): Promise<string> {
+  const [t] = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    tx.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, ctx.tenantId)),
+  );
+  return t?.name ?? 'this company';
+}
+
 /** S-02 / S-03: the clients a biller or viewer can be given, by name (offboarded ones left out). */
 export async function listClientChoices(ctx: ActiveContext): Promise<{ id: string; name: string }[]> {
   return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
@@ -87,7 +105,7 @@ export async function listMembers(ctx: ActiveContext): Promise<MemberRow[]> {
       .from(memberships)
       .innerJoin(users, eq(users.id, memberships.userId));
     const ids = rows.map((r) => r.u.id);
-    const [names, keys, last] = await Promise.all([
+    const [names, keys, last, here, open, elsewhere] = await Promise.all([
       tx.select({ id: clients.id, name: clients.name }).from(clients),
       ids.length
         ? tx.select({ userId: passkeys.userId }).from(passkeys).where(inArray(passkeys.userId, ids))
@@ -99,7 +117,36 @@ export async function listMembers(ctx: ActiveContext): Promise<MemberRow[]> {
             .where(inArray(sessions.userId, ids))
             .groupBy(sessions.userId)
         : Promise.resolve([]),
+      ids.length
+        ? tx
+            .select({ userId: sessions.userId, n: sql<number>`count(*)::int` })
+            .from(sessions)
+            .where(
+              and(
+                inArray(sessions.userId, ids),
+                eq(sessions.activeTenantId, ctx.tenantId),
+                sql`${sessions.expiresAt} > now()`,
+              ),
+            )
+            .groupBy(sessions.userId)
+        : Promise.resolve([]),
+      tx
+        .select({ userId: workItems.assigneeId, n: sql<number>`count(*)::int` })
+        .from(workItems)
+        .where(sql`${workItems.assigneeId} is not null and ${workItems.status} <> 'resolved'`)
+        .groupBy(workItems.assigneeId),
+      ids.length
+        ? tx.execute<{ id: string }>(
+            sql`select u.id from unnest(array[${sql.join(
+              ids.map((i) => sql`${i}::uuid`),
+              sql`, `,
+            )}]) as u(id) where app.member_elsewhere(u.id)`,
+          )
+        : Promise.resolve({ rows: [] as { id: string }[] }),
     ]);
+    const sessionsHere = new Map(here.map((h) => [h.userId, h.n]));
+    const openBy = new Map(open.map((o) => [o.userId, o.n]));
+    const multi = new Set(elsewhere.rows.map((r) => r.id));
     const clientName = new Map(names.map((c) => [c.id, c.name]));
     const withPasskey = new Set(keys.map((k) => k.userId));
     const lastBy = new Map(last.map((l) => [l.userId, l.at ? new Date(l.at) : null]));
@@ -121,6 +168,10 @@ export async function listMembers(ctx: ActiveContext): Promise<MemberRow[]> {
           : null,
       lastActiveAt: lastBy.get(u.id) ?? null,
       deactivatedAt: m.status === 'deactivated' ? m.updatedAt : null,
+      joinedAt: m.createdAt,
+      sessions: sessionsHere.get(u.id) ?? 0,
+      openItems: openBy.get(u.id) ?? 0,
+      elsewhere: multi.has(u.id),
     }));
     return out.sort((a, b) =>
       a.isOwner !== b.isOwner
