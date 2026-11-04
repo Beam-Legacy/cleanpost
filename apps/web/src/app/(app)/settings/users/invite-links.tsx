@@ -20,8 +20,7 @@ export function InviteLinks({ links }: { links: { email: string; url: string }[]
   return (
     <div className="stack-sm">
       <Banner>
-        Email is off here. Open each link in a private window (or another browser) to accept as that
-        person.
+        Email is off here. Open each link in a private window (or another browser) to accept as that person.
       </Banner>
       {links.map((l, i) => (
         <div key={l.email} className="field">
