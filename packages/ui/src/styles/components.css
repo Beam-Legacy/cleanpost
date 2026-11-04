@@ -2001,3 +2001,40 @@ button.codechip {
     -webkit-print-color-adjust: exact;
   }
 }
+
+/* Settings (S-01 to S-14): the section nav beside the page */
+.settings-nav {
+  width: 220px;
+  flex: none;
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+@media (max-width: 900px) {
+  .settings-split {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .settings-nav {
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+.table tr.row-muted td {
+  color: var(--ink-muted);
+}
+.table tbody th[scope='row'] {
+  background: transparent;
+  text-align: left;
+}
+/* S-13: filters sized to their content; details wrap so the IP column stays in view */
+.audit-filters .select {
+  width: auto;
+}
+.table td.audit-details {
+  white-space: normal;
+  min-width: 220px;
+  max-width: 360px;
+}
