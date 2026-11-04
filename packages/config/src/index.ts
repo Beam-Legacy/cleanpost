@@ -54,6 +54,16 @@ export function secondFactorSkipAllowed(source: Record<string, string | undefine
   return parseEnv(previewEnvSchema, source).PREVIEW_ALLOW_SKIP_2FA === 'true';
 }
 
+/**
+ * S-02 in local and preview with email off (SMTP_HOST=log): nobody would receive E-01, so the admin
+ * is shown the invite link to pass on instead. Never in staging or production, where the link goes
+ * only by email (that is how an invite proves the person owns the address).
+ */
+export function inviteLinksShown(source: Record<string, string | undefined> = process.env): boolean {
+  const { CLEANPOST_ENV } = parseEnv(previewEnvSchema, source);
+  return (CLEANPOST_ENV === 'local' || CLEANPOST_ENV === 'preview') && source.SMTP_HOST === 'log';
+}
+
 export class EnvError extends Error {
   constructor(readonly keys: string[]) {
     super(`Invalid or missing environment variables: ${keys.join(', ')}`);

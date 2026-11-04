@@ -1,8 +1,17 @@
 import type { Metadata } from 'next';
-import { CircleAlert, CircleCheck } from 'lucide-react';
+import { CircleAlert, CircleCheck, Clock } from 'lucide-react';
+import { now as clockNow } from '@cleanpost/clock';
 import { formatDate, formatWhen } from '@/lib/format';
-import { listMembers, type MemberRow } from '@/lib/queries/settings';
+import {
+  listClientChoices,
+  listInvitations,
+  listMembers,
+  type InviteRow,
+  type MemberRow,
+} from '@/lib/queries/settings';
 import { requireActiveContext } from '@/lib/session';
+import { InviteDialog } from './invite-dialog';
+import { InviteRowActions } from './invite-row-actions';
 
 export const metadata: Metadata = { title: 'Users and roles' };
 
@@ -17,7 +26,7 @@ const MATRIX: [string, string, string, string, string][] = [
   ['Export patient-level data', 'Yes', 'Yes', 'No', 'No'],
 ];
 
-function clientsText(m: MemberRow) {
+function clientsText(m: Pick<MemberRow, 'clients'>) {
   if (m.clients === 'all') return 'All';
   if (m.clients.length === 0) return '—';
   if (m.clients.length === 1) return m.clients[0];
@@ -27,8 +36,14 @@ function clientsText(m: MemberRow) {
 /** S-01 Users and roles: who can use the workspace, with which role, for which clients. */
 export default async function UsersPage() {
   const ctx = await requireActiveContext();
-  const members = await listMembers(ctx);
+  const now = clockNow();
+  const [members, invites, clientChoices] = await Promise.all([
+    listMembers(ctx),
+    listInvitations(ctx, now),
+    listClientChoices(ctx),
+  ]);
   const active = members.filter((m) => m.status !== 'deactivated').length;
+  const waiting = invites.filter((i) => !i.expired).length;
   // Sessions keep real time (DEC-18), so "last active" is measured on the real clock.
   const realNow = new Date();
 
@@ -38,9 +53,12 @@ export default async function UsersPage() {
         <div>
           <h2 className="title-m">Users and roles</h2>
           <p className="muted dense" style={{ margin: 0 }}>
-            {active} {active === 1 ? 'user' : 'users'} · two-factor required for everyone
+            {active} {active === 1 ? 'user' : 'users'}
+            {waiting > 0 && ` · ${waiting} ${waiting === 1 ? 'invite' : 'invites'} waiting`} · two-factor
+            required for everyone
           </p>
         </div>
+        <InviteDialog clients={clientChoices} />
       </div>
       <div className="card flush">
         <div className="table-wrap">
@@ -52,6 +70,9 @@ export default async function UsersPage() {
                 <th>Clients</th>
                 <th>Two-factor</th>
                 <th>Last active</th>
+                <th>
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -90,7 +111,11 @@ export default async function UsersPage() {
                         ? formatWhen(m.lastActiveAt, realNow)
                         : 'Never signed in'}
                   </td>
+                  <td />
                 </tr>
+              ))}
+              {invites.map((i) => (
+                <InviteTableRow key={i.id} invite={i} />
               ))}
             </tbody>
           </table>
@@ -129,5 +154,41 @@ export default async function UsersPage() {
         </div>
       </div>
     </>
+  );
+}
+
+/** A pending invite on S-01 (S-02): the address, who sent it, until when; resend or withdraw. */
+function InviteTableRow({ invite: i }: { invite: InviteRow }) {
+  const until = i.expiresAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  return (
+    <tr>
+      <td>
+        <div className="two-line">
+          <b>{i.email}</b>
+          <span className="sub">
+            Invited by {i.invitedBy} · {i.expired ? 'expired' : 'expires'} {until}
+          </span>
+        </div>
+      </td>
+      <td>{ROLE[i.role]}</td>
+      <td>{clientsText(i)}</td>
+      <td className="muted">—</td>
+      <td>
+        {i.expired ? (
+          <span className="chip chip-warn">
+            <CircleAlert aria-hidden />
+            Invite expired
+          </span>
+        ) : (
+          <span className="chip">
+            <Clock aria-hidden />
+            Invite pending
+          </span>
+        )}
+      </td>
+      <td>
+        <InviteRowActions id={i.id} email={i.email} />
+      </td>
+    </tr>
   );
 }

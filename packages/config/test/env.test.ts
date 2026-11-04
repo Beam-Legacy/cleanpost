@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { EnvError, baseEnvSchema, dbEnvSchema, parseEnv, secondFactorSkipAllowed } from '../src';
+import {
+  EnvError,
+  baseEnvSchema,
+  dbEnvSchema,
+  inviteLinksShown,
+  parseEnv,
+  secondFactorSkipAllowed,
+} from '../src';
 
 describe('parseEnv', () => {
   it('applies defaults', () => {
@@ -36,5 +43,15 @@ describe('secondFactorSkipAllowed', () => {
         EnvError,
       );
     }
+  });
+});
+
+describe('inviteLinksShown', () => {
+  it('only in local or preview, and only with email off', () => {
+    expect(inviteLinksShown({ CLEANPOST_ENV: 'preview', SMTP_HOST: 'log' })).toBe(true);
+    expect(inviteLinksShown({ SMTP_HOST: 'log' })).toBe(true);
+    expect(inviteLinksShown({ CLEANPOST_ENV: 'preview', SMTP_HOST: 'smtp.example.test' })).toBe(false);
+    for (const env of ['staging', 'production'])
+      expect(inviteLinksShown({ CLEANPOST_ENV: env, SMTP_HOST: 'log' })).toBe(false);
   });
 });

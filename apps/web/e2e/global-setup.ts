@@ -16,6 +16,8 @@ export const E2E_USERS = [
   'dana@northwind.test',
   'marcus@northwind.test',
   'lena@northwind.test',
+  // Invited into Northwind by settings.spec (A-06 as someone who already has an account).
+  'hana@harbor-rcm.test',
 ];
 
 export default async function globalSetup() {

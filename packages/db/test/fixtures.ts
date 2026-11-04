@@ -26,6 +26,14 @@ export async function insertTenantFixture(db: Database, f: TenantFixture, label:
   await db.insert(s.memberships).values({ ...t, userId: f.user, role: 'admin', isOwner: true });
   await db.insert(s.clients).values({ id: clientId, ...t, name: `Client of ${label}` });
   await db.insert(s.userPreferences).values({ ...t, userId: f.user });
+  await db.insert(s.invitations).values({
+    ...t,
+    email: `invitee-${label.toLowerCase()}@example.test`,
+    role: 'biller',
+    invitedBy: f.user,
+    tokenHash: `${f.user.replaceAll('-', '')}${'0'.repeat(32)}`,
+    expiresAt: new Date(Date.now() + 7 * 86_400_000),
+  });
   await db.insert(s.auditEvents).values({
     ...t,
     actor: `user:${f.user}`,

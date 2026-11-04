@@ -3,8 +3,9 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
 import { Button, Field, Input } from '@cleanpost/ui';
 import { authClient } from '@/lib/auth-client';
+import { DEFAULT_NEXT } from '@/lib/next-path';
 
-export function VerifyForm() {
+export function VerifyForm({ next = DEFAULT_NEXT }: { next?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<'totp' | 'recovery'>('totp');
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export function VerifyForm() {
       }
       return;
     }
-    router.push('/work');
+    router.push(next);
     router.refresh();
   }
 

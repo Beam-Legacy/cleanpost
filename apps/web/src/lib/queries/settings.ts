@@ -4,7 +4,17 @@ import 'server-only';
  * data; the audit log's metadata never holds patient data either (packages/db audit).
  */
 import { and, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
-import { auditEvents, clients, memberships, passkeys, sessions, users, withTenant } from '@cleanpost/db';
+import {
+  auditEvents,
+  clients,
+  invitations,
+  memberships,
+  passkeys,
+  sessions,
+  users,
+  withTenant,
+} from '@cleanpost/db';
+import { state } from '@cleanpost/domain';
 import { getDb } from '../server';
 import type { ActiveContext } from '../session';
 
@@ -22,6 +32,51 @@ export interface MemberRow {
   twoFactor: 'passkey' | 'authenticator' | null;
   lastActiveAt: Date | null;
   deactivatedAt: Date | null;
+}
+
+export interface InviteRow {
+  id: string;
+  email: string;
+  role: MemberRow['role'];
+  clients: 'all' | string[];
+  invitedBy: string;
+  expiresAt: Date;
+  expired: boolean;
+}
+
+/** S-01: invites not yet accepted or withdrawn, newest first; past 7 days they show as expired. */
+export async function listInvitations(ctx: ActiveContext, now: Date): Promise<InviteRow[]> {
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const rows = await tx
+      .select({ i: invitations, by: users.name })
+      .from(invitations)
+      .innerJoin(users, eq(users.id, invitations.invitedBy))
+      .where(eq(invitations.status, 'pending'))
+      .orderBy(desc(invitations.createdAt));
+    const names = rows.length ? await tx.select({ id: clients.id, name: clients.name }).from(clients) : [];
+    const clientName = new Map(names.map((c) => [c.id, c.name]));
+    return rows.map(({ i, by }) => ({
+      id: i.id,
+      email: i.email,
+      role: i.role as MemberRow['role'],
+      clients:
+        i.clientScope === 'all' ? ('all' as const) : i.clientIds.map((id) => clientName.get(id) ?? 'Client'),
+      invitedBy: by,
+      expiresAt: i.expiresAt,
+      expired: state.invitationExpired(i.expiresAt, now),
+    }));
+  });
+}
+
+/** S-02 / S-03: the clients a biller or viewer can be given, by name (offboarded ones left out). */
+export async function listClientChoices(ctx: ActiveContext): Promise<{ id: string; name: string }[]> {
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    tx
+      .select({ id: clients.id, name: clients.name })
+      .from(clients)
+      .where(sql`${clients.status} <> 'offboarded'`)
+      .orderBy(clients.name),
+  );
 }
 
 /** S-01: everyone with a membership in this company, owner first, then by name. */

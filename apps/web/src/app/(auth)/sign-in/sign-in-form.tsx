@@ -5,8 +5,9 @@ import { useState, type FormEvent } from 'react';
 import { Fingerprint } from 'lucide-react';
 import { Button, Field, Input } from '@cleanpost/ui';
 import { authClient } from '@/lib/auth-client';
+import { DEFAULT_NEXT, nextQuery } from '@/lib/next-path';
 
-export function SignInForm() {
+export function SignInForm({ next = DEFAULT_NEXT }: { next?: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -26,8 +27,9 @@ export function SignInForm() {
       // One generic message: never say whether the email or the password was wrong (A-01).
       return setError('Email or password is incorrect.');
     }
-    if (data && 'twoFactorRedirect' in data && data.twoFactorRedirect) return router.push('/sign-in/verify');
-    router.push('/work');
+    if (data && 'twoFactorRedirect' in data && data.twoFactorRedirect)
+      return router.push(`/sign-in/verify${nextQuery(next)}`);
+    router.push(next);
     router.refresh();
   }
 
@@ -35,7 +37,7 @@ export function SignInForm() {
     setError(null);
     const { error } = await authClient.signIn.passkey();
     if (error) return setError("That passkey didn't work. Try again or use your password.");
-    router.push('/work');
+    router.push(next);
     router.refresh();
   }
 

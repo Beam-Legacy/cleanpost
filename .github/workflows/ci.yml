@@ -31,7 +31,7 @@ jobs:
       DATABASE_URL: postgres://cleanpost_web:cleanpost_web@localhost:5432/cleanpost
       DATABASE_ADMIN_URL: postgres://cleanpost:cleanpost@localhost:5432/cleanpost
       APP_URL: http://localhost:3000
-      SMTP_HOST: localhost
+      SMTP_HOST: log
       SMTP_PORT: '1025'
       EMAIL_FROM: Cleanpost <no-reply@cleanpost.local>
       NEXT_TELEMETRY_DISABLED: '1'

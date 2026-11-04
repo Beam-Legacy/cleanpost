@@ -169,6 +169,13 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** charts are SVG on the design tokens with a table view each. The chart palette was checked for color-vision separation (`chart-1` to `chart-4` for series in fixed order, `chart-5` the neutral "Other", stacked next to `chart-1`): light `chart-2` moved to #00919C and the dark chart colors to darker steps (#6F87F5, #139FA9, #BE8220, #B072C8, #687482), the only token changes. Dark tokens now apply to screens only, so printed pages use the light theme.
 - **Also:** payer-sim now denies about 2.5% of first-submission lines for reasons no scrub can see (CO-16, CO-50, CO-22, CO-96), so the denial reports and queues have the mix a payer gives; corrected claims are not denied this way.
 
+## DEC-21 — Invites: join only with a second factor; links shown where email is off (Nov 4, 2026)
+
+- **Decision:** an invite (S-02) is one row per address with the role and clients, a random 32-byte token sent once in the E-01 link and stored only as its SHA-256, valid 7 days. Resend makes a new token and 7 more days (the old link stops working); withdraw ends it. The unauthenticated A-06 page reads the invite through `app.invitation_by_token` (a security-definer function that takes only a 64-character hash and returns the company, inviter, role, client count and status), so no tenant data is readable without the token.
+- **Decision:** joining needs a full sign-in as the invited address, two-factor included. A new person enters their name and password on A-06; that creates their sign-in only, and they go straight to A-03, then back to the invite to join. Someone with a Cleanpost account signs in (A-01 and A-02 carry `?next=`, same-site paths only) and joins. So no membership ever exists without a second factor, which is how A-06's rule "the account is created only after two-factor is set up" is met: the login record exists first because better-auth enrolls TOTP for a signed-in user. Until they join, S-01 shows the invite as pending.
+- **Decision:** where email is off (`SMTP_HOST=log`, the preview), S-02 and Resend show the admin the invite link to pass on, so invites can be demonstrated. Only in local and preview (`inviteLinksShown`, packages/config); staging and production send the link by email only, which is how an invite proves the person owns the address. CI runs with email off too, which the e2e uses. A failed send keeps the invite (Resend tries again) and logs only the error code.
+- **Also:** an address that is already a member, or already has a live invite, is refused inline; a member of another company can be invited (A-07 lets them switch).
+
 ## Open questions
 
 | Question | Owner | Needed by |

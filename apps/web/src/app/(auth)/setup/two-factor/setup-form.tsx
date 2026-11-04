@@ -5,6 +5,7 @@ import { Copy, Download } from 'lucide-react';
 import QRCode from 'qrcode';
 import { Button, Checkbox, Field, Input } from '@cleanpost/ui';
 import { authClient } from '@/lib/auth-client';
+import { DEFAULT_NEXT } from '@/lib/next-path';
 import { skipSecondFactorAction } from './actions';
 
 type Step =
@@ -12,7 +13,7 @@ type Step =
   | { kind: 'scan'; uri: string; key: string; qr: string; codes: string[] }
   | { kind: 'codes'; codes: string[] };
 
-export function SetupForm({ canSkip }: { canSkip: boolean }) {
+export function SetupForm({ canSkip, next = DEFAULT_NEXT }: { canSkip: boolean; next?: string }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: 'password' });
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +44,7 @@ export function SetupForm({ canSkip }: { canSkip: boolean }) {
     setError(null);
     const { error } = await authClient.passkey.addPasskey({ name: 'Cleanpost passkey' });
     if (error) return setError("The passkey wasn't added. Try again or use an authenticator app.");
-    router.push('/work');
+    router.push(next);
     router.refresh();
   }
 
@@ -57,6 +58,7 @@ export function SetupForm({ canSkip }: { canSkip: boolean }) {
   // Preview only (PREVIEW_ALLOW_SKIP_2FA). The real product has no way past this step.
   const skip = canSkip ? (
     <form action={skipSecondFactorAction} className="callout stack-sm" style={{ marginTop: 16 }}>
+      <input type="hidden" name="next" value={next} />
       <span className="dense">
         <b>Preview only.</b> You can skip this step for now. In the real product two-factor sign-in can&apos;t
         be skipped.
@@ -188,7 +190,7 @@ export function SetupForm({ canSkip }: { canSkip: boolean }) {
         block
         disabled={!saved}
         onClick={() => {
-          router.push('/work');
+          router.push(next);
           router.refresh();
         }}
       >

@@ -45,21 +45,27 @@ export async function firstSignIn(page: Page, email: string): Promise<string> {
     await page.getByLabel('Code').fill(totp(key));
   } else {
     await expect(page).toHaveURL(/\/setup\/two-factor$/);
-    await page.getByLabel('Your password').fill(PASSWORD);
-    await page.getByRole('button', { name: 'Continue' }).click();
-    key = (await page.locator('code.code').innerText()).trim();
-    mkdirSync(KEYS, { recursive: true });
-    writeFileSync(keyFile(email), key);
-    await page.getByLabel('Code from the app').fill(totp(key));
-    await page.getByRole('button', { name: 'Confirm code' }).click();
-    await page.getByLabel('I saved these recovery codes').check();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    key = await setUpTwoFactor(page, email);
   }
   // The URL can show /work for a moment before the app moves a user without a company to A-07;
   // wait for a page that is settled: Work, or the chooser for people in several companies.
   await expect(page.getByRole('heading', { level: 1, name: /^(Work|Choose a company)$/ })).toBeVisible({
     timeout: 30_000,
   });
+  return key;
+}
+
+/** A-03 on screen: password, the authenticator key (saved for retries), a code, recovery codes. */
+export async function setUpTwoFactor(page: Page, email: string, password = PASSWORD): Promise<string> {
+  await page.getByLabel('Your password').fill(password);
+  await page.getByRole('button', { name: 'Continue' }).click();
+  const key = (await page.locator('code.code').innerText()).trim();
+  mkdirSync(KEYS, { recursive: true });
+  writeFileSync(keyFile(email), key);
+  await page.getByLabel('Code from the app').fill(totp(key));
+  await page.getByRole('button', { name: 'Confirm code' }).click();
+  await page.getByLabel('I saved these recovery codes').check();
+  await page.getByRole('button', { name: 'Continue' }).click();
   return key;
 }
 

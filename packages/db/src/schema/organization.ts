@@ -63,6 +63,43 @@ export const memberships = pgTable(
   ],
 );
 
+/**
+ * S-02 / A-06: an invite to join the company. The token is sent once by email (E-01) and only its
+ * SHA-256 is stored; it works once and for 7 days. The person accepting is not signed in, so the
+ * accept page reads it through app.invitation_by_token (by hash only), never the table.
+ */
+export const invitations = pgTable(
+  'invitations',
+  {
+    id: id(),
+    tenantId: tenantId().references(() => tenants.id),
+    /** Lowercased. */
+    email: text('email').notNull(),
+    role: text('role').notNull(),
+    clientScope: text('client_scope').notNull().default('all'),
+    clientIds: uuid('client_ids')
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
+    invitedBy: uuid('invited_by')
+      .notNull()
+      .references(() => users.id),
+    tokenHash: text('token_hash').notNull().unique(),
+    /** pending | accepted | revoked (an expired invite is pending past expires_at) */
+    status: text('status').notNull().default('pending'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+    acceptedBy: uuid('accepted_by').references(() => users.id),
+    ...timestamps,
+  },
+  (t) => [
+    index('invitations_tenant_email_idx').on(t.tenantId, t.email),
+    check('invitations_role_check', sql`${t.role} in ('admin', 'biller', 'viewer')`),
+    check('invitations_client_scope_check', sql`${t.clientScope} in ('all', 'list')`),
+    check('invitations_status_check', sql`${t.status} in ('pending', 'accepted', 'revoked')`),
+  ],
+);
+
 /** A practice the billing company serves. M0 holds the fields the shell and policy need; M1 adds the rest. */
 export const clients = pgTable(
   'clients',

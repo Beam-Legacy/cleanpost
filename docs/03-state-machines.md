@@ -77,6 +77,25 @@ Rules:
 - One pending request per claim. The decision is recorded before the write-off runs, so a full write-off does not cancel the request it carries out; the claim's other pending requests are cancelled.
 - The default amount is the denied amount, capped at the claim balance (the balance also holds what the patient owes on other lines). A partial write-off that covers the denied amount closes the denial item and leaves the patient's share open.
 
+## Invitation (S-02, A-06)
+
+```
+pending -accept-> accepted        signed in as the invited address with two-factor; one membership (DEC-21)
+pending -revoke-> revoked         an admin withdraws it
+pending -resend-> pending         a new token and 7 more days; the old link stops working
+```
+
+Expired is not a state: a pending invite past `expires_at` (7 days) cannot be accepted, only resent or revoked. Only the token's SHA-256 is stored. A new person's sign-in is made before they accept (they set up two-factor first), so the invite stays pending until they join.
+
+## Membership (S-03)
+
+```
+active -deactivate-> deactivated  sessions in the company end at once; their open items go back to the queue unassigned
+deactivated -reactivate-> active
+```
+
+The owner cannot be deactivated or change role here; nobody changes their own role.
+
 ## Connection and sync
 
 Connection: `setup → testing → healthy ⇄ degraded → failed → (fix) testing`, `paused` by admin.
