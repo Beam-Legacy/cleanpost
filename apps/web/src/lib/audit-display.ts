@@ -65,6 +65,9 @@ const VERB: Record<string, string> = {
   turned_off: 'Turned off',
   turned_on: 'Turned back on',
   tested: 'Tested',
+  paused: 'Paused',
+  resumed: 'Resumed',
+  baseline_recorded: 'Recorded the baseline',
 };
 
 const RECORD: Record<string, string> = {

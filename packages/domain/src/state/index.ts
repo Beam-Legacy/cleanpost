@@ -5,3 +5,4 @@ export * from './claim';
 export * from './remittance';
 export * from './write-off-request';
 export * from './invitation';
+export * from './client';

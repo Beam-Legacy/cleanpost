@@ -79,3 +79,4 @@ export {
   type StatusTrigger,
   type SweepResult,
 } from './status-check';
+export { pauseClient, resumeClient, type ClientStatusResult, type PauseInput } from './client-status';

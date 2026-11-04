@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { Download, FileText } from 'lucide-react';
 import { z } from 'zod';
 import { nowMs } from '@cleanpost/clock';
-import { policy, reports } from '@cleanpost/domain';
+import { policy, reports, vsBaseline } from '@cleanpost/domain';
 import { Banner } from '@cleanpost/ui';
 import { BarList, ChartCard } from '@/components/reports/charts';
 import { MetricTile } from '@/components/reports/metric';
@@ -18,6 +18,7 @@ import {
   getReportClient,
   todayPacific,
 } from '@/lib/queries/reports';
+import { clientHeader } from '@/lib/queries/client-detail';
 import { resolvePeriod } from '@/lib/report-display';
 import { workingFor } from '@/lib/report-working';
 import { requireActiveContext } from '@/lib/session';
@@ -43,12 +44,16 @@ export default async function ClientReportPage({
   const client = await getReportClient(ctx, id);
   if (!client) notFound();
   const { preset, period, label } = resolvePeriod(sp.period, todayPacific());
-  const [o, payers, aging, denials] = await Promise.all([
+  const [o, payers, aging, denials, header] = await Promise.all([
     getOverview(ctx, period, id),
     getPayerResults(ctx, id, period),
     getAging(ctx, { view: 'insurance', groupBy: 'client', clientId: id }),
     getDenialsReport(ctx, period, { clientId: id }),
+    clientHeader(ctx, id),
   ]);
+  const baseline = header?.baseline ?? null;
+  const vs = (m: 'collections' | 'firstPass' | 'denialRate' | 'daysInAr', v: number | null) =>
+    baseline ? vsBaseline(m, v, baseline) : NO_BASELINE;
   const k = o.kpis;
   const w = workingFor(k, label);
   const scope = `${client.name} · ${label}`;
@@ -97,9 +102,11 @@ export default async function ClientReportPage({
       {early && <Banner tone="info">Early results; automation thresholds are still being tuned.</Banner>}
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         <span className="muted dense">
-          No baseline was recorded at onboarding, so figures are shown without a comparison.
+          {baseline
+            ? `Compared with the baseline recorded ${baseline.recordedAt.slice(0, 10)}${baseline.source ? ` (${baseline.source})` : ''}.`
+            : 'No baseline was recorded at onboarding, so figures are shown without a comparison.'}
         </span>
-        {isAdmin && (
+        {isAdmin && !baseline && (
           <Link className="btn btn-ghost btn-sm" href={`/clients/${id}`}>
             Record the baseline
           </Link>
@@ -110,7 +117,7 @@ export default async function ClientReportPage({
           metric="collections"
           value={k.collectionsCents}
           unit="cents"
-          delta={NO_BASELINE}
+          delta={vs('collections', k.collectionsCents)}
           working={w.collections}
           scope={scope}
         />
@@ -118,7 +125,7 @@ export default async function ClientReportPage({
           metric="firstPass"
           value={k.firstPass}
           unit="percent"
-          delta={NO_BASELINE}
+          delta={vs('firstPass', k.firstPass)}
           working={w.firstPass}
           scope={scope}
         />
@@ -126,7 +133,7 @@ export default async function ClientReportPage({
           metric="denialRate"
           value={k.denialRate}
           unit="percent"
-          delta={NO_BASELINE}
+          delta={vs('denialRate', k.denialRate)}
           working={w.denialRate}
           scope={scope}
         />
@@ -134,7 +141,7 @@ export default async function ClientReportPage({
           metric="daysInAr"
           value={k.daysInAr}
           unit="days"
-          delta={NO_BASELINE}
+          delta={vs('daysInAr', k.daysInAr)}
           working={w.daysInAr}
           scope={`${client.name} · today`}
         />

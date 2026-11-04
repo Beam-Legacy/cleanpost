@@ -3,7 +3,7 @@
  * PM's claim status comes back through sync, and a PM that can only release by hand gets exactly one
  * manual task. Runs on Willamette Ortho (Tebra profile); other files own the other practices.
  */
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createDevSecretResolver,
@@ -35,8 +35,10 @@ import {
   approveClaim,
   buildClaimsForClient,
   editClaim,
+  pauseClient,
   pushCorrection,
   releaseClaim,
+  resumeClient,
   scrubVersion,
   unapproveClaim,
   versionsAwaitingScrub,
@@ -189,6 +191,50 @@ describe('release (Mode A, Tebra profile)', () => {
       .from(pmSchema.claims)
       .where(eq(pmSchema.claims.encounterId, pmEnc.id));
     expect(pmClaim!.status).toBe('queued');
+  });
+
+  it('holds releases while the client is paused (CL-08) and hands them back on resume', async () => {
+    const [c] = await inReview();
+    const ctx = { tenantId: NORTHWIND, userId: USER };
+    const now = new Date();
+    expect(
+      await pauseClient(app.db, ctx, willamette().id, { reason: 'Other', note: null, resumeOn: null }, now),
+    ).toEqual({ ok: false, reason: 'note_required' });
+    expect(
+      await pauseClient(
+        app.db,
+        ctx,
+        willamette().id,
+        { reason: 'Practice asked us to pause', note: null, resumeOn: '2026-12-01' },
+        now,
+      ),
+    ).toEqual({ ok: true });
+    try {
+      expect(await approveClaim(app.db, { ...ctx, claimId: c!.id })).toEqual({ ok: true });
+      expect(await releaseClaim(deps, { tenantId: NORTHWIND, claimId: c!.id }, `user:${USER}`)).toEqual({
+        status: 'refused',
+        reason: 'client_paused',
+      });
+      const [held] = await admin.db.select().from(claims).where(eq(claims.id, c!.id));
+      expect(held!.status).toBe('ready');
+    } finally {
+      const resumed = await resumeClient(app.db, ctx, willamette().id, new Date());
+      expect(resumed.ok && resumed.toRelease).toContain(c!.id);
+    }
+    expect(await resumeClient(app.db, ctx, willamette().id, new Date())).toEqual({
+      ok: false,
+      reason: 'invalid_state',
+    });
+    expect(await releaseClaim(deps, { tenantId: NORTHWIND, claimId: c!.id }, `user:${USER}`)).toEqual({
+      status: 'released',
+      via: 'adapter',
+    });
+    const audit = await admin.db.execute<{ action: string }>(
+      sql`select action from audit_events where entity_type = 'client' and entity_id = ${willamette().id} order by at`,
+    );
+    expect(audit.rows.map((a) => a.action)).toEqual(
+      expect.arrayContaining(['client.paused', 'client.resumed']),
+    );
   });
 
   it('undoes an approval before release: back in review, item reopened, release refused', async () => {

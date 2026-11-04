@@ -121,6 +121,10 @@ export const clients = pgTable(
     pmBatchTime: time('pm_batch_time'),
     goLiveAt: timestamp('go_live_at', { withTimezone: true }),
     offboardedAt: timestamp('offboarded_at', { withTimezone: true }),
+    /** CL-02 / O-10: the practice's figures before Cleanpost (domain ClientBaseline); totals only. */
+    baseline: jsonb('baseline'),
+    /** CL-08 while paused: { reason, note, resumeOn, pausedAt, pausedBy }; null when not paused. */
+    pause: jsonb('pause'),
     ...timestamps,
   },
   (t) => [

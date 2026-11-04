@@ -59,7 +59,9 @@ export type ReleaseOutcome =
         | 'mode_not_built'
         | 'no_connection'
         /** A correction is waiting to be made in the PM; releasing now would bill the old charge. */
-        | 'pm_correction_pending';
+        | 'pm_correction_pending'
+        /** CL-08: the client is paused; the claim waits in ready and goes out on resume. */
+        | 'client_paused';
     }
   | { status: 'failed'; code: string; retryable: boolean; message: string };
 
@@ -111,6 +113,7 @@ async function load(
     ? await tx.select().from(scrubResults).where(eq(scrubResults.id, version.scrubResultId))
     : [];
   const [client] = await tx.select().from(clients).where(eq(clients.id, claim.clientId));
+  if (client?.status === 'paused') return { status: 'refused', reason: 'client_paused' };
   const [settings] = claim.payerId
     ? await tx
         .select()

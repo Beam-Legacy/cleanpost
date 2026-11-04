@@ -196,6 +196,11 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** S-06 renders the rule from its JSON (`describeCondition`, `describeOutcome`), so the words cannot drift from what runs. "Test on last 30 days" evaluates the current version of each claim built in the period; it reads claim content, so it is audited (counts only).
 - **Not yet:** the structured rule editor and "New rule" (S-06 edit mode), and S-07 proposals from billers' corrections (a nightly grouping job); both next.
 
+## DEC-25 — Client pause and the onboarding baseline (Nov 4, 2026)
+
+- **Decision:** the client state machine is now code (`state.nextClientState`): onboarding → live (go live, O-10), live ⇄ paused (CL-08), live or paused → offboarded (CL-11). While paused, releases are refused (`client_paused`) and PM corrections wait; syncing, eligibility and the scrub keep running, so claims reach "ready" and wait. Resume queues the release of every ready claim and the PM correction of every claim with one pending. The pause keeps its reason, note and an optional planned resume date (a reminder on the banner; resuming stays a person's decision).
+- **Decision:** the onboarding baseline is the practice's own figures before Cleanpost (collections in a typical month, first-pass acceptance, denial rate, days in A/R, and where they came from), typed by an admin into `clients.baseline`. CL-02, RP-02 and the practice report compare against it; the first 30 days live show no comparison. O-10 will record it at go-live; clients already live record it from CL-02.
+
 ## Open questions
 
 | Question | Owner | Needed by |

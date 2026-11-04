@@ -31,6 +31,7 @@ import {
   type AuditActor,
   type Database,
   type Tx,
+  clients,
 } from '@cleanpost/db';
 import {
   applyFix,
@@ -218,7 +219,9 @@ export interface CorrectionDeps {
 export type CorrectionOutcome =
   | { status: 'pushed'; version: number }
   | { status: 'manual_task'; workItemId: string; version: number }
-  | { status: 'not_needed'; reason: 'not_found' | 'not_mode_a' | 'no_connection' | 'up_to_date' };
+  | { status: 'not_needed'; reason: 'not_found' | 'not_mode_a' | 'no_connection' | 'up_to_date' }
+  /** CL-08: nothing is written to the PM while the client is paused; resume sends it. */
+  | { status: 'waiting'; reason: 'client_paused' };
 
 /** Field names the adapter contract uses for a charge correction (docs/05-adapters.md). */
 function pmField(fieldPath: string): string {
@@ -272,6 +275,11 @@ async function plan(tx: Tx, claimId: string): Promise<CorrectionPlan | Correctio
   const [claim] = await tx.select().from(claims).where(eq(claims.id, claimId));
   if (!claim?.currentVersionId) return { status: 'not_needed', reason: 'not_found' };
   if (claim.mode !== 'A') return { status: 'not_needed', reason: 'not_mode_a' };
+  const [client] = await tx
+    .select({ status: clients.status })
+    .from(clients)
+    .where(eq(clients.id, claim.clientId));
+  if (client?.status === 'paused') return { status: 'waiting', reason: 'client_paused' };
   const [version] = await tx.select().from(claimVersions).where(eq(claimVersions.id, claim.currentVersionId));
   if (!version) return { status: 'not_needed', reason: 'not_found' };
   const payload = version.payload as ClaimPayload;

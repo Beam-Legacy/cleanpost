@@ -2,11 +2,12 @@ import { now as clockNow } from '@cleanpost/clock';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Plus, Search } from 'lucide-react';
-import { policy } from '@cleanpost/domain';
+import { policy, reports } from '@cleanpost/domain';
 import { EmptyState, ModeBadge, StatusChip } from '@cleanpost/ui';
 import { ConnectionDot } from '@/components/connection-status';
 import { PageHead } from '@/components/page';
 import { listClients } from '@/lib/queries/clients';
+import { getOverview, todayPacific } from '@/lib/queries/reports';
 import { requireActiveContext } from '@/lib/session';
 
 export const metadata: Metadata = { title: 'Clients' };
@@ -32,7 +33,12 @@ export default async function ClientsPage({
 }) {
   const ctx = await requireActiveContext();
   const { status = 'all', q = '', client } = await searchParams;
-  const all = await listClients(ctx);
+  const [all, month] = await Promise.all([
+    listClients(ctx),
+    getOverview(ctx, reports.periodFor('this_month', todayPacific())),
+  ]);
+  const kpis = new Map(month.clients.map((m) => [m.client.id, m.kpis]));
+  const pct = (v: number | null | undefined) => (v === null || v === undefined ? '—' : `${v.toFixed(1)}%`);
   const query = q.trim().toLowerCase();
   const rows = all.filter(
     (c) => (status === 'all' || c.status === status) && (!query || c.name.toLowerCase().includes(query)),
@@ -116,7 +122,9 @@ export default async function ClientsPage({
                 {rows.map((c) => (
                   <tr key={c.id}>
                     <td>
-                      <b>{c.name}</b>
+                      <Link href={`/clients/${c.id}`}>
+                        <b>{c.name}</b>
+                      </Link>
                     </td>
                     <td>{c.pmName}</td>
                     <td>
@@ -125,9 +133,9 @@ export default async function ClientsPage({
                     <td>
                       <StatusChip status={STATUS_CHIP[c.status]} />
                     </td>
-                    <td className="num">—</td>
-                    <td className="num">—</td>
-                    <td className="num">—</td>
+                    <td className="num">{c.status === 'onboarding' ? '—' : (kpis.get(c.id)?.claims ?? 0)}</td>
+                    <td className="num">{pct(kpis.get(c.id)?.firstPass)}</td>
+                    <td className="num">{pct(kpis.get(c.id)?.releasedWithoutReview)}</td>
                     <td className="num">{c.status === 'onboarding' ? '—' : c.openItems}</td>
                     <td>
                       {c.status === 'onboarding' && c.onboardingStep ? (

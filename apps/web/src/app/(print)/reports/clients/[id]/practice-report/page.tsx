@@ -1,3 +1,4 @@
+import { clientHeader } from '@/lib/queries/client-detail';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { eq } from 'drizzle-orm';
@@ -39,6 +40,7 @@ export default async function PracticeReportPage({
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
   const client = await getReportClient(ctx, id);
+  const baseline = (await clientHeader(ctx, id))?.baseline ?? null;
   if (!client) notFound();
   const sp = await searchParams;
   const today = todayPacific();
@@ -95,7 +97,18 @@ export default async function PracticeReportPage({
         </header>
         <h1>Revenue cycle report · {label}</h1>
         <p className="doc-sub">
-          {client.name}. No baseline was recorded at onboarding, so figures are shown without a comparison.
+          {client.name}.{' '}
+          {baseline
+            ? `Before Cleanpost${baseline.source ? ` (${baseline.source})` : ''}: ${[
+                baseline.firstPass !== null && `first-pass acceptance ${baseline.firstPass.toFixed(1)}%`,
+                baseline.denialRate !== null && `denial rate ${baseline.denialRate.toFixed(1)}%`,
+                baseline.daysInAr !== null && `${Math.round(baseline.daysInAr)} days in A/R`,
+                baseline.collectionsCents !== null &&
+                  `${formatMoney(baseline.collectionsCents)} collected a month`,
+              ]
+                .filter(Boolean)
+                .join(', ')}.`
+            : 'No baseline was recorded at onboarding, so figures are shown without a comparison.'}
         </p>
 
         <section className="doc-kpis" aria-label="Key figures">
