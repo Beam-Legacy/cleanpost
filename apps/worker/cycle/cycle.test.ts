@@ -125,6 +125,19 @@ async function advance(days: number) {
 }
 
 let biller = '';
+
+/** A biller approves every claim in review and sends it to release. */
+async function approveReviews() {
+  const review = await admin.db
+    .select({ id: claims.id })
+    .from(claims)
+    .where(and(inArray(claims.clientId, clientIds), eq(claims.status, 'needs_review')));
+  for (const c of review) {
+    const res = await approveClaim(app.db, { tenantId: NORTHWIND, userId: biller, claimId: c.id });
+    if (res.ok) await sendClaimRelease(boss, { tenantId: NORTHWIND, claimId: c.id, userId: biller });
+  }
+  await quiet();
+}
 const uploaded = new Set<string>();
 /** Tebra has no ERA API: a person downloads each 835 from the PM and uploads it (R-02). */
 async function uploadTebraEras() {
@@ -203,15 +216,7 @@ beforeAll(async () => {
   }
 
   // 2. A biller approves what is in review; blocked claims wait for a fix.
-  const review = await admin.db
-    .select({ id: claims.id })
-    .from(claims)
-    .where(and(inArray(claims.clientId, clientIds), eq(claims.status, 'needs_review')));
-  for (const c of review) {
-    const res = await approveClaim(app.db, { tenantId: NORTHWIND, userId: biller, claimId: c.id });
-    if (res.ok) await sendClaimRelease(boss, { tenantId: NORTHWIND, claimId: c.id, userId: biller });
-  }
-  await quiet();
+  await approveReviews();
 
   // 3. 45 days at the payer: claims out at each step, acknowledgments and 835s back.
   for (const days of STEPS) {
@@ -223,6 +228,9 @@ beforeAll(async () => {
     // The daily follow-up sweep (scheduled at 6:17 am in the worker), once per step.
     await handleStatusSweep(deps);
     await quiet();
+    // The biller works the queue each day: a claim scrubbed after the last pass (a delayed
+    // eligibility answer, a new charge) is approved now rather than waiting in review.
+    await approveReviews();
   }
 });
 
