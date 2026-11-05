@@ -48,6 +48,8 @@ import {
   claimCorrectPayload,
   claimReleasePayload,
   claimStatusCheckPayload,
+  connectionTestPayload,
+  onboardingDryRunPayload,
   eligibilityCheckPayload,
   claimScrubPayload,
   JOBS,
@@ -68,6 +70,8 @@ import {
   planTick,
   runSync,
   type SyncDeps,
+  dryRun,
+  testConnection,
 } from '@cleanpost/sync';
 import { now as clockNow } from '@cleanpost/clock';
 
@@ -443,6 +447,34 @@ export async function handleDeadLetter(deps: WorkerDeps, data: unknown) {
   });
 }
 
+/** O-04: test a new connection; the result is kept on the client for the wizard to show. */
+export async function handleConnectionTest(deps: WorkerDeps, data: unknown) {
+  const p = connectionTestPayload.parse(data);
+  const res = await testConnection(
+    { db: deps.db, registry: deps.registry, log: deps.log },
+    { tenantId: p.tenantId, userId: p.userId, connectionId: p.connectionId },
+  );
+  deps.log.info({ connectionId: p.connectionId, ok: res.ok }, 'connection test');
+  return res;
+}
+
+/** O-05: a read-only pull of the last week; counts and names are kept on the client. */
+export async function handleOnboardingDryRun(deps: WorkerDeps, data: unknown) {
+  const p = onboardingDryRunPayload.parse(data);
+  try {
+    return await dryRun(
+      { db: deps.db, registry: deps.registry, log: deps.log },
+      { tenantId: p.tenantId, userId: p.userId, clientId: p.clientId },
+    );
+  } catch (err) {
+    deps.log.warn(
+      { clientId: p.clientId, code: (err as { code?: string }).code ?? 'unknown' },
+      'dry run failed',
+    );
+    return null;
+  }
+}
+
 /** Registers every handler and the tick schedule on a started pg-boss. */
 export async function registerWorkers(
   deps: WorkerDeps,
@@ -482,6 +514,12 @@ export async function registerWorkers(
   });
   await deps.boss.work(JOBS.claimStatusSweep, async () => {
     await handleStatusSweep(deps);
+  });
+  await deps.boss.work(JOBS.connectionTest, async ([job]) => {
+    if (job) await handleConnectionTest(deps, job.data);
+  });
+  await deps.boss.work(JOBS.onboardingDryRun, async ([job]) => {
+    if (job) await handleOnboardingDryRun(deps, job.data);
   });
   await deps.boss.work(JOBS.deadLetter, async ([job]) => {
     if (job) await handleDeadLetter(deps, job.data);

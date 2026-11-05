@@ -24,7 +24,7 @@ export async function insertTenantFixture(db: Database, f: TenantFixture, label:
   await db.insert(s.users).values({ id: f.user, name: `User ${label}`, email: `${f.user}@example.test` });
   await db.insert(s.tenants).values({ id: tenantId, name: label });
   await db.insert(s.memberships).values({ ...t, userId: f.user, role: 'admin', isOwner: true });
-  await db.insert(s.clients).values({ id: clientId, ...t, name: `Client of ${label}` });
+  await db.insert(s.clients).values({ id: clientId, ...t, name: `Client of ${label}`, status: 'live' });
   await db.insert(s.userPreferences).values({ ...t, userId: f.user });
   await db.insert(s.invitations).values({
     ...t,

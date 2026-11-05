@@ -10,6 +10,7 @@ import { html, raw } from 'hono/html';
 import { z } from 'zod';
 import type { PmDb } from './db';
 import { FAULT_KINDS } from './faults';
+import { createPractice, createPracticeBody, listPractices } from './create';
 import { addVisits } from './load';
 import {
   accounts,
@@ -37,6 +38,8 @@ export interface AdminDeps {
   demoReset?: () => Promise<unknown>;
   /** Reads the payer simulator's date now, so a just-moved demo clock is never a few seconds stale. */
   refreshClock?: () => Promise<void>;
+  /** Tells the payer simulator about members of a new practice (eligibility and adjudication). */
+  refreshRoster?: () => Promise<unknown>;
 }
 
 const resubmitBody = z.object({
@@ -222,6 +225,24 @@ export function adminRoutes(deps: AdminDeps) {
         return raw835 ? [{ id: e.id, receivedAt: e.receivedAt.toISOString(), raw835 }] : [];
       }),
     });
+  });
+
+  // Onboarding demo (O-04): list practices, and create one with generated synthetic data.
+  app.get('/api/practices', async (c) => c.json({ practices: await listPractices(db) }));
+
+  app.post('/api/practices', async (c) => {
+    const body = createPracticeBody.safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success)
+      return c.json({ error: 'invalid', fields: body.error.issues.map((i) => i.path.join('.')) }, 422);
+    const [taken] = await db
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(eq(accounts.id, body.data.accountId));
+    if (taken) return c.json({ error: 'account_exists' }, 409);
+    await deps.refreshClock?.();
+    const created = await createPractice(db, body.data, deps.now());
+    await deps.refreshRoster?.();
+    return c.json({ ok: true, ...created });
   });
 
   app.post('/api/demo/reset', async (c) => {

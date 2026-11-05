@@ -113,6 +113,15 @@ const app = createPmMockApp({
   ...(clearinghouse ? { clearinghouse } : {}),
   ...(demoReset ? { demoReset } : {}),
   refreshClock: followSimClock,
+  ...(env.PAYER_SIM_URL
+    ? {
+        refreshRoster: () =>
+          loadRoster(handle.db, {
+            payerSimUrl: env.PAYER_SIM_URL!.replace(/\/$/, ''),
+            ...(env.PAYER_SIM_TOKEN ? { token: env.PAYER_SIM_TOKEN } : {}),
+          }),
+      }
+    : {}),
 });
 const timer = clearinghouse
   ? setInterval(() => {

@@ -12,6 +12,7 @@ import {
   clients,
   connections,
   encryptField,
+  last4,
   externalRefs,
   locations,
   memberships,
@@ -129,6 +130,14 @@ export async function seed(systemDb: Database, password: string): Promise<{ crea
       address: { line1: '100 Synthetic Way', city: c.city, state: 'OR', zip: '97000' },
       pmBatchTime: c.pmBatchTime ?? null,
       goLiveAt: c.status === 'live' ? new Date('2026-09-15T16:00:00Z') : null,
+      // An onboarding client resumes the wizard (O-01 to O-10) where it was left.
+      onboarding: c.onboardingStep
+        ? {
+            step: c.onboardingStep,
+            taxIdLast4: last4(c.taxId),
+            pm: { adapterKey: c.adapterKey, profile: null, pmName: c.pmName },
+          }
+        : null,
     };
     await systemDb
       .insert(clients)
@@ -138,6 +147,8 @@ export async function seed(systemDb: Database, password: string): Promise<{ crea
         set: {
           ...details,
           taxIdEncrypted: sql`coalesce(${clients.taxIdEncrypted}, excluded.tax_id_encrypted)`,
+          // Progress made in the wizard since the last seed is kept.
+          onboarding: sql`coalesce(${clients.onboarding}, excluded.onboarding)`,
         },
       });
 
@@ -186,7 +197,6 @@ export async function seed(systemDb: Database, password: string): Promise<{ crea
         pmName: c.pmName,
         profile: c.profile,
         ...(c.pmMock ? { practiceId: c.pmMock.practiceId } : {}),
-        ...(c.onboardingStep ? { onboardingStep: c.onboardingStep } : {}),
       },
     };
     let [conn] = await systemDb

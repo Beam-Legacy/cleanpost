@@ -131,3 +131,57 @@ export function accountLockedEmail(i: AccountLockedEmailInput): EmailContent {
     reason: "Security alerts can't be turned off.",
   });
 }
+
+export interface ClientLiveEmailInput {
+  clientName: string;
+  pmName: string;
+  mode: 'A' | 'B' | 'C';
+  goLiveAt: Date;
+  /** YYYY-MM-DD in the client's calendar; null when claims can go out automatically from day one. */
+  reviewUntil: string | null;
+  threshold: number | null;
+  primaryBiller: string | null;
+  backupBiller: string | null;
+  url: string;
+  timeZone: string;
+}
+
+const MODE_LINE = {
+  A: 'Mode A: the PM sends claims, Cleanpost checks them first',
+  B: 'Mode B: Cleanpost sends claims and posts payments',
+  C: 'Mode C: Cleanpost sends claims, the PM posts payments',
+} as const;
+
+/**
+ * E-06 Client live: sent to the company's admins and the client's billers at Go live. Names, counts
+ * and dates only. The first sync is still running when it goes, so its counts are on O-11 and CL-02.
+ */
+export function clientLiveEmail(i: ClientLiveEmailInput): EmailContent {
+  const until = i.reviewUntil ? formatDate(new Date(`${i.reviewUntil}T12:00:00Z`), 'UTC') : null;
+  const billers = [
+    i.primaryBiller && `${i.primaryBiller} (primary)`,
+    i.backupBiller && `${i.backupBiller} (backup)`,
+  ].filter((x): x is string => Boolean(x));
+  return renderEmail({
+    subject: `${i.clientName} is live on Cleanpost`,
+    preview: until
+      ? `Billers review every claim until ${until}.`
+      : `Claims at or above ${i.threshold ?? 'the company'} confidence go out without review.`,
+    heading: `${i.clientName} is live`,
+    paragraphs: [
+      `Cleanpost started working ${i.clientName}'s claims on ${formatDate(i.goLiveAt, i.timeZone)} at ${formatTime(i.goLiveAt, i.timeZone)}. The first sync with ${i.pmName} is running now.`,
+    ],
+    details: [
+      ['PM', i.pmName],
+      ['Mode', MODE_LINE[i.mode]],
+      ...(billers.length ? ([['Billers', billers.join(', ')]] as [string, string][]) : []),
+    ],
+    notes: [
+      until
+        ? `This week: every claim comes to the queue for review until ${until}. After that, you can raise the release threshold from the client's settings.`
+        : `Claims scoring ${i.threshold ?? 'at the company threshold'} or higher go out without review; the rest wait in the queue.`,
+    ],
+    cta: { label: 'Open client', url: i.url },
+    reason: `You received this because you are an admin or a biller for ${i.clientName}.`,
+  });
+}

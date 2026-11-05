@@ -1640,6 +1640,42 @@ svg.lucide.icon-20 {
   border-top: 1px solid var(--border);
   padding-top: var(--space-4);
 }
+@keyframes cp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: cp-spin 1s linear infinite;
+}
+a.stepper-link {
+  display: contents;
+  color: inherit;
+  text-decoration: none;
+}
+.stepper li:has(> a.stepper-link):hover {
+  background: var(--surface-sunken);
+}
+@media (max-width: 900px) {
+  .wizard {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--space-4);
+    gap: var(--space-4);
+  }
+  .wizard .stepper {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .wizard .stepper li {
+    flex: none;
+  }
+  .wizard-head {
+    padding: 0 var(--space-4);
+  }
+  .wizard .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 
 /* Empty, error, loading (EmptyState, ErrorState, Skeleton) */
 .empty {

@@ -22,8 +22,26 @@ export const JOBS = {
   eligibilityCheck: 'eligibility.check',
   claimStatusCheck: 'claim.statusCheck',
   claimStatusSweep: 'claim.statusSweep',
+  connectionTest: 'connection.test',
+  onboardingDryRun: 'onboarding.dryRun',
   deadLetter: 'system.dead_letter',
 } as const;
+
+/** O-04: test a new connection (adapter health check). */
+export const connectionTestPayload = z.object({
+  tenantId: z.uuid(),
+  connectionId: z.uuid(),
+  userId: z.uuid().nullable(),
+});
+export type ConnectionTestPayload = z.infer<typeof connectionTestPayload>;
+
+/** O-05: read the last days from the PM without storing records. */
+export const onboardingDryRunPayload = z.object({
+  tenantId: z.uuid(),
+  clientId: z.uuid(),
+  userId: z.uuid().nullable(),
+});
+export type OnboardingDryRunPayload = z.infer<typeof onboardingDryRunPayload>;
 
 export const claimBuildPayload = z.object({ tenantId: z.uuid(), clientId: z.uuid() });
 export type ClaimBuildPayload = z.infer<typeof claimBuildPayload>;
@@ -104,6 +122,9 @@ export const QUEUES: { name: string; options: Parameters<PgBoss['createQueue']>[
   { name: JOBS.claimStatusSweep, options: { policy: 'singleton', retryLimit: 0, expireInSeconds: 30 * 60 } },
   // One queued scrub per claim version (singletonKey = version ID).
   { name: JOBS.claimScrub, options: { policy: 'stately', expireInSeconds: 10 * 60, ...RETRIES } },
+  // Onboarding: one queued test per connection, one dry run per client; a person runs them again.
+  { name: JOBS.connectionTest, options: { policy: 'stately', expireInSeconds: 5 * 60, retryLimit: 0 } },
+  { name: JOBS.onboardingDryRun, options: { policy: 'stately', expireInSeconds: 15 * 60, retryLimit: 0 } },
 ];
 
 export type Role = 'web' | 'worker';
@@ -231,6 +252,22 @@ export async function cancelClaimRelease(boss: PgBoss, jobId: string): Promise<b
   await boss.cancel(JOBS.claimRelease, jobId);
   const after = await boss.getJobById(JOBS.claimRelease, jobId);
   return after?.state === 'cancelled';
+}
+
+export async function sendConnectionTest(
+  boss: PgBoss,
+  payload: ConnectionTestPayload,
+): Promise<string | null> {
+  const data = connectionTestPayload.parse(payload);
+  return boss.send(JOBS.connectionTest, data, { singletonKey: data.connectionId });
+}
+
+export async function sendOnboardingDryRun(
+  boss: PgBoss,
+  payload: OnboardingDryRunPayload,
+): Promise<string | null> {
+  const data = onboardingDryRunPayload.parse(payload);
+  return boss.send(JOBS.onboardingDryRun, data, { singletonKey: data.clientId });
 }
 
 /** Sending side, used by the web app (Run now) and the scheduler. */

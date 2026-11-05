@@ -131,6 +131,8 @@ export const clients = pgTable(
     baseline: jsonb('baseline'),
     /** CL-08 while paused: { reason, note, resumeOn, pausedAt, pausedBy }; null when not paused. */
     pause: jsonb('pause'),
+    /** O-01 to O-10 progress while onboarding: step, PM choice, last test and dry run (counts only). */
+    onboarding: jsonb('onboarding'),
     ...timestamps,
   },
   (t) => [

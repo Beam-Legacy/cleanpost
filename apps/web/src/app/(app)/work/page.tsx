@@ -100,21 +100,27 @@ export default async function WorkPage({
 
       {caughtUp ? (
         // W-03: an empty queue reads as success. Counts never link to PHI lists from here.
-        <EmptyState title="Nothing needs you right now" tone="good" icon={<CircleCheck />}>
+        <EmptyState
+          title="Nothing needs you right now"
+          tone="good"
+          icon={<CircleCheck />}
+          action={
+            <>
+              {queue.snoozedInScope > 0 && (
+                <Link className="btn btn-secondary" href={link({ snoozed: '1' })}>
+                  Show snoozed items
+                </Link>
+              )}
+              <Link className="btn btn-ghost" href="/claims">
+                Open claims list
+              </Link>
+            </>
+          }
+        >
           {k.releasedWithoutReviewToday
             ? `${formatCount(k.releasedWithoutReviewToday)} ${k.releasedWithoutReviewToday === 1 ? 'claim' : 'claims'} went out without review today.`
             : 'Claim reviews, rejections and posting differences appear here as they come in.'}
           {queue.snoozedInScope ? ` ${formatCount(queue.snoozedInScope)} snoozed.` : ''}
-          <div className="row" style={{ justifyContent: 'center', marginTop: 8 }}>
-            {queue.snoozedInScope > 0 && (
-              <Link className="btn btn-secondary" href={link({ snoozed: '1' })}>
-                Show snoozed items
-              </Link>
-            )}
-            <Link className="btn btn-ghost" href="/claims">
-              Open claims list
-            </Link>
-          </div>
         </EmptyState>
       ) : (
         <>

@@ -65,6 +65,8 @@ jobs:
           export PM_MOCK_DATABASE_URL="$DATABASE_ADMIN_URL"
           export PM_MOCK_SECRET="$(openssl rand -hex 24)"
           export PM_MOCK_URL=http://localhost:4010
+          # The onboarding wizard (O-04) makes its practice through the mock PM's admin API.
+          export PM_MOCK_ADMIN_PASSWORD="$(openssl rand -hex 16)"
           pnpm db:migrate
           pnpm seed
           pnpm --filter @cleanpost/pm-mock start > pm-mock.log 2>&1 &

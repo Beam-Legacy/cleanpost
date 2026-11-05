@@ -92,6 +92,8 @@ Full-page stepper with progress saved at each step. The designs split the dry ru
 8. **Automation**: auto-release threshold (slider with plain-language explanation: "At 90, about N of last month's claims would have gone out without review" computed on the dry-run data), start in "Review everything" mode (recommended for the first 2 weeks).
 9. **Go-live checklist**: all items must be checked (see `docs/13-cx-onboarding.md`). "Go live" sets the client to `live` and starts syncing on schedule.
 
+Built (DEC-27): routes `/clients/new/<step>?client=<id>` (O-01 to O-10) and `/clients/:id/live` (O-11), outside the app shell. A step not reached yet redirects to the furthest one reached; an onboarding client opened from CL-01 resumes there. In local and preview the PM cards connect to the mock PM (Tebra and AdvancedMD limits) and O-04 makes the practice there; the dry run is its own step (O-05) with a 10-encounter spot check; the automation projection on dry-run data waits for scrubbing unstored records (O-09 shows the threshold and the company default).
+
 ## CL-01 Clients list
 
 Cards or table: client name, PM, mode, status, claims this month, first-pass acceptance, automation rate, open items, connection health dot. "Add client" opens O-01.

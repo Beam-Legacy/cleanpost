@@ -62,12 +62,10 @@ export default async function ClientsPage({
         subtitle={`${all.length} clients · ${counts.live} live · ${counts.onboarding} onboarding`}
         actions={
           canAdd ? (
-            <span title="The onboarding wizard arrives in milestone M5">
-              <button type="button" className="btn btn-primary" disabled>
-                <Plus aria-hidden />
-                Add client
-              </button>
-            </span>
+            <Link className="btn btn-primary" href="/clients/new/practice">
+              <Plus aria-hidden />
+              Add client
+            </Link>
           ) : undefined
         }
       />
@@ -90,8 +88,21 @@ export default async function ClientsPage({
         ))}
       </div>
       {rows.length === 0 ? (
-        <EmptyState title={all.length ? 'No clients match' : 'Add your first client'} tone="neutral">
-          {all.length ? 'Try a different name or status.' : 'Clients appear here once they are onboarded.'}
+        <EmptyState
+          title={all.length ? 'No clients match' : 'Add your first client'}
+          tone="neutral"
+          action={
+            !all.length && canAdd ? (
+              <Link className="btn btn-primary" href="/clients/new/practice">
+                <Plus aria-hidden />
+                Add client
+              </Link>
+            ) : undefined
+          }
+        >
+          {all.length
+            ? 'Try a different name or status.'
+            : 'The wizard takes a new practice from nothing to live.'}
         </EmptyState>
       ) : (
         <section className="card flush" aria-label="Clients">
@@ -139,7 +150,13 @@ export default async function ClientsPage({
                     <td className="num">{c.status === 'onboarding' ? '—' : c.openItems}</td>
                     <td>
                       {c.status === 'onboarding' && c.onboardingStep ? (
-                        <span className="subtle">Step {c.onboardingStep} of 10</span>
+                        canAdd ? (
+                          <Link className="subtle" href={`/clients/${c.id}`}>
+                            Step {c.onboardingStep} of 10
+                          </Link>
+                        ) : (
+                          <span className="subtle">Step {c.onboardingStep} of 10</span>
+                        )
                       ) : c.connectionId && canAdd ? (
                         <Link href={`/integrations/${c.connectionId}`}>
                           <ConnectionDot status={c.connectionStatus} />

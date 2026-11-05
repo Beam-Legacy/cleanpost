@@ -7,3 +7,10 @@ export * as pmSchema from './schema';
 export { runClearinghouse, type ClearinghouseDeps, type ClearinghouseRun } from './clearinghouse';
 export { loadRoster, memberRoster, type RosterMember } from './roster';
 export { linePosting, postingFault, receiveEra, toEra, type PostingFault } from './era';
+export {
+  createPractice,
+  createPracticeBody,
+  listPractices,
+  practiceIdFor,
+  type CreatePracticeInput,
+} from './create';

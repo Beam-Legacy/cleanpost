@@ -51,8 +51,10 @@ All asynchronous work is a pg-boss job. Payloads carry IDs only and are validate
 
 | Job | Trigger | Does |
 | --- | --- | --- |
-| `sync.tick` | Every minute (worker) | Lists due connections through `app.sync_candidates()` (IDs and schedule fields only) and queues `sync.pull` for each; marks healthy connections stale after 2× their interval |
+| `sync.tick` | Every minute (worker) | Lists due connections of live and paused clients through `app.sync_candidates()` (IDs and schedule fields only) and queues `sync.pull` for each; marks healthy connections stale after 2× their interval |
 | `sync.pull` | `sync.tick` (default interval from the adapter's `syncPolicy`: mock 15 min, Tebra 2 hours; connections may override), Run now on I-02 | Calls adapter pull operations, upserts canonical records, records a SyncRun per operation, moves the connection through its state machine. One queued and one running job per connection. M1 pulls patients and charges; claim status joins in M2, remittances and postings in M3 |
+| `connection.test` | Connect or Test again in the onboarding wizard (O-04) | Runs the adapter's `healthCheck` and keeps the result on the client (`clients.onboarding`); a live client's connection moves from setup to testing when it passes |
+| `onboarding.dryRun` | Run the dry run (O-05) | Reads the last 7 days of charges and those patients' coverages from the PM; stores counts, payer names, unknown NPIs and 10 sample encounter numbers only (DEC-27) |
 | `system.dead_letter` | A job that failed its last retry | Creates a `system` work item and logs an error for the platform operator |
 | `eligibility.check` | A built claim whose coverage has no check in the last 7 days (the scrub waits for it); later also 3 days before a scheduled release | Stedi 270 (payer-sim in local and preview), stores the 271 summary; then queues the waiting scrubs. A payer that is down is retried, then the scrub goes on without a check |
 | `claim.build` | New charges complete for an encounter | Builds claim version from canonical records |

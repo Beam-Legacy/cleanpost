@@ -141,6 +141,20 @@
       "when": 1793784570423,
       "tag": "0019_client_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793844267194,
+      "tag": "0020_client_onboarding",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793844807490,
+      "tag": "0021_sync_live_clients",
+      "breakpoints": true
     }
   ]
 }

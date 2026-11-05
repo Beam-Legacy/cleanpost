@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { z } from 'zod';
 import { policy } from '@cleanpost/domain';
 import { Banner, ModeBadge, StatusChip } from '@cleanpost/ui';
 import { ConnectionDot } from '@/components/connection-status';
 import { formatDate, formatWhen } from '@/lib/format';
 import { clientHeader } from '@/lib/queries/client-detail';
+import { resumeHref } from '@/lib/queries/onboarding';
 import { requireActiveContext } from '@/lib/session';
 import { PauseClient, ResumeClient } from './client-actions';
 import { ClientTabs } from './client-tabs';
@@ -27,6 +28,11 @@ export default async function ClientLayout({
   const c = await clientHeader(ctx, id);
   if (!c) notFound();
   const isAdmin = policy.authorize(ctx.actor, 'client.manage', { clientId: id }).allowed;
+  // A client still onboarding opens its wizard where it was left (O-01 to O-10).
+  if (c.status === 'onboarding' && isAdmin) {
+    const resume = await resumeHref(ctx, id);
+    if (resume) redirect(resume);
+  }
   const now = new Date();
 
   return (

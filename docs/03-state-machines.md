@@ -106,5 +106,5 @@ Connection: `setup → testing → healthy ⇄ degraded → failed → (fix) tes
 ## Client
 
 `onboarding → live ⇄ paused`; `live | paused → offboarded` (CL-11: export generated first, syncing stops, credentials disconnected, data retained read-only per contract).
-`onboarding → live` happens only through Go live (O-10), which requires every item of the go-live checklist in `docs/13-cx-onboarding.md`.
+`onboarding → live` happens only through Go live (O-10), which requires every item of the go-live checklist in `docs/13-cx-onboarding.md`. Scheduled syncs run for live and paused clients only; while a client is onboarding its connection stays in `setup` after a passing test, and Go live moves it to `testing` and queues the first sync (DEC-27, `packages/sync/src/onboarding.ts`).
 Paused (CL-08): syncing, eligibility and the scrub continue; releases and PM corrections wait, and resume sends them (DEC-25). Implemented in `packages/domain/src/state/client.ts`.

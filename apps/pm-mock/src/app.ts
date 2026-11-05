@@ -19,6 +19,7 @@ export interface PmMockOptions {
   /** Demo history reset, exposed at POST /admin/api/demo/reset. */
   demoReset?: () => Promise<unknown>;
   refreshClock?: () => Promise<void>;
+  refreshRoster?: () => Promise<unknown>;
 }
 
 export function createPmMockApp(opts: PmMockOptions) {
@@ -48,6 +49,7 @@ export function createPmMockApp(opts: PmMockOptions) {
         ...(opts.clearinghouse ? { clearinghouse: opts.clearinghouse } : {}),
         ...(opts.demoReset ? { demoReset: opts.demoReset } : {}),
         ...(opts.refreshClock ? { refreshClock: opts.refreshClock } : {}),
+        ...(opts.refreshRoster ? { refreshRoster: opts.refreshRoster } : {}),
       }),
     );
   app.get('/', (c) => c.redirect(opts.adminPassword ? '/admin' : '/health'));

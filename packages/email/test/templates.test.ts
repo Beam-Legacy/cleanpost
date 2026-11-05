@@ -1,6 +1,6 @@
 import { scanForPhi } from '@cleanpost/testing';
 import { describe, expect, it } from 'vitest';
-import { formatTime, inviteEmail, newSignInEmail, passwordResetEmail } from '../src';
+import { clientLiveEmail, formatTime, inviteEmail, newSignInEmail, passwordResetEmail } from '../src';
 
 const tz = 'America/Los_Angeles';
 
@@ -79,5 +79,39 @@ describe('auth emails', () => {
   it('formats morning and evening times', () => {
     expect(formatTime(new Date('2026-10-29T16:05:00Z'), tz)).toBe('9:05 am PT');
     expect(formatTime(new Date('2026-07-01T01:30:00Z'), tz)).toBe('6:30 pm PT');
+  });
+
+  it('E-06 client live: PM, mode, billers and the review-everything date; no counts yet', () => {
+    const e = clientLiveEmail({
+      clientName: 'Harbor Dermatology',
+      pmName: 'Tebra',
+      mode: 'A',
+      goLiveAt: new Date('2026-10-30T22:02:00Z'),
+      reviewUntil: '2026-11-13',
+      threshold: 90,
+      primaryBiller: 'Marcus Lee',
+      backupBiller: 'Dana Reyes',
+      url: 'https://app.cleanpost.test/clients/x',
+      timeZone: tz,
+    });
+    expect(e.subject).toBe('Harbor Dermatology is live on Cleanpost');
+    expect(e.preview).toBe('Billers review every claim until Nov 13, 2026.');
+    expect(e.text).toContain('on Oct 30, 2026 at 3:02 pm PT');
+    expect(e.text).toContain('Marcus Lee (primary), Dana Reyes (backup)');
+    expect(e.text).toContain('until Nov 13, 2026');
+    const auto = clientLiveEmail({
+      clientName: 'Harbor Dermatology',
+      pmName: 'Tebra',
+      mode: 'A',
+      goLiveAt: new Date('2026-10-30T22:02:00Z'),
+      reviewUntil: null,
+      threshold: 85,
+      primaryBiller: null,
+      backupBiller: null,
+      url: 'u',
+      timeZone: tz,
+    });
+    expect(auto.preview).toContain('85');
+    expect(auto.text).not.toContain('Billers');
   });
 });
