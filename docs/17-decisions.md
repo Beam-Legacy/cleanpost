@@ -65,6 +65,7 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 | Test databases | One per package (`cleanpost_test_<package>`), rebuilt from migrations before each run | Turbo runs package suites in parallel. |
 | Second factor setup (A-03) | Asks for the password again before showing the QR code | better-auth requires it to enable TOTP; the design shows no password field. |
 | Lockout (A-08) | 5 wrong passwords lock sign-in for 15 minutes; the user is emailed | The design gives no duration; 15 minutes is a common default. |
+| Sign-in rate limit | 30 sign-in and 30 two-factor requests per IP address before a pause (Nov 5, 2026; was 10) | better-auth counts requests until a full minute passes with none, so the limit is a burst size, not a rate; at 10 an office behind one address could be refused at 9 am, and the e2e run (one address) hit it. The per-account lockout stays the guard on any one password. |
 | Deferred from M0 | A-06 Accept invite moves to M5 with S-02 Invite user; strict nonce-based CSP lands with the first PHI screens (M2). The Railway preview went live on Nov 1, 2026 (see `docs/01-architecture.md`) | Invites need the invite-creation flow; CSP is easier to tune against real screens. |
 
 ## DEC-10 — Preview may skip two-factor setup (Nov 1, 2026)

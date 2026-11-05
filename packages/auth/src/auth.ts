@@ -128,11 +128,14 @@ export function createAuth(config: AuthConfig) {
     logger: {
       log: (level, message) => log[level]({ source: 'better-auth' }, message),
     },
+    // Per IP. better-auth counts requests until a full window passes with none, so a limit is a
+    // burst size: 30 lets an office behind one address sign in at 9 am. The per-account lockout
+    // (5 wrong passwords, A-08) is the guard against guessing one person's password.
     rateLimit: {
       enabled: true,
       window: 60,
       max: 100,
-      customRules: { '/sign-in/email': { window: 60, max: 10 }, '/two-factor/*': { window: 60, max: 10 } },
+      customRules: { '/sign-in/email': { window: 60, max: 30 }, '/two-factor/*': { window: 60, max: 30 } },
     },
     hooks: lockout,
     databaseHooks: {
