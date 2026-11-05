@@ -14,7 +14,7 @@ import { emailEnvSchema, parseEnv } from '@cleanpost/config';
 import { createDatabase, syncClock } from '@cleanpost/db';
 import { createStediClaimStatusClient, createStediEligibilityClient } from '@cleanpost/eligibility';
 import { createSmtpMailer } from '@cleanpost/email';
-import { createBoss } from '@cleanpost/jobs';
+import { createBoss, waitForQueues } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import { createHistoryRunner } from './demo-history';
 import { buildRegistry, handleStatusSweep, registerWorkers } from './handlers';
@@ -121,9 +121,27 @@ const clockOffsetMs = await syncClock(handle.db);
 const clockTimer = setInterval(() => {
   syncClock(handle.db).catch((err: unknown) => log.warn({ err }, 'clock sync failed'));
 }, 2000);
+let stopping = false;
+// Up before the job queue: a deploy waiting for its release step's new queues stays healthy.
+const server = createServer((req, res) => {
+  const ok = req.url === '/health' && !stopping;
+  res.writeHead(ok ? 200 : req.url === '/health' ? 503 : 404, { 'content-type': 'application/json' });
+  res.end(JSON.stringify({ ok }));
+});
+// IPv6 for Railway's private network where the host has it, else IPv4.
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EAFNOSUPPORT') server.listen(env.PORT, '0.0.0.0');
+  else log.error({ err }, 'health server error');
+});
+server.listen(env.PORT, '::');
+
 const boss = createBoss(env.DATABASE_URL, 'worker');
 boss.on('error', (err) => log.error({ err }, 'job queue error'));
 await boss.start();
+await waitForQueues(boss, {
+  signal: () => stopping,
+  onWait: (missing) => log.warn({ missing }, 'waiting for the release step to create job queues'),
+});
 const registry = buildRegistry({
   db: handle.db,
   ...(mockAllowed && env.PM_MOCK_URL && env.PM_MOCK_SECRET
@@ -190,19 +208,6 @@ log.info(
   },
   'worker started',
 );
-
-let stopping = false;
-const server = createServer((req, res) => {
-  const ok = req.url === '/health' && !stopping;
-  res.writeHead(ok ? 200 : req.url === '/health' ? 503 : 404, { 'content-type': 'application/json' });
-  res.end(JSON.stringify({ ok }));
-});
-// IPv6 for Railway's private network where the host has it, else IPv4.
-server.on('error', (err: NodeJS.ErrnoException) => {
-  if (err.code === 'EAFNOSUPPORT') server.listen(env.PORT, '0.0.0.0');
-  else log.error({ err }, 'health server error');
-});
-server.listen(env.PORT, '::');
 
 async function stop() {
   if (stopping) return;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JOBS, QUEUES, syncPullPayload } from '../src';
+import { JOBS, QUEUES, syncPullPayload, waitForQueues, type PgBoss } from '../src';
 
 describe('job payloads', () => {
   it('carry IDs only', () => {
@@ -25,5 +25,27 @@ describe('queues', () => {
       policy: 'stately',
     });
     expect(QUEUES.map((q) => q.name)).toContain(JOBS.deadLetter);
+  });
+});
+
+describe('waitForQueues', () => {
+  it('waits until the release step has made every queue, saying which are missing', async () => {
+    const names = QUEUES.map((q) => q.name);
+    let calls = 0;
+    const boss = {
+      getQueues: async () => {
+        calls++;
+        return (calls < 3 ? names.filter((n) => n !== JOBS.notifySweep) : names).map((name) => ({ name }));
+      },
+    } as unknown as PgBoss;
+    const waits: string[][] = [];
+    await waitForQueues(boss, { intervalMs: 1, onWait: (m) => waits.push(m) });
+    expect(calls).toBe(3);
+    expect(waits).toEqual([[JOBS.notifySweep], [JOBS.notifySweep]]);
+  });
+
+  it('stops waiting when the worker is stopping', async () => {
+    const boss = { getQueues: async () => [] } as unknown as PgBoss;
+    await expect(waitForQueues(boss, { intervalMs: 1, signal: () => true })).resolves.toBeUndefined();
   });
 });

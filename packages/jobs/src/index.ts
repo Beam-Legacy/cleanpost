@@ -191,6 +191,24 @@ export async function installJobSchema(adminUrl: string, appRole = 'cleanpost_ap
   }
 }
 
+/**
+ * The worker starts before a deploy's release step has created new queues (it connects as the app
+ * role, which cannot create them): wait until every queue exists rather than crash, so a release
+ * that adds a queue does not fail the worker's deploy.
+ */
+export async function waitForQueues(
+  boss: PgBoss,
+  opts: { intervalMs?: number; onWait?: (missing: string[]) => void; signal?: () => boolean } = {},
+): Promise<void> {
+  for (;;) {
+    const existing = new Set((await boss.getQueues()).map((q) => q.name));
+    const missing = QUEUES.map((q) => q.name).filter((n) => !existing.has(n));
+    if (!missing.length || opts.signal?.()) return;
+    opts.onWait?.(missing);
+    await new Promise((r) => setTimeout(r, opts.intervalMs ?? 10_000));
+  }
+}
+
 function omitFixed(options: Parameters<PgBoss['createQueue']>[1]) {
   const { policy: _policy, deadLetter: _deadLetter, ...rest } = options ?? {};
   return rest;
