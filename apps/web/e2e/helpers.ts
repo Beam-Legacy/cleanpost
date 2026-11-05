@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, type Browser, type Page } from '@playwright/test';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { totp } from './totp';
@@ -70,6 +70,12 @@ export async function setUpTwoFactor(page: Page, email: string, password = PASSW
 }
 
 const stateFile = (email: string) => `${keyFile(email)}.state.json`;
+
+/** Drop a user's saved key and session after their two-factor was reset in the database. */
+export function forgetKey(email: string): void {
+  rmSync(keyFile(email), { force: true });
+  rmSync(stateFile(email), { force: true });
+}
 
 /**
  * A page signed in as this user in a new context. The first spec that needs the user signs in

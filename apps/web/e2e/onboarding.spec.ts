@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import pg from 'pg';
-import { expectAccessible, firstSignIn } from './helpers';
+import { E2E_EMAIL, resetToFirstSignIn } from './global-setup';
+import { expectAccessible, firstSignIn, forgetKey } from './helpers';
 
 /**
  * O-01 to O-11: a new practice from nothing to live, against the mock PM (Tebra limits) and the
@@ -45,7 +46,7 @@ test.beforeAll(async ({ browser }, info) => {
     viewport: info.project.use.viewport ?? null,
   });
   page = await ctx.newPage();
-  await firstSignIn(page, 'julia@northwind.test');
+  await firstSignIn(page, E2E_EMAIL);
   if (!page.url().endsWith('/choose-company')) await page.goto('/choose-company');
   await page.getByRole('button', { name: /Harbor RCM/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Work' })).toBeVisible({ timeout: 30_000 });
@@ -53,6 +54,18 @@ test.beforeAll(async ({ browser }, info) => {
 
 test.afterAll(async () => {
   await page.context().close();
+  // sign-in.spec needs Julia (E2E_EMAIL) at her first sign-in, as global setup left her.
+  const c = new pg.Client({
+    connectionString:
+      process.env.DATABASE_ADMIN_URL ?? 'postgres://cleanpost:cleanpost@localhost:5432/cleanpost',
+  });
+  await c.connect();
+  try {
+    await resetToFirstSignIn(c, E2E_EMAIL);
+  } finally {
+    await c.end();
+  }
+  forgetKey(E2E_EMAIL);
 });
 
 test('O-01 to O-03: practice, providers and locations, PM', async () => {

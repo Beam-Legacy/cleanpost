@@ -20,6 +20,20 @@ export const E2E_USERS = [
   'hana@harbor-rcm.test',
 ];
 
+/** Back to "first sign-in": no second factor, no sessions, no lock. Fails if the seed is missing. */
+export async function resetToFirstSignIn(client: pg.Client, email: string): Promise<void> {
+  const { rows } = await client.query<{ id: string }>('select id from users where email = $1', [email]);
+  if (!rows[0]) throw new Error('Seed data missing: run pnpm seed first');
+  const id = rows[0].id;
+  await client.query('delete from two_factors where user_id = $1', [id]);
+  await client.query('delete from passkeys where user_id = $1', [id]);
+  await client.query('delete from sessions where user_id = $1', [id]);
+  await client.query(
+    "update users set two_factor_enabled = false, failed_sign_in_count = 0, locked_until = null, known_devices = '{}' where id = $1",
+    [id],
+  );
+}
+
 export default async function globalSetup() {
   // Keys saved by firstSignIn belong to the users reset below.
   rmSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'test-results', '.e2e-keys'), {
@@ -30,18 +44,7 @@ export default async function globalSetup() {
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   try {
-    for (const email of E2E_USERS) {
-      const { rows } = await client.query<{ id: string }>('select id from users where email = $1', [email]);
-      if (!rows[0]) throw new Error('Seed data missing: run pnpm seed first');
-      const id = rows[0].id;
-      await client.query('delete from two_factors where user_id = $1', [id]);
-      await client.query('delete from passkeys where user_id = $1', [id]);
-      await client.query('delete from sessions where user_id = $1', [id]);
-      await client.query(
-        "update users set two_factor_enabled = false, failed_sign_in_count = 0, locked_until = null, known_devices = '{}' where id = $1",
-        [id],
-      );
-    }
+    for (const email of E2E_USERS) await resetToFirstSignIn(client, email);
     // The work-queue specs need claims in review: the worker (with the mock PM) syncs, builds and
     // scrubs the synthetic practices after a fresh seed. Wait for that, up to 4 minutes.
     // Then wait for it to go quiet (nothing left to build or scrub), so specs do not race it.
