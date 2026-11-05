@@ -29,6 +29,7 @@ import { parse835 } from '@cleanpost/x12';
 import {
   claims,
   claimVersions,
+  clients,
   recordAudit,
   withTenant,
   workItems,
@@ -50,6 +51,8 @@ import {
   claimStatusCheckPayload,
   connectionTestPayload,
   onboardingDryRunPayload,
+  notifySweepPayload,
+  sendNotifySweep,
   eligibilityCheckPayload,
   claimScrubPayload,
   JOBS,
@@ -63,6 +66,9 @@ import {
   type PgBoss,
 } from '@cleanpost/jobs';
 import type { Logger } from '@cleanpost/log';
+import type { Mailer } from '@cleanpost/email';
+import { readOnboarding } from '@cleanpost/domain';
+import { sweepAll, sweepTenant } from '@cleanpost/notify';
 import {
   createPgRateLimiter,
   listCandidates,
@@ -80,6 +86,9 @@ export interface WorkerDeps {
   boss: PgBoss;
   log: Logger;
   registry: AdapterRegistry;
+  /** Notification emails (E-04, E-05, E-06); in-app notifications are made without them. */
+  mailer?: Mailer;
+  appUrl?: string;
   /** Step 8 of the scrub (AI review); scrubs run without it when absent. */
   reviewer?: ClaimReviewer;
   /** Stedi 270/271 (payer-sim in local and preview); scrubs read no check when absent. */
@@ -157,7 +166,42 @@ export async function handleSyncPull(deps: WorkerDeps, data: unknown) {
   // New or changed charges become claims (docs/04-modes.md step 3).
   if (result.status === 'done') {
     await sendClaimBuild(deps.boss, { tenantId: payload.tenantId, clientId: result.clientId });
+    // A client that just went live: tell everyone now rather than at the next sweep (E-06, G-04).
+    if (await newlyLive(deps, payload.tenantId, result.clientId))
+      await sendNotifySweep(deps.boss, { tenantId: payload.tenantId });
   }
+  return result;
+}
+
+async function newlyLive(deps: WorkerDeps, tenantId: string, clientId: string): Promise<boolean> {
+  const [c] = await withTenant(deps.db, { tenantId }, (tx) =>
+    tx
+      .select({ goLiveAt: clients.goLiveAt, onboarding: clients.onboarding })
+      .from(clients)
+      .where(eq(clients.id, clientId)),
+  );
+  const now = deps.now?.() ?? clockNow();
+  return Boolean(
+    c?.goLiveAt &&
+    now.getTime() - c.goLiveAt.getTime() < 86_400_000 &&
+    !readOnboarding(c.onboarding).liveNotifiedAt,
+  );
+}
+
+/** G-04, E-04, E-05: the notification sweep for one company, or every active one. */
+export async function handleNotifySweep(deps: WorkerDeps, data: unknown) {
+  const payload = notifySweepPayload.parse(data ?? {});
+  const now = deps.now?.() ?? clockNow();
+  const notifyDeps = {
+    db: deps.db,
+    log: deps.log,
+    ...(deps.mailer ? { mailer: deps.mailer } : {}),
+    ...(deps.appUrl ? { appUrl: deps.appUrl } : {}),
+  };
+  const result = payload.tenantId
+    ? await sweepTenant(notifyDeps, payload.tenantId, now)
+    : await sweepAll(notifyDeps, now);
+  deps.log.info({ ...result }, 'notification sweep');
   return result;
 }
 
@@ -521,6 +565,9 @@ export async function registerWorkers(
   await deps.boss.work(JOBS.onboardingDryRun, async ([job]) => {
     if (job) await handleOnboardingDryRun(deps, job.data);
   });
+  await deps.boss.work(JOBS.notifySweep, async ([job]) => {
+    await handleNotifySweep(deps, job?.data);
+  });
   await deps.boss.work(JOBS.deadLetter, async ([job]) => {
     if (job) await handleDeadLetter(deps, job.data);
   });
@@ -528,5 +575,6 @@ export async function registerWorkers(
     await deps.boss.schedule(JOBS.syncTick, '* * * * *');
     // Daily at 6:17 am Pacific (13:17 UTC, 14:17 in winter): before the billers start.
     await deps.boss.schedule(JOBS.claimStatusSweep, '17 13 * * *');
+    await deps.boss.schedule(JOBS.notifySweep, '*/15 * * * *');
   }
 }

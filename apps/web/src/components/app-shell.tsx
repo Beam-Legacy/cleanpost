@@ -2,13 +2,14 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Bell, CircleHelp, PanelLeft } from 'lucide-react';
+import { CircleHelp, PanelLeft } from 'lucide-react';
 import type { policy } from '@cleanpost/domain';
 import { IconButton, LogoMark, cx } from '@cleanpost/ui';
 import { NAV } from '@/lib/nav';
 import { NAV_ICONS } from './icons';
 import { ClientSwitcher, type ClientOption } from './client-switcher';
 import { CommandPalette } from './command-palette';
+import { NotificationBell } from './notifications';
 import { OfflineBanner } from './offline-banner';
 import { SessionTimeout } from './session-timeout';
 import { UserMenu } from './user-menu';
@@ -19,6 +20,8 @@ export interface AppShellProps {
   clients: ClientOption[];
   allowedActions: readonly policy.Action[];
   canSwitchCompany: boolean;
+  /** G-04: unread notifications when the page loaded. */
+  unreadNotifications: number;
   children: ReactNode;
 }
 
@@ -31,6 +34,7 @@ export function AppShell({
   clients,
   allowedActions,
   canSwitchCompany,
+  unreadNotifications,
   children,
 }: AppShellProps) {
   const pathname = usePathname();
@@ -146,7 +150,10 @@ export function AppShell({
           </button>
           <span className="spacer" />
           <IconButton label="Get help" ghost icon={<CircleHelp aria-hidden />} />
-          <IconButton label="Notifications" ghost icon={<Bell aria-hidden />} />
+          <NotificationBell
+            initialUnread={unreadNotifications}
+            settingsHref={user.role === 'admin' ? '/settings/notifications' : '/account#email'}
+          />
           <UserMenu name={user.name} canSwitchCompany={canSwitchCompany} />
         </header>
         <main id="main" className="main" style={{ maxWidth: 1440, width: '100%' }}>

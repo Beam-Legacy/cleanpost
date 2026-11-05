@@ -20,7 +20,7 @@ One queue per tenant across all clients. Billers see items for clients they are 
 | `mapping_needed` | Unmapped group/CARC for this PM | 1 | 24h | Map code (applies to all future postings) |
 | `posting_exception` | Posting match fails: PM posting differs from the 835 (A, C; B from M7) | 2 | 24h | Correct in PM (manual or via adapter), accept |
 | `manual_task` | Adapter operation at level 0 | from operation | 24h | Complete in PM, confirm |
-| `timely_filing_risk` | Within 14 days of filing limit | 1 | 4h | Submit, document, escalate |
+| `timely_filing_risk` | Within 14 days of filing limit (the notification sweep opens it for a claim the payer has not accepted, and resolves it once accepted; DEC-28) | 1 | 4h | Submit, document, escalate |
 | `sync_failure` | Connection degraded or failed | 1 | 4h (admin) | Re-authenticate, pause, contact support |
 | `system` | A job failed after 5 attempts (`docs/01-architecture.md`); platform operator alerted | 1 | 4h (admin) | Retry, open the affected record, contact support |
 

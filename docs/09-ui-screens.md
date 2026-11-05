@@ -154,6 +154,8 @@ Per client connection: adapter, level per operation (matrix), last successful sy
 
 In-app list and daily email digest. Event types: SLA breach, connection failure, large denial (over a set amount), out-of-balance remittance, rule proposals waiting, client go-live complete. Emails never contain PHI; they link into the app.
 
+Built (DEC-28): the bell in the top bar with the unread count opens the drawer (All / Unread / Urgent, grouped Today / Earlier this week / Older; each opens its record and is marked read; Mark all read). S-09 sets channels and amounts per event, the digest time and quiet hours; A-09 has the person's own email switches. Alerts come from the notification sweep every 15 minutes.
+
 ## G-03 Global search (⌘K)
 
 Search patients (name, DOB), claims (patient control number, payer claim number), remittances (trace number), clients, and commands ("Go to denials", "Upload 835"). Results respect client scope. Searches are audit-logged.

@@ -142,6 +142,8 @@ export interface ClientLiveEmailInput {
   threshold: number | null;
   primaryBiller: string | null;
   backupBiller: string | null;
+  /** The first sync's counts, once it finished (the notification sweep sends E-06 then). */
+  firstSync?: { encounters: number; patients: number } | null;
   url: string;
   timeZone: string;
 }
@@ -169,11 +171,19 @@ export function clientLiveEmail(i: ClientLiveEmailInput): EmailContent {
       : `Claims at or above ${i.threshold ?? 'the company'} confidence go out without review.`,
     heading: `${i.clientName} is live`,
     paragraphs: [
-      `Cleanpost started working ${i.clientName}'s claims on ${formatDate(i.goLiveAt, i.timeZone)} at ${formatTime(i.goLiveAt, i.timeZone)}. The first sync with ${i.pmName} is running now.`,
+      `Cleanpost started working ${i.clientName}'s claims on ${formatDate(i.goLiveAt, i.timeZone)} at ${formatTime(i.goLiveAt, i.timeZone)}.${i.firstSync ? '' : ` The first sync with ${i.pmName} is running now.`}`,
     ],
     details: [
       ['PM', i.pmName],
       ['Mode', MODE_LINE[i.mode]],
+      ...(i.firstSync
+        ? ([
+            [
+              'First sync',
+              `${count(i.firstSync.encounters, 'encounter')}, ${count(i.firstSync.patients, 'patient')} updated`,
+            ],
+          ] as [string, string][])
+        : []),
       ...(billers.length ? ([['Billers', billers.join(', ')]] as [string, string][]) : []),
     ],
     notes: [
@@ -183,5 +193,81 @@ export function clientLiveEmail(i: ClientLiveEmailInput): EmailContent {
     ],
     cta: { label: 'Open client', url: i.url },
     reason: `You received this because you are an admin or a biller for ${i.clientName}.`,
+  });
+}
+
+const count = (n: number, word: string) => `${n.toLocaleString('en-US')} ${word}${n === 1 ? '' : 's'}`;
+
+export interface DigestEmailInput {
+  firstName: string;
+  fullName: string;
+  tenantName: string;
+  dueToday: number;
+  overdue: number;
+  open: number;
+  /** Open items by kind, each with a link to the queue filtered to it. */
+  byType: { label: string; open: number; url: string }[];
+  /** Yesterday across the person's clients; null when nothing happened. */
+  yesterday: { released: number; withoutReviewPct: number | null; paidCents: number } | null;
+  /** Alerts since the last digest, by kind ("2 denials over $1,000"). */
+  alerts: string[];
+  queueUrl: string;
+  sentAt: Date;
+  timeZone: string;
+}
+
+const dollars = (cents: number) =>
+  `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/**
+ * E-04 Daily digest: the person's queue (counts by kind, due today, overdue), yesterday across
+ * their clients, and alerts since the last digest. Counts, client names and totals only.
+ */
+export function digestEmail(i: DigestEmailInput): EmailContent {
+  const y = i.yesterday;
+  const yLine = y
+    ? `${count(y.released, 'claim')} released${y.withoutReviewPct !== null && y.released ? ` (${y.withoutReviewPct}% without review)` : ''} and ${dollars(y.paidCents)} in payments`
+    : null;
+  return renderEmail({
+    subject: `Your Cleanpost queue: ${i.dueToday} due today, ${i.overdue} overdue`,
+    preview: yLine ? `Yesterday: ${yLine}.` : `${count(i.open, 'item')} open in your queue.`,
+    heading: `Good morning, ${i.firstName}`,
+    stats: [
+      ['Due today', i.dueToday.toLocaleString('en-US')],
+      ['Overdue', i.overdue.toLocaleString('en-US')],
+      ['Open', i.open.toLocaleString('en-US')],
+    ],
+    paragraphs: [],
+    details: i.byType.filter((t) => t.open > 0).map((t) => [t.label, t.open.toLocaleString('en-US'), t.url]),
+    notes: [
+      ...(yLine ? [`Yesterday across your clients: ${yLine}.`] : []),
+      ...(i.alerts.length ? [`Since yesterday: ${i.alerts.join('; ')}.`] : []),
+    ],
+    cta: { label: 'Open work queue', url: i.queueUrl },
+    reason: `Daily digest for ${i.fullName}, ${i.tenantName}. Sent at ${formatTime(i.sentAt, i.timeZone)}.`,
+  });
+}
+
+export interface AlertEmailInput {
+  /** "Connection failed" */
+  kind: string;
+  /** "Lakeside Family Medicine: Tebra connection failed" (client names, never a patient). */
+  title: string;
+  body: string;
+  action: { label: string; url: string };
+  reason: string;
+}
+
+/** E-05 Urgent alert: what stopped and one link to fix it. No PHI; the subject names the client. */
+export function alertEmail(i: AlertEmailInput): EmailContent {
+  return renderEmail({
+    subject: `Action needed: ${i.title}`,
+    preview: i.body.split('. ')[0]!.replace(/\.$/, '') + '.',
+    eyebrow: i.kind,
+    heading: i.title,
+    paragraphs: [i.body],
+    cta: i.action,
+    afterCta: [i.reason],
+    reason: 'Urgent alerts go to admins and the assigned biller.',
   });
 }

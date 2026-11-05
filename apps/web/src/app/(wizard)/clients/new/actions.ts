@@ -21,22 +21,18 @@ import {
   payers,
   providers,
   recordAudit,
-  tenants,
-  users,
   withTenant,
   type Tx,
 } from '@cleanpost/db';
 import { isValidNpi, policy, readOnboarding, stepIndex, type OnboardingState } from '@cleanpost/domain';
-import { clientLiveEmail } from '@cleanpost/email';
 import { sendConnectionTest, sendOnboardingDryRun, sendSyncPull } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import { goLive } from '@cleanpost/sync';
-import { authEnvSchema, parseEnv } from '@cleanpost/config';
 import { getBoss } from '@/lib/jobs';
 import { DEMO_PM_PAYERS, REVIEW_EVERYTHING_DAYS, TIME_ZONE_IDS, pmChoice } from '@/lib/onboarding/options';
 import { createMockPractice, mockPmAvailable } from '@/lib/onboarding/pm-mock';
 import { checklistFor, onboardingClient } from '@/lib/queries/onboarding';
-import { getDb, getMailer } from '@/lib/server';
+import { getDb } from '@/lib/server';
 import { requireActiveContext, type ActiveContext } from '@/lib/session';
 
 const log = createLogger({ name: 'web-onboarding' });
@@ -760,7 +756,8 @@ export async function practiceInformedAction(clientId: string, informed: boolean
 
 /**
  * Go live: every checklist item again, then the client state machine, the connection onto the sync
- * schedule, the first sync now, and E-06 to the company's admins and the client's billers.
+ * schedule and the first sync now. When that sync finishes, the notification sweep sends E-06 to the
+ * company's admins and the client's billers, with its counts (DEC-28).
  */
 export async function goLiveAction(clientId: string): Promise<WizardResult> {
   const id = z.uuid().parse(clientId);
@@ -785,56 +782,6 @@ export async function goLiveAction(clientId: string): Promise<WizardResult> {
       trigger: 'manual',
       userId: ctx.user.id,
     });
-  await sendClientLiveEmails(ctx, c, now);
   log.info({ clientId: id }, 'client went live');
   return { ok: true, message: `${c.name} is live.`, next: `/clients/${id}/live` };
-}
-
-async function sendClientLiveEmails(
-  ctx: ActiveContext,
-  c: NonNullable<Awaited<ReturnType<typeof onboardingClient>>>,
-  goLiveAt: Date,
-) {
-  const people = await withTenant(getDb(), scope(ctx), async (tx) => {
-    const [t] = await tx
-      .select({ timeZone: tenants.timezone })
-      .from(tenants)
-      .where(eq(tenants.id, ctx.tenantId));
-    const rows = await tx
-      .select({ id: users.id, name: users.name, email: users.email, role: memberships.role })
-      .from(memberships)
-      .innerJoin(users, eq(users.id, memberships.userId))
-      .where(eq(memberships.status, 'active'));
-    return { timeZone: t?.timeZone ?? c.timezone, rows };
-  });
-  const nameOf = (uid: string | null) => people.rows.find((r) => r.id === uid)?.name ?? null;
-  const to = people.rows.filter(
-    (r) => r.role === 'admin' || r.id === c.primaryBillerId || r.id === c.backupBillerId,
-  );
-  const { APP_URL } = parseEnv(authEnvSchema.pick({ APP_URL: true }));
-  const content = clientLiveEmail({
-    clientName: c.name,
-    pmName: c.connection?.pmName ?? c.state.pm?.pmName ?? 'the PM',
-    mode: c.mode as 'A' | 'B' | 'C',
-    goLiveAt,
-    reviewUntil: c.reviewUntil,
-    threshold: c.threshold,
-    primaryBiller: nameOf(c.primaryBillerId),
-    backupBiller: nameOf(c.backupBillerId),
-    url: `${new URL(APP_URL).origin}/clients/${c.id}`,
-    timeZone: people.timeZone,
-  });
-  let failed = 0;
-  for (const r of to) {
-    try {
-      await getMailer().send(r.email, 'E-06', content);
-    } catch (err) {
-      failed++;
-      log.warn(
-        { template: 'E-06', code: (err as { code?: string }).code ?? 'unknown' },
-        'client live email failed',
-      );
-    }
-  }
-  log.info({ template: 'E-06', sent: to.length - failed, failed }, 'client live emails');
 }

@@ -4,7 +4,7 @@ export const SETTINGS_SECTIONS = [
   { key: 'automation', label: 'Automation', view: 'S-04', built: true },
   { key: 'rules', label: 'Rules', view: 'S-05', built: true },
   { key: 'mappings', label: 'Adjustment mappings', view: 'S-08', built: true },
-  { key: 'notifications', label: 'Notifications', view: 'S-09', built: false },
+  { key: 'notifications', label: 'Notifications', view: 'S-09', built: true },
   { key: 'branding', label: 'Branding', view: 'S-10', built: false },
   { key: 'usage', label: 'Usage and billing', view: 'S-11', built: false },
   { key: 'security', label: 'Security', view: 'S-12', built: false },

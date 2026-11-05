@@ -10,9 +10,10 @@ import {
   createStandInReviewModel,
   DEFAULT_MODELS,
 } from '@cleanpost/ai';
-import { parseEnv } from '@cleanpost/config';
+import { emailEnvSchema, parseEnv } from '@cleanpost/config';
 import { createDatabase, syncClock } from '@cleanpost/db';
 import { createStediClaimStatusClient, createStediEligibilityClient } from '@cleanpost/eligibility';
+import { createSmtpMailer } from '@cleanpost/email';
 import { createBoss } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import { createHistoryRunner } from './demo-history';
@@ -39,6 +40,9 @@ const env = parseEnv(
     PAYER_SIM_TOKEN: z.string().min(24).optional(),
     /** Demo history (DEC-19): the mock PM's admin API, where the replay enters visits. */
     PM_MOCK_ADMIN_PASSWORD: z.string().min(12).optional(),
+    /** Notification emails (E-04, E-05, E-06): links point at the web app; SMTP_HOST=log only logs. */
+    APP_URL: z.url().optional(),
+    SMTP_HOST: z.string().min(1).optional(),
   }),
 );
 
@@ -107,6 +111,10 @@ const claimStatusClient =
         })
       : undefined;
 
+// Without SMTP settings and the app's URL, notifications stay in-app (G-04) and no email goes.
+const mailer = env.SMTP_HOST && env.APP_URL ? createSmtpMailer(parseEnv(emailEnvSchema)) : undefined;
+if (!mailer) log.warn('notification emails are off: set SMTP_HOST, SMTP_PORT, EMAIL_FROM and APP_URL');
+
 const handle = createDatabase(env.DATABASE_URL, { max: env.WORKER_CONCURRENCY + 2 });
 // Demo time (DEC-18): follow the shared clock offset (always 0 outside local and preview).
 const clockOffsetMs = await syncClock(handle.db);
@@ -128,6 +136,7 @@ await registerWorkers(
     boss,
     log,
     registry,
+    ...(mailer && env.APP_URL ? { mailer, appUrl: env.APP_URL } : {}),
     ...(reviewer ? { reviewer } : {}),
     ...(eligibility ? { eligibility } : {}),
     ...(claimStatusClient ? { claimStatus: claimStatusClient } : {}),

@@ -329,6 +329,18 @@ describe('sync scheduler', () => {
   });
 });
 
+describe('notification sweep', () => {
+  it('lists active tenants by ID only, and nothing else of the tenants table', async () => {
+    const res = await app.pool.query<Record<string, unknown>>('select * from app.active_tenants()');
+    expect(res.rows.map((r) => r.tenant_id)).toEqual(expect.arrayContaining([A.tenant, B.tenant]));
+    expect(Object.keys(res.rows[0]!)).toEqual(['tenant_id']);
+    await admin.db.execute(sql`update tenants set status = 'suspended' where id = ${B.tenant}`);
+    const after = await app.pool.query<{ tenant_id: string }>('select tenant_id from app.active_tenants()');
+    expect(after.rows.map((r) => r.tenant_id)).not.toContain(B.tenant);
+    await admin.db.execute(sql`update tenants set status = 'active' where id = ${B.tenant}`);
+  });
+});
+
 describe('claim versions', () => {
   it('cannot change once released, even for the owner', async () => {
     await admin.db.execute(sql`update claim_versions set released_at = now() where id = ${aClaimVersionId}`);

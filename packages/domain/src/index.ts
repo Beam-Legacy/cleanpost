@@ -10,3 +10,4 @@ export * as work from './work';
 export * as remit from './remit';
 export * as claimStatus from './claim-status';
 export * as reports from './reports';
+export * as notify from './notify';

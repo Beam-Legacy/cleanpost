@@ -35,6 +35,8 @@ The customer is the billing company. Their customers are practices. Cleanpost su
 
 In-app plus a daily email digest (no PHI in email). Immediate email only for: connection failed, out-of-balance remittance over a set amount, timely filing risk, SLA breach on priority 1. Users set quiet hours.
 
+Built (DEC-28): the company sets channels, amounts, the digest time and quiet hours (S-09); each person can switch their own digest and urgent emails off (A-09), except that admins always get connection and timely-filing emails. Urgent emails repeat at most every 4 hours while the problem lasts.
+
 ## Support
 
 - In-app "Get help" opens a form that attaches the current screen route and record IDs (not PHI).

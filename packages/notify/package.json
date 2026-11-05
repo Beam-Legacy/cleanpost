@@ -1,0 +1,27 @@
+{
+  "name": "@cleanpost/notify",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cleanpost/clock": "workspace:*",
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
+    "@cleanpost/email": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "@cleanpost/reports": "workspace:*",
+    "drizzle-orm": "^0.45.4"
+  },
+  "devDependencies": {
+    "@cleanpost/seed": "workspace:*",
+    "@cleanpost/testing": "workspace:*"
+  }
+}

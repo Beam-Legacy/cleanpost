@@ -75,9 +75,9 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `user_preferences` | user_id, tenant_id, density (`compact`,`comfortable`), theme, digest_time, quiet_hours jsonb, shortcut_overrides jsonb, checklist jsonb | A-09, G-06, G-14 |
+| `user_preferences` | user_id, tenant_id, density (`compact`,`comfortable`), theme, digest_time, quiet_hours jsonb, shortcut_overrides jsonb, checklist jsonb, digest_email, alert_email (the person's own email switches), last_digest_on | A-09, G-06, G-14 |
 | `saved_views` | user_id, tenant_id, surface (`work`,`claims`,`remittances`,`denials`), name, filters jsonb, sort jsonb | W-08, C-01 |
-| `notification_rules` | tenant_id, event_type, channels (`in_app`,`email`), recipients jsonb, threshold_cents?, enabled | S-09 |
+| `notification_rules` | tenant_id, event_type (unique per tenant), channels (`in_app`,`email`,`digest`), recipients jsonb, threshold_cents?, enabled; only events a company changed from the defaults (domain `notify`) | S-09 |
 
 ## Integrations
 
@@ -101,7 +101,7 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 | `break_glass_grants` | tenant_id, operator_user_id, reason, granted_at, expires_at, revoked_at | OP-04. Written by the operator service; tenant admins can read their own |
 | `platform_banners` | type, message, starts_at, ends_at, affected jsonb (clients, payers, PMs), link | Global (no tenant). G-13 |
 | `usage_records` | tenant_id, client_id, date, claims_released, claims_by_mode jsonb | Invoicing |
-| `notifications` | user_id, type, entity ref, read_at | |
+| `notifications` | user_id, client_id, type, entity ref, summary, detail, link (app path), urgent, in_app, dedupe_key (unique per tenant and user), emailed_at, read_at | G-04; no PHI in summary or detail (DEC-28) |
 | `webhook_events` | source, external_id (unique), received_at, processed_at, status | Idempotency for Stedi webhooks |
 
 ## Indexes worth having from day one

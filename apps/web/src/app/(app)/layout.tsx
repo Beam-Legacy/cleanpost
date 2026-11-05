@@ -6,6 +6,7 @@ import { clients, tenants, withTenant } from '@cleanpost/db';
 import { policy } from '@cleanpost/domain';
 import { TooltipProvider, ToastProvider } from '@cleanpost/ui';
 import { AppShell } from '@/components/app-shell';
+import { unreadNotificationCount } from './notification-actions';
 import { ClockOffset } from '@/components/clock-offset';
 import { getDb } from '@/lib/server';
 import { requireActiveContext } from '@/lib/session';
@@ -34,6 +35,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   );
   const companyCount = (await listCompanies(db, ctx.user.id)).length;
   const allowedNav = policy.ACTIONS.filter((a) => policy.authorize(ctx.actor, a).allowed);
+  const unread = await unreadNotificationCount();
 
   return (
     <TooltipProvider>
@@ -45,6 +47,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           clients={clientList}
           allowedActions={allowedNav}
           canSwitchCompany={companyCount > 1}
+          unreadNotifications={unread}
         >
           {children}
         </AppShell>

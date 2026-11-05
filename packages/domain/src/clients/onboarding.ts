@@ -80,6 +80,8 @@ export interface OnboardingState {
   liveAt?: string;
   /** O-11 has been shown. */
   liveShown?: boolean;
+  /** The notification sweep told everyone (G-04, E-06) once the first sync finished. */
+  liveNotifiedAt?: string;
 }
 
 /** Waiting for the worker: asked after the last result came back. */

@@ -10,6 +10,8 @@ import {
   smallint,
   text,
   timestamp,
+  unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { id, tenantId, timestamps } from './_columns';
@@ -149,20 +151,31 @@ export const savedViews = pgTable('saved_views', {
   ...timestamps,
 });
 
-export const notificationRules = pgTable('notification_rules', {
-  id: id(),
-  tenantId: tenantId(),
-  eventType: text('event_type').notNull(),
-  channels: text('channels')
-    .array()
-    .notNull()
-    .default(sql`'{in_app}'::text[]`),
-  recipients: jsonb('recipients').notNull().default({}),
-  thresholdCents: integer('threshold_cents'),
-  enabled: boolean('enabled').notNull().default(true),
-  ...timestamps,
-});
+/** S-09: one row per event type a company has changed from the defaults (domain `notify`). */
+export const notificationRules = pgTable(
+  'notification_rules',
+  {
+    id: id(),
+    tenantId: tenantId(),
+    eventType: text('event_type').notNull(),
+    /** in_app | email | digest */
+    channels: text('channels')
+      .array()
+      .notNull()
+      .default(sql`'{in_app}'::text[]`),
+    recipients: jsonb('recipients').notNull().default({}),
+    thresholdCents: integer('threshold_cents'),
+    enabled: boolean('enabled').notNull().default(true),
+    ...timestamps,
+  },
+  (t) => [unique('notification_rules_tenant_event_key').on(t.tenantId, t.eventType)],
+);
 
+/**
+ * G-04: what a person was told. Alerts from the notification sweep carry a dedupe key (one row per
+ * person per alert), a link into the app (IDs only) and when the urgent email last went (E-05
+ * repeats at most every 4 hours). No PHI in `summary` or `detail`: client, payer and amounts only.
+ */
 export const notifications = pgTable(
   'notifications',
   {
@@ -171,12 +184,26 @@ export const notifications = pgTable(
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id),
+    clientId: uuid('client_id'),
     type: text('type').notNull(),
     entityType: text('entity_type'),
     entityId: uuid('entity_id'),
     summary: text('summary').notNull(),
+    detail: text('detail'),
+    /** App path to open, e.g. /work?item=<id>. */
+    link: text('link'),
+    urgent: boolean('urgent').notNull().default(false),
+    /** False when the company turned the in-app channel off for this event: kept for email and digest. */
+    inApp: boolean('in_app').notNull().default(true),
+    dedupeKey: text('dedupe_key'),
+    emailedAt: timestamp('emailed_at', { withTimezone: true }),
     readAt: timestamp('read_at', { withTimezone: true }),
     ...timestamps,
   },
-  (t) => [index('notifications_user_idx').on(t.userId, t.readAt)],
+  (t) => [
+    index('notifications_user_idx').on(t.userId, t.readAt),
+    uniqueIndex('notifications_user_dedupe_key')
+      .on(t.tenantId, t.userId, t.dedupeKey)
+      .where(sql`${t.dedupeKey} is not null`),
+  ],
 );

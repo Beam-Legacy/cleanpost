@@ -26,9 +26,14 @@ export interface LayoutInput {
   subject: string;
   preview: string;
   heading: string;
+  /** A short label above the heading (E-05: the alert type). */
+  eyebrow?: string;
+  /** Figures in a row of tiles under the heading (E-04). */
+  stats?: [label: string, value: string][];
   /** Paragraphs and key-value rows, already plain text; escaped here. */
   paragraphs: string[];
-  details?: [label: string, value: string][];
+  /** Key-value rows; a row with a URL links its label (E-04's queue rows). */
+  details?: [label: string, value: string, url?: string][];
   /** Paragraphs shown after the details and before the button. */
   notes?: string[];
   cta?: { label: string; url: string };
@@ -43,10 +48,21 @@ export function renderEmail(input: LayoutInput): EmailContent {
   const details = input.details?.length
     ? `<table role="presentation" style="margin:0 0 16px;border-collapse:collapse">${input.details
         .map(
-          ([k, v]) =>
-            `<tr><td style="padding:4px 16px 4px 0;font:500 13px/18px ${T.font};color:${T.inkMuted}">${escapeHtml(k)}</td><td style="padding:4px 0;font:400 14px/21px ${T.font};color:${T.ink}">${escapeHtml(v)}</td></tr>`,
+          ([k, v, url]) =>
+            `<tr><td style="padding:4px 16px 4px 0;font:500 13px/18px ${T.font};color:${T.inkMuted}">${url ? `<a href="${escapeHtml(url)}" style="color:${T.cobalt}">${escapeHtml(k)}</a>` : escapeHtml(k)}</td><td style="padding:4px 0;font:400 14px/21px ${T.font};color:${T.ink}">${escapeHtml(v)}</td></tr>`,
         )
         .join('')}</table>`
+    : '';
+  const eyebrow = input.eyebrow
+    ? `<p style="margin:0 0 8px;font:600 12px/16px ${T.font};color:${T.inkMuted};text-transform:uppercase;letter-spacing:0.04em">${escapeHtml(input.eyebrow)}</p>`
+    : '';
+  const stats = input.stats?.length
+    ? `<table role="presentation" width="100%" style="margin:0 0 16px;border-collapse:separate;border-spacing:8px 0"><tr>${input.stats
+        .map(
+          ([k, v]) =>
+            `<td style="padding:10px 12px;border:1px solid ${T.border};border-radius:8px"><div style="font:500 12px/16px ${T.font};color:${T.inkMuted}">${escapeHtml(k)}</div><div style="font:600 20px/28px ${T.font};color:${T.ink}">${escapeHtml(v)}</div></td>`,
+        )
+        .join('')}</tr></table>`
     : '';
   const cta = input.cta
     ? `<p style="margin:8px 0 24px"><a href="${escapeHtml(input.cta.url)}" style="display:inline-block;padding:10px 18px;border-radius:6px;background:${T.cobalt};color:${T.onCobalt};font:600 14px/20px ${T.font};text-decoration:none">${escapeHtml(input.cta.label)}</a></p>`
@@ -60,7 +76,8 @@ export function renderEmail(input: LayoutInput): EmailContent {
 <table role="presentation" width="560" style="max-width:560px;background:${T.surface};border:1px solid ${T.border};border-radius:10px">
 <tr><td style="padding:24px 32px 8px;font:700 18px/24px ${T.font};color:${T.ink};letter-spacing:-0.02em">cleanpost</td></tr>
 <tr><td style="padding:8px 32px 24px">
-<h1 style="margin:0 0 16px;font:600 22px/28px ${T.font};color:${T.ink}">${escapeHtml(input.heading)}</h1>
+${eyebrow}<h1 style="margin:0 0 16px;font:600 22px/28px ${T.font};color:${T.ink}">${escapeHtml(input.heading)}</h1>
+${stats}
 ${input.paragraphs.map(p).join('\n')}
 ${details}
 ${(input.notes ?? []).map(p).join('\n')}
@@ -71,10 +88,13 @@ ${(input.afterCta ?? []).map(p).join('\n')}
 </table></td></tr></table>
 </body></html>`;
   const text = [
+    ...(input.eyebrow ? [input.eyebrow] : []),
     input.heading,
     '',
+    ...(input.stats ?? []).map(([k, v]) => `${k}: ${v}`),
+    ...(input.stats?.length ? [''] : []),
     ...input.paragraphs,
-    ...(input.details ?? []).map(([k, v]) => `${k}: ${v}`),
+    ...(input.details ?? []).map(([k, v, url]) => `${k}: ${v}${url ? ` (${url})` : ''}`),
     ...(input.notes ?? []),
     ...(input.cta ? ['', `${input.cta.label}: ${input.cta.url}`, ''] : []),
     ...(input.afterCta ?? []),

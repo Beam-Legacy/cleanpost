@@ -24,8 +24,13 @@ export const JOBS = {
   claimStatusSweep: 'claim.statusSweep',
   connectionTest: 'connection.test',
   onboardingDryRun: 'onboarding.dryRun',
+  notifySweep: 'notify.sweep',
   deadLetter: 'system.dead_letter',
 } as const;
+
+/** G-04, E-04, E-05: the notification sweep, for one company or (no tenant) all of them. */
+export const notifySweepPayload = z.object({ tenantId: z.uuid().optional() });
+export type NotifySweepPayload = z.infer<typeof notifySweepPayload>;
 
 /** O-04: test a new connection (adapter health check). */
 export const connectionTestPayload = z.object({
@@ -125,6 +130,8 @@ export const QUEUES: { name: string; options: Parameters<PgBoss['createQueue']>[
   // Onboarding: one queued test per connection, one dry run per client; a person runs them again.
   { name: JOBS.connectionTest, options: { policy: 'stately', expireInSeconds: 5 * 60, retryLimit: 0 } },
   { name: JOBS.onboardingDryRun, options: { policy: 'stately', expireInSeconds: 15 * 60, retryLimit: 0 } },
+  // Every 15 minutes, and for one company after a newly live client's sync; the next run catches up.
+  { name: JOBS.notifySweep, options: { policy: 'stately', expireInSeconds: 15 * 60, retryLimit: 0 } },
 ];
 
 export type Role = 'web' | 'worker';
@@ -243,6 +250,15 @@ export async function sendClaimCorrect(boss: PgBoss, payload: ClaimCorrectPayloa
 /** The daily claim status sweep, now (demo time: after the clock moves days at once). */
 export async function sendClaimStatusSweep(boss: PgBoss): Promise<string | null> {
   return boss.send(JOBS.claimStatusSweep, {});
+}
+
+/** The notification sweep now, for one company (singletonKey = tenant ID) or all (the schedule). */
+export async function sendNotifySweep(
+  boss: PgBoss,
+  payload: NotifySweepPayload = {},
+): Promise<string | null> {
+  const data = notifySweepPayload.parse(payload);
+  return boss.send(JOBS.notifySweep, data, { singletonKey: data.tenantId ?? 'all' });
 }
 
 /** Undo: cancels a release that has not started. False if it already ran or is running. */

@@ -155,6 +155,11 @@ export const userPreferences = pgTable(
     theme: text('theme').notNull().default('system'),
     digestTime: time('digest_time'),
     quietHours: jsonb('quiet_hours'),
+    /** A-09: the person's own email switches (E-04 digest, E-05 urgent alerts; admins always get some). */
+    digestEmail: boolean('digest_email').notNull().default(true),
+    alertEmail: boolean('alert_email').notNull().default(true),
+    /** The local date the last E-04 went (or was skipped as empty), so it goes once a day. */
+    lastDigestOn: date('last_digest_on'),
     shortcutOverrides: jsonb('shortcut_overrides').notNull().default({}),
     checklist: jsonb('checklist').notNull().default({}),
     ...timestamps,
