@@ -68,27 +68,36 @@ export function ConnectStep({
                   Credentials go to the secrets manager, never the database or logs.
                 </p>
               </>
-            ) : null}
-            <div className="row" style={{ gap: 8 }}>
-              <Button
-                variant={connected ? 'secondary' : 'primary'}
-                disabled={act.pending || testing}
-                onClick={() => act.run(() => (connected ? retestAction(clientId) : connectAction(clientId)))}
-              >
-                <PlugZap aria-hidden />
-                {act.pending
-                  ? connected
-                    ? 'Starting test…'
-                    : 'Connecting…'
-                  : connected
-                    ? manual
-                      ? 'Check again'
-                      : 'Test again'
-                    : manual
-                      ? 'Set up manual connection'
-                      : 'Connect and test'}
-              </Button>
-            </div>
+            ) : (
+              <p className="muted" style={{ margin: 0 }}>
+                Connecting {pmName} needs its sign-in form, which comes with its integration. Go back and
+                choose another PM, or &ldquo;My PM is not listed&rdquo; to work from files and tasks for now.
+              </p>
+            )}
+            {(manual || demo) && (
+              <div className="row" style={{ gap: 8 }}>
+                <Button
+                  variant={connected ? 'secondary' : 'primary'}
+                  disabled={act.pending || testing}
+                  onClick={() =>
+                    act.run(() => (connected ? retestAction(clientId) : connectAction(clientId)))
+                  }
+                >
+                  <PlugZap aria-hidden />
+                  {act.pending
+                    ? connected
+                      ? 'Starting test…'
+                      : 'Connecting…'
+                    : connected
+                      ? manual
+                        ? 'Check again'
+                        : 'Test again'
+                      : manual
+                        ? 'Set up manual connection'
+                        : 'Connect and test'}
+                </Button>
+              </div>
+            )}
             <StepError error={act.error} />
           </div>
         </div>

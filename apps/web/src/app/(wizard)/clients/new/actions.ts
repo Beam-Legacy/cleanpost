@@ -366,6 +366,11 @@ export async function connectAction(clientId: string): Promise<WizardResult> {
   let conn = prep.conn;
   const pm = l.s.pm;
   if (!pm) return { ok: false, message: 'Choose the PM system first.', next: stepHref('pm', id) };
+  if (pm.adapterKey !== 'mock' && pm.adapterKey !== 'manual')
+    return {
+      ok: false,
+      message: `${pm.pmName} cannot be connected here yet. Choose another PM, or “My PM is not listed”.`,
+    };
 
   if (!conn) {
     if (pm.adapterKey === 'manual') {

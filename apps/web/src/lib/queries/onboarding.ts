@@ -182,16 +182,29 @@ export function payerMatches(
       saved: true,
       timelyFilingDays: p.timelyFilingDays,
     }));
-  return found.map((f) => {
-    const s = saved.get(norm(f.name));
-    return {
-      pmName: f.name,
-      patients: f.patients,
-      payerId: s?.payerId ?? byName.get(norm(f.name)) ?? null,
-      saved: Boolean(s),
-      timelyFilingDays: s?.timelyFilingDays ?? null,
-    };
-  });
+  const seen = new Set(found.map((f) => norm(f.name)));
+  return [
+    ...found.map((f) => {
+      const s = saved.get(norm(f.name));
+      return {
+        pmName: f.name,
+        patients: f.patients,
+        payerId: s?.payerId ?? byName.get(norm(f.name)) ?? null,
+        saved: Boolean(s),
+        timelyFilingDays: s?.timelyFilingDays ?? null,
+      };
+    }),
+    // Payers added by hand that the dry run did not see.
+    ...c.payersSetUp
+      .filter((p) => !seen.has(norm(p.pmPayerName ?? '')))
+      .map((p) => ({
+        pmName: p.pmPayerName ?? choices.find((x) => x.id === p.payerId)?.name ?? '',
+        patients: null,
+        payerId: p.payerId,
+        saved: true,
+        timelyFilingDays: p.timelyFilingDays,
+      })),
+  ];
 }
 
 export interface FirstSync {
