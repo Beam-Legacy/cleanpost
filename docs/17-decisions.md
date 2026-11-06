@@ -258,6 +258,12 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** Document proof of timely filing stores a PDF or a photo (a clearinghouse acceptance report, a payer letter) the same way as card photos (DEC-31) as a `timely_filing_proof` document linked to the item, and resolves the item "Documented with payer". Escalate to admin assigns the item to an active admin and tells them at once with an urgent in-app notification linked to the item (`work_item.escalated`, audited); the daily email within 3 days of the limit stays DEC-28's.
 - **Decision:** a timely-filing item cannot be snoozed past the claim's filing deadline (a snooze may reach the end of that day, Pacific). C-02's filing banner turns red within 3 days and after the deadline, using the same day count as W-22.
 
+## DEC-33 — Usage metering (Nov 6, 2026)
+
+- **Decision:** a claim counts once, on the day (Pacific) Cleanpost first released it: released by the adapter, or sent at the PM's batch after Cleanpost approved it (S-11 rule). A correction or resubmission of the same claim does not count again, and a claim the PM sent without Cleanpost's release (`pm_outside_cleanpost`) does not count at all.
+- **Decision:** the worker's `usage.meter` job runs nightly (2:41 am Pacific) and once when the worker starts. It rewrites each company's `usage_records` for the last 7 days, so a missed night is caught up, and backfills 120 days for a company with no records yet. Metering a day again gives the same counts.
+- **Decision:** S-11 shows usage only until invoicing (M7): claims released per client and mode for this month, last month or the last 90 days, from the records plus today counted live the same way. Plan, invoices and payment method come with the billing provider.
+
 ## Open questions
 
 | Question | Owner | Needed by |

@@ -834,7 +834,8 @@ svg.lucide.icon-20 {
   border-radius: var(--radius-md);
   background: var(--surface-sunken);
 }
-.segmented button {
+.segmented button,
+.segmented a {
   border: 0;
   background: transparent;
   font: inherit;
@@ -844,6 +845,10 @@ svg.lucide.icon-20 {
   border-radius: 4px;
   color: var(--ink-muted);
   cursor: pointer;
+}
+/* A segmented control that switches pages (a period, a view) is links, not buttons. */
+.segmented a {
+  text-decoration: none;
 }
 .segmented .active {
   background: var(--surface);

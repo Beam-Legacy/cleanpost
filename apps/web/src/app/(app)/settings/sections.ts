@@ -6,7 +6,7 @@ export const SETTINGS_SECTIONS = [
   { key: 'mappings', label: 'Adjustment mappings', view: 'S-08', built: true },
   { key: 'notifications', label: 'Notifications', view: 'S-09', built: true },
   { key: 'branding', label: 'Branding', view: 'S-10', built: false },
-  { key: 'usage', label: 'Usage and billing', view: 'S-11', built: false },
+  { key: 'usage', label: 'Usage and billing', view: 'S-11', built: true },
   { key: 'security', label: 'Security', view: 'S-12', built: false },
   { key: 'company', label: 'Company profile', view: 'S-14', built: false },
 ] as const;

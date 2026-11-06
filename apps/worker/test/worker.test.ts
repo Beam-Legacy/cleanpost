@@ -13,6 +13,8 @@ import {
   scrubResults,
   syncRuns,
   workItems,
+  auditEvents,
+  usageRecords,
 } from '@cleanpost/db';
 import { testDatabaseUrls } from '@cleanpost/db/testing';
 import { createBoss, JOBS, sendSyncPull } from '@cleanpost/jobs';
@@ -30,6 +32,7 @@ import {
   handleTick,
   registerWorkers,
   type WorkerDeps,
+  handleUsageMeter,
 } from '../src/handlers';
 
 const NORTHWIND = '01a00000-0000-7000-8000-000000000001';
@@ -173,5 +176,23 @@ describe('dead letters', () => {
       .where(and(eq(workItems.connectionId, lakeside.id), eq(workItems.type, 'system')));
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({ priority: 1, reasonCode: 'JOB_FAILED', status: 'open' });
+  });
+});
+
+describe('usage.meter', () => {
+  it('meters every company, backfilling one with no records, and runs again without doubling', async () => {
+    const first = await handleUsageMeter(deps, {});
+    expect(first.days).toBe(7);
+    const metered = await admin.db
+      .select({ n: count() })
+      .from(auditEvents)
+      .where(eq(auditEvents.action, 'usage.metered'));
+    // The first run backfills 120 days for each company with no records.
+    expect(metered[0]!.n).toBeGreaterThanOrEqual(120);
+    const before = await admin.db.select().from(usageRecords);
+    await handleUsageMeter(deps, {});
+    const after = await admin.db.select().from(usageRecords);
+    expect(after.length).toBe(before.length);
+    expect(after.map((r) => r.claimsReleased).sort()).toEqual(before.map((r) => r.claimsReleased).sort());
   });
 });

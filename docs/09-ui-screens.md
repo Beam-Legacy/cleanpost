@@ -149,7 +149,7 @@ Every report exports to PDF (branded with the billing company's name and logo fo
 - **Adjustment mappings**: per PM type and per client.
 - **Notifications**: which events notify whom (in-app, email digest), quiet hours.
 - **Branding**: logo and name used on client reports.
-- **Billing and usage**: claims this period by client and mode, invoices.
+- **Billing and usage**: claims this period by client and mode, invoices. Built (DEC-33): usage by client and mode for this month, last month or 90 days (today counted live); plan and invoices come with invoicing (M7).
 - **Security**: session length, IP allowlist (optional), device trust, audit log access (S-13).
 
 ## I-01 to I-05 Integrations

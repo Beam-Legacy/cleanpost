@@ -16,7 +16,7 @@ import { emailEnvSchema, parseEnv } from '@cleanpost/config';
 import { createDatabase, syncClock } from '@cleanpost/db';
 import { createStediClaimStatusClient, createStediEligibilityClient } from '@cleanpost/eligibility';
 import { createSmtpMailer } from '@cleanpost/email';
-import { createBoss, waitForQueues } from '@cleanpost/jobs';
+import { createBoss, sendUsageMeter, waitForQueues } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import { createHistoryRunner } from './demo-history';
 import { buildRegistry, handleStatusSweep, registerWorkers } from './handlers';
@@ -175,6 +175,10 @@ await registerWorkers(
     ...(claimStatusClient ? { claimStatus: claimStatusClient } : {}),
   },
   { concurrency: env.WORKER_CONCURRENCY },
+);
+// Usage records are caught up at start too, not only at the nightly run (a backfill for a new company).
+await sendUsageMeter(boss).catch((err: unknown) =>
+  log.warn({ err: (err as Error).name }, 'usage meter not queued'),
 );
 // Demo history (DEC-19): replay the 90 days `pnpm demo:reset` set up, when one is pending.
 const history =

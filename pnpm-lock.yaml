@@ -311,6 +311,9 @@ importers:
       '@cleanpost/remit':
         specifier: workspace:*
         version: link:../../packages/remit
+      '@cleanpost/reports':
+        specifier: workspace:*
+        version: link:../../packages/reports
       '@cleanpost/sync':
         specifier: workspace:*
         version: link:../../packages/sync

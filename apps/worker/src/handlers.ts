@@ -52,6 +52,7 @@ import {
   connectionTestPayload,
   onboardingDryRunPayload,
   documentExtractPayload,
+  usageMeterPayload,
   notifySweepPayload,
   sendNotifySweep,
   eligibilityCheckPayload,
@@ -69,7 +70,8 @@ import {
 import type { Logger } from '@cleanpost/log';
 import type { Mailer } from '@cleanpost/email';
 import { readOnboarding } from '@cleanpost/domain';
-import { sweepAll, sweepTenant } from '@cleanpost/notify';
+import { listActiveTenants, sweepAll, sweepTenant } from '@cleanpost/notify';
+import { hasUsage, meterUsageDay } from '@cleanpost/reports';
 import { UNREADABLE, type CardReader } from '@cleanpost/ai';
 import { extractCard } from '@cleanpost/documents';
 import {
@@ -295,6 +297,39 @@ async function waitForEligibility(deps: WorkerDeps, tenantId: string, versionIds
 }
 
 /** eligibility.check: store the 271 summary, then scrub the claims that waited for it. */
+/**
+ * usage.meter (daily): each company's usage records for the last 7 days (Pacific), so a day missed
+ * while the worker was down is caught up; metering a day again rewrites it with the same counts.
+ */
+export async function handleUsageMeter(deps: WorkerDeps, data: unknown) {
+  const payload = usageMeterPayload.parse(data ?? {});
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(
+    deps.now?.() ?? clockNow(),
+  );
+  const days = payload.day
+    ? [payload.day]
+    : Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(`${today}T00:00:00Z`);
+        d.setUTCDate(d.getUTCDate() - 1 - i);
+        return d.toISOString().slice(0, 10);
+      });
+  let records = 0;
+  for (const tenantId of await listActiveTenants(deps.db)) {
+    // A company with no records yet (new, or the meter is new) is backfilled 120 days.
+    const first = !payload.day && !(await hasUsage(deps.db, tenantId));
+    const span = first
+      ? Array.from({ length: 120 }, (_, i) => {
+          const d = new Date(`${today}T00:00:00Z`);
+          d.setUTCDate(d.getUTCDate() - 1 - i);
+          return d.toISOString().slice(0, 10);
+        })
+      : days;
+    for (const day of span) records += await meterUsageDay(deps.db, tenantId, day);
+  }
+  deps.log.info({ days: days.length, records }, 'usage metered');
+  return { days: days.length, records };
+}
+
 /** P-04: read one side of an uploaded card (document ID only in the payload). */
 export async function handleDocumentExtract(deps: WorkerDeps, data: unknown) {
   const payload = documentExtractPayload.parse(data);
@@ -588,6 +623,9 @@ export async function registerWorkers(
   await deps.boss.work(JOBS.documentExtract, { batchSize: 1, localConcurrency: 2 }, async ([job]) => {
     if (job) await handleDocumentExtract(deps, job.data);
   });
+  await deps.boss.work(JOBS.usageMeter, async ([job]) => {
+    await handleUsageMeter(deps, job?.data);
+  });
   await deps.boss.work(JOBS.deadLetter, async ([job]) => {
     if (job) await handleDeadLetter(deps, job.data);
   });
@@ -596,5 +634,7 @@ export async function registerWorkers(
     // Daily at 6:17 am Pacific (13:17 UTC, 14:17 in winter): before the billers start.
     await deps.boss.schedule(JOBS.claimStatusSweep, '17 13 * * *');
     await deps.boss.schedule(JOBS.notifySweep, '*/15 * * * *');
+    // Daily at 2:41 am Pacific (10:41 UTC, 9:41 in summer): yesterday's releases are all in.
+    await deps.boss.schedule(JOBS.usageMeter, '41 10 * * *');
   }
 }
