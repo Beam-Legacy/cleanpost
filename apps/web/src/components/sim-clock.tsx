@@ -65,7 +65,7 @@ export function SimClock({
         <b>Demo clock</b>{' '}
         <span className="muted">
           {now
-            ? `${day(now)}${ahead ? ` (${ahead} ${ahead === 1 ? 'day' : 'days'} ahead)` : ''}`
+            ? `${day(now)}${ahead && ahead > 0 ? ` (${ahead} ${ahead === 1 ? 'day' : 'days'} ahead)` : ''}`
             : 'payer simulator not answering'}
           {apart && !busy ? ` · Cleanpost is on ${day(appNow)}` : ''}
           {' · preview only'}
