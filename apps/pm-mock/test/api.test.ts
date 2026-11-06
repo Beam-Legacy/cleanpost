@@ -332,6 +332,26 @@ describe('faults', () => {
     expect((await edit(billed!.id, { changes: [{ lineNumber: 1, modifiers: [] }] })).status).toBe(409);
     expect((await edit('nowhere', { changes: [{ lineNumber: 1, modifiers: [] }] })).status).toBe(404);
     expect((await edit(open!.id, { changes: [] })).status).toBe(422);
+    expect((await edit(open!.id, { changes: [{ lineId: 'nowhere', modifiers: [] }] })).status).toBe(422);
+
+    // A fix that drops a bundled code: the charges not listed go, the rest are renumbered.
+    const multi = await handle.db.execute<{ encounter_id: string }>(sql`
+      select c.encounter_id from pm_mock.charges c join pm_mock.encounters e on e.id = c.encounter_id
+      where e.practice_id = 'lakeside' and e.status in ('open', 'review', 'ready')
+      group by c.encounter_id having count(*) >= 2 limit 1`);
+    const eid = multi.rows[0]!.encounter_id;
+    const before = await handle.db
+      .select()
+      .from(charges)
+      .where(eq(charges.encounterId, eid))
+      .orderBy(charges.lineNumber);
+    const keep = before[before.length - 1]!;
+    expect(
+      (await edit(eid, { changes: [{ lineId: keep.id, modifiers: ['59'] }], removeOthers: true })).status,
+    ).toBe(200);
+    const after2 = await handle.db.select().from(charges).where(eq(charges.encounterId, eid));
+    expect(after2).toHaveLength(1);
+    expect(after2[0]).toMatchObject({ id: keep.id, lineNumber: 1, modifiers: ['59'] });
   });
 });
 

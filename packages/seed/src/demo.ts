@@ -18,8 +18,9 @@ export const DEMO_HISTORY_DAYS = 90;
  * Raised when the replay changes enough that preview should build its history again: the release
  * step's `--if-new` starts over a history built by an older version (once).
  * 2: daily visits carry defects; the simulated billers fix, correct and resubmit, and close old work.
+ * 3: corrections that drop a line reach the PM; pointer blocks fixed by hand; billed ones let go.
  */
-export const DEMO_HISTORY_VERSION = 2;
+export const DEMO_HISTORY_VERSION = 3;
 
 /** Tables holding what the PMs and payers produced and what people did with it. */
 const ACTIVITY_TABLES = [

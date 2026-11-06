@@ -32,6 +32,7 @@ import {
 import { getOffset, now as clockNow } from '@cleanpost/clock';
 import {
   adjustmentMappings,
+  chargeLines,
   claimDemoHistory,
   claims,
   claimVersions,
@@ -112,7 +113,10 @@ export function createHistoryRunner(deps: HistoryDeps) {
       headers: { authorization: pmAuth, 'content-type': 'application/json', ...init.headers },
       signal: AbortSignal.timeout(300_000),
     });
-    if (!res.ok) throw new Error(`pm-mock ${path.split('?')[0]} answered ${res.status}`);
+    if (!res.ok)
+      throw Object.assign(new Error(`pm-mock ${path.split('?')[0]} answered ${res.status}`), {
+        status: res.status,
+      });
     return res.json() as Promise<unknown>;
   }
 
@@ -257,7 +261,17 @@ export function createHistoryRunner(deps: HistoryDeps) {
         // A charge correction the PM takes only by hand: the biller makes it in the PM; the next
         // sync sees it, closes the task and lets the claim go.
         if (item.type === 'manual_task' && item.reasonCode === CORRECTION_OPERATION && item.claimId) {
-          if (chance(key, 0.85) && (await changeInPm(tenantId, item.claimId, 'charges'))) done.inPm++;
+          if (!chance(key, 0.85)) continue;
+          try {
+            if (await changeInPm(tenantId, item.claimId, 'charges')) done.inPm++;
+          } catch (err) {
+            // The PM billed it before the change was made: nothing left to change there.
+            if ((err as { status?: number }).status !== 409) throw err;
+            const res = await resolveItem(deps.db, { tenantId, userId: biller, now }, item.id, {
+              reason: 'No longer needed',
+            });
+            if (res.ok) done.resolved++;
+          }
           continue;
         }
         // A corrected claim (Flow 5): resubmitted from the PM with the payer's claim number.
@@ -324,7 +338,34 @@ export function createHistoryRunner(deps: HistoryDeps) {
           { tenantId, userId: biller, claimId: item.claimId, workItemId: item.id },
           { kind: 'fix', ruleIds: [item.reasonCode] },
         );
-        if (res.status === 'edited') {
+        if (res.status === 'refused' && item.reasonCode === 'structural.pointer_invalid') {
+          // No one-click fix: the biller points the line at a diagnosis in the editor (C-08).
+          const found = await claimInPm(tenantId, item.claimId);
+          if (!found) return;
+          const dx = found.payload.diagnoses.length;
+          const payload: ClaimPayload = {
+            ...found.payload,
+            lines: found.payload.lines.map((l) => {
+              const ok = l.dxPointers.filter((p) => p >= 1 && p <= dx);
+              return { ...l, dxPointers: ok.length ? ok : [1] };
+            }),
+          };
+          const edited = await editClaim(
+            deps.db,
+            { tenantId, userId: biller, claimId: item.claimId, workItemId: item.id },
+            { kind: 'payload', payload },
+          );
+          if (edited.status === 'edited') {
+            if (edited.writeBack)
+              await sendClaimCorrect(deps.boss, {
+                tenantId,
+                claimId: item.claimId,
+                versionId: edited.versionId,
+              });
+            await sendClaimScrub(deps.boss, { tenantId, claimVersionId: edited.versionId });
+            done.fixed++;
+          }
+        } else if (res.status === 'edited') {
           if (res.writeBack)
             await sendClaimCorrect(deps.boss, { tenantId, claimId: item.claimId, versionId: res.versionId });
           await sendClaimScrub(deps.boss, { tenantId, claimVersionId: res.versionId });
@@ -499,17 +540,32 @@ export function createHistoryRunner(deps: HistoryDeps) {
           ...(found.originalRef ? { originalRef: found.originalRef } : {}),
         }),
       });
-    else
+    else {
+      // Each line by the PM's own charge ID (a removed line renumbers the rest); the PM's charges
+      // the claim no longer has are deleted, as the fix dropped them.
+      const pmIds = await withTenant(deps.db, { tenantId }, async (tx) => {
+        const ids = lines.map((l) => l.chargeLineId).filter(Boolean);
+        const rows = ids.length
+          ? await tx
+              .select({ id: chargeLines.id, externalId: chargeLines.externalId })
+              .from(chargeLines)
+              .where(inArray(chargeLines.id, ids))
+          : [];
+        return new Map(rows.map((r) => [r.id, r.externalId]));
+      });
+      const allKnown = lines.every((l) => pmIds.get(l.chargeLineId));
       await pm(`${path}/charges`, {
         method: 'POST',
         body: JSON.stringify({
           changes: lines.map((l) => ({
-            lineNumber: l.lineNumber,
+            ...(allKnown ? { lineId: pmIds.get(l.chargeLineId) } : { lineNumber: l.lineNumber }),
             modifiers: l.modifiers,
             ...(l.dxPointers.length ? { diagnosisPointers: l.dxPointers } : {}),
           })),
+          ...(allKnown ? { removeOthers: true } : {}),
         }),
       });
+    }
     return true;
   }
 

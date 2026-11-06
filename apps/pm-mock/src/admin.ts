@@ -60,18 +60,26 @@ const resubmitBody = z.object({
   originalRef: z.string().max(50).optional(),
 });
 
-/** What a person changes on an encounter's charges in the PM: modifiers and diagnosis pointers. */
+/**
+ * What a person changes on an encounter's charges in the PM: modifiers and diagnosis pointers, by
+ * charge ID or line number; with removeOthers, the charges not listed are deleted and the rest
+ * renumbered (a fix that drops a bundled code).
+ */
 const chargesBody = z.object({
   changes: z
     .array(
-      z.object({
-        lineNumber: z.number().int().min(1),
-        modifiers: z.array(z.string().max(2)).max(4).optional(),
-        diagnosisPointers: z.array(z.number().int().min(1).max(12)).min(1).max(4).optional(),
-      }),
+      z
+        .object({
+          lineId: z.string().min(1).max(80).optional(),
+          lineNumber: z.number().int().min(1).optional(),
+          modifiers: z.array(z.string().max(2)).max(4).optional(),
+          diagnosisPointers: z.array(z.number().int().min(1).max(12)).min(1).max(4).optional(),
+        })
+        .refine((c) => c.lineId !== undefined || c.lineNumber !== undefined),
     )
     .min(1)
     .max(50),
+  removeOthers: z.boolean().optional(),
 });
 
 const faultBody = z.object({
@@ -213,18 +221,33 @@ export function adminRoutes(deps: AdminDeps) {
     if (!enc) return c.json({ error: 'encounter not found' }, 404);
     if (enc.status === 'billed' || enc.status === 'void')
       return c.json({ error: 'billed or void encounters cannot be changed' }, 409);
-    for (const ch of body.data.changes) {
-      const set = {
-        ...(ch.modifiers ? { modifiers: ch.modifiers } : {}),
-        ...(ch.diagnosisPointers ? { pointers: ch.diagnosisPointers } : {}),
-      };
-      if (!Object.keys(set).length) continue;
-      await db
-        .update(charges)
-        .set(set)
-        .where(and(eq(charges.encounterId, enc.id), eq(charges.lineNumber, ch.lineNumber)));
-    }
-    await db.update(encounters).set({ updatedAt: deps.now() }).where(eq(encounters.id, enc.id));
+    const lines = await db
+      .select()
+      .from(charges)
+      .where(eq(charges.encounterId, enc.id))
+      .orderBy(asc(charges.lineNumber));
+    const targets = body.data.changes.map((ch) => ({
+      ch,
+      line: lines.find((l) => (ch.lineId ? l.id === ch.lineId : l.lineNumber === ch.lineNumber)),
+    }));
+    if (targets.some((t) => !t.line)) return c.json({ error: 'no such charge on the encounter' }, 422);
+    await db.transaction(async (tx) => {
+      for (const { ch, line } of targets) {
+        const set = {
+          ...(ch.modifiers ? { modifiers: ch.modifiers } : {}),
+          ...(ch.diagnosisPointers ? { pointers: ch.diagnosisPointers } : {}),
+        };
+        if (Object.keys(set).length) await tx.update(charges).set(set).where(eq(charges.id, line!.id));
+      }
+      if (body.data.removeOthers) {
+        const kept = new Set(targets.map((t) => t.line!.id));
+        for (const l of lines) if (!kept.has(l.id)) await tx.delete(charges).where(eq(charges.id, l.id));
+        let n = 0;
+        for (const l of lines)
+          if (kept.has(l.id)) await tx.update(charges).set({ lineNumber: ++n }).where(eq(charges.id, l.id));
+      }
+      await tx.update(encounters).set({ updatedAt: deps.now() }).where(eq(encounters.id, enc.id));
+    });
     return c.json({ ok: true });
   });
 
