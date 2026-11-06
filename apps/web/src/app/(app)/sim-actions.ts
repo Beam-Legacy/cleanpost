@@ -40,31 +40,32 @@ export async function advanceClock(daysInput: number): Promise<SimResult> {
   const history = await readDemoHistory(getDb());
   if (history.state === 'pending' || history.state === 'running')
     return { ok: false, message: 'Demo history is being built; the clock moves on its own until today.' };
-  // The practices enter the visits of the days the clock passes (weekdays, two weeks at most), so
-  // the syncs below build them: the new day's reviews, blocks and eligibility issues (DEC-19).
-  const practices = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+  // Send what is queued at today's simulated date, with the PM's billing batch. Then day by day, as
+  // the demo history does (DEC-19): each weekday the practices enter that day's visits (the PM takes
+  // none dated ahead of its own today) and the clock moves a day. The syncs below build the visits
+  // into the new day's reviews, blocks and eligibility issues; a PM with no hold bills them at the
+  // next press, after Cleanpost has seen them, as its 6 pm batch would after the day's syncs.
+  await runClearinghouse(config, { bill: true });
+  const practiceIds = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
     tx
       .select({ settings: connections.settings })
       .from(connections)
       .where(and(eq(connections.adapterKey, 'mock'), inArray(connections.status, ['healthy', 'degraded']))),
+  ).then((rows) =>
+    rows.map((r) => (r.settings as { practiceId?: string }).practiceId).filter((id): id is string => !!id),
   );
-  const from = await simNow(config);
   let visits = 0;
-  if (from)
-    for (let i = 0; i < Math.min(days, 14); i++) {
-      const d = new Date(from.getTime() + i * 86_400_000);
-      const day = d.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+  let now = await simNow(config);
+  for (let i = 0; i < days; i++) {
+    if (now) {
+      const day = now.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
       const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
-      if (weekday === 0 || weekday === 6) continue;
-      for (const p of practices) {
-        const practiceId = (p.settings as { practiceId?: string }).practiceId;
-        if (practiceId) visits += await enterVisits(config, practiceId, day);
-      }
+      if (weekday !== 0 && weekday !== 6)
+        for (const practiceId of practiceIds) visits += await enterVisits(config, practiceId, day);
     }
-  // Send what is queued at today's simulated date (with the PM's billing batch), move the clock,
-  // then collect the 277CAs and 835s that came due.
-  await runClearinghouse(config, { bill: true });
-  const now = await advanceSimClock(config, days);
+    now = await advanceSimClock(config, 1);
+  }
+  if (!now) return { ok: false, message: 'The payer simulator did not answer. Try again in a moment.' };
   // Cleanpost follows the simulator: claims age, follow-ups come due and payments land on its date.
   const offsetMs = now.getTime() - Date.now();
   const followed = await setDemoOffset(getDb(), offsetMs).then(
