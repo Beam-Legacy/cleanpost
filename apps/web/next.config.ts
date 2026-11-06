@@ -40,6 +40,7 @@ const config: NextConfig = {
     '@cleanpost/log',
     '@cleanpost/remit',
     '@cleanpost/reports',
+    '@cleanpost/search',
     '@cleanpost/sync',
     '@cleanpost/ui',
     '@cleanpost/work',

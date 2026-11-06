@@ -27,6 +27,7 @@
     "@cleanpost/log": "workspace:*",
     "@cleanpost/remit": "workspace:*",
     "@cleanpost/reports": "workspace:*",
+    "@cleanpost/search": "workspace:*",
     "@cleanpost/sync": "workspace:*",
     "@cleanpost/ui": "workspace:*",
     "@cleanpost/work": "workspace:*",

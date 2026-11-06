@@ -181,6 +181,9 @@ importers:
       '@cleanpost/reports':
         specifier: workspace:*
         version: link:../../packages/reports
+      '@cleanpost/search':
+        specifier: workspace:*
+        version: link:../../packages/search
       '@cleanpost/sync':
         specifier: workspace:*
         version: link:../../packages/sync
@@ -707,6 +710,25 @@ importers:
       uuid:
         specifier: ^14.0.3
         version: 14.0.3
+
+  packages/search:
+    dependencies:
+      '@cleanpost/db':
+        specifier: workspace:*
+        version: link:../db
+      '@cleanpost/domain':
+        specifier: workspace:*
+        version: link:../domain
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
+    devDependencies:
+      '@cleanpost/seed':
+        specifier: workspace:*
+        version: link:../seed
+      '@cleanpost/testing':
+        specifier: workspace:*
+        version: link:../testing
 
   packages/seed:
     dependencies:
