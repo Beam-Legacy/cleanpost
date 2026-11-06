@@ -28,6 +28,7 @@ import { ApprovalPanel } from './approval-panel';
 import { LinkPayment } from './link-payment';
 import { DenialPanel } from './denial-panel';
 import { EligibilityPanel } from './eligibility-panel';
+import { TimelyFilingPanel } from './timely-filing-panel';
 import { CardReview, CardUploadDialog } from '@/components/card-capture';
 import { MappingForm } from './mapping-form';
 import { PostingTask } from './posting-task';
@@ -93,6 +94,8 @@ function whyHere(d: WorkDetail): string {
     }
     case 'claim_blocked':
       return 'Blocked: release is unavailable while any blocking finding remains.';
+    case 'timely_filing_risk':
+      return 'After the filing limit the payer can refuse the claim outright. This closes itself when the payer accepts the claim, and cannot be snoozed past the limit.';
     case 'card_review':
       return 'The card reader was not sure about some fields. Check them against the photo; confirming updates the coverage and asks the PM to follow.';
     case 'eligibility_issue':
@@ -301,6 +304,18 @@ export function WorkPanel({
           />
         )}
 
+        {d.item.type === 'timely_filing_risk' && d.filing && c && d.item.status !== 'resolved' && (
+          <TimelyFilingPanel
+            itemId={d.item.id}
+            claim={c}
+            filing={d.filing}
+            pmName={d.connection?.pmName ?? 'the PM'}
+            canRelease={can.release}
+            canResolve={can.resolve}
+            onDone={onClose}
+          />
+        )}
+
         {d.item.type === 'card_review' && d.card && d.item.status !== 'resolved' && can.edit && (
           <div className="stack-sm">
             <CardReview documentId={d.card.documentId} coverageId={null} onDone={onClose} />
@@ -459,6 +474,7 @@ export function WorkPanel({
             'write_off_approval',
             'eligibility_issue',
             'card_review',
+            'timely_filing_risk',
           ].includes(d.item.type) && <div>{d.item.summary}</div>}
 
         <div className="why">

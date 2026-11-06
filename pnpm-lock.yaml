@@ -233,6 +233,9 @@ importers:
       '@axe-core/playwright':
         specifier: ^4.14.0
         version: 4.14.0(playwright-core@1.63.0)
+      '@cleanpost/notify':
+        specifier: workspace:*
+        version: link:../../packages/notify
       '@cleanpost/testing':
         specifier: workspace:*
         version: link:../../packages/testing

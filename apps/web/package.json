@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
+    "@cleanpost/notify": "workspace:*",
     "@cleanpost/testing": "workspace:*",
     "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4.3.3",

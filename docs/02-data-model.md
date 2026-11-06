@@ -32,7 +32,7 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 | `patients` | client_id, external_ids jsonb (per connection), first/last name, dob, sex, address, phone, source (`pm`, `user`: corrected in Cleanpost, not yet in the PM; DEC-30) | PHI |
 | `coverages` | patient_id, payer_id, priority (1,2,3), member_id, group_number, subscriber relationship, subscriber demographics, effective/termination dates, source (`pm`,`card`,`user`; `card`/`user` = corrected in Cleanpost, not yet in the PM, DEC-30) | |
 | `eligibility_checks` | coverage_id, requested_at, status (`active`,`inactive`,`error`,`unknown`), summary jsonb (copay, deductible remaining, coinsurance), raw_ref (storage key) | Raw 271 in object storage |
-| `documents` | client_id, patient_id?, type (`insurance_card_front`,`insurance_card_back`,`payer_letter`,`eob`,`other`), storage_key (`cards/<upload>/front` and `/back`), extracted jsonb (status, reader, fields, member ID encrypted, confidence per field, matched payer), extraction_confidence, review_status (`pending`,`accepted`,`corrected`,`rejected`) | PHI |
+| `documents` | client_id, patient_id?, type (`insurance_card_front`,`insurance_card_back`,`timely_filing_proof` (W-22),`payer_letter`,`eob`,`other`), storage_key (`cards/<upload>/front` and `/back`), extracted jsonb (status, reader, fields, member ID encrypted, confidence per field, matched payer), extraction_confidence, review_status (`pending`,`accepted`,`corrected`,`rejected`) | PHI |
 | `document_blobs` | client_id, storage_key, content_type, size_bytes, content_encrypted | Local and preview document contents, encrypted with the field key (DEC-31); S3 with SSE-KMS in production |
 
 ## Encounters and claims

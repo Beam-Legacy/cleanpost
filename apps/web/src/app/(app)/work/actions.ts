@@ -243,6 +243,7 @@ export async function undo(input: Undo): Promise<WorkActionResult> {
 
 const SNOOZE_REFUSED: Record<string, string> = {
   past: 'Pick a time in the future.',
+  past_deadline: 'Not past the filing limit: pick a time on or before that day.',
   too_far: 'Snooze for at most 30 days.',
   invalid_transition: 'This item cannot be snoozed now.',
   not_found: 'Item not found.',

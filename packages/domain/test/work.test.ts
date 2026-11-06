@@ -46,3 +46,24 @@ describe('work queue vocabulary', () => {
     expect(work.dueLabel(at(48), now)).toBe('2 d');
   });
 });
+
+describe('W-22 timely filing', () => {
+  it('lets a timely-filing item snooze up to its deadline day (Pacific), not past it', () => {
+    // 11 pm Pacific on Nov 8 is still Nov 8.
+    expect(work.snoozeBeforeDeadline(new Date('2026-11-09T07:00:00Z'), '2026-11-08')).toBe(true);
+    expect(work.snoozeBeforeDeadline(new Date('2026-11-09T09:00:00Z'), '2026-11-08')).toBe(false);
+  });
+
+  it('counts days to the deadline and how urgent that is', () => {
+    expect(work.daysUntil('2026-11-08', '2026-11-06')).toBe(2);
+    expect(work.daysUntil('2026-11-01', '2026-11-06')).toBe(-5);
+    expect([20, 14, 4, 3, 0, -1].map(work.filingUrgency)).toEqual([
+      'ok',
+      'amber',
+      'amber',
+      'red',
+      'red',
+      'past',
+    ]);
+  });
+});

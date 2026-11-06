@@ -5,6 +5,7 @@
  */
 import { and, eq, lte, ne } from 'drizzle-orm';
 import {
+  claims,
   notifications,
   recordAudit,
   withTenant,
@@ -27,7 +28,10 @@ export type WorkActionResult =
         | 'too_far'
         | 'unknown_reason'
         | 'note_required'
-        | 'decided_elsewhere';
+        | 'decided_elsewhere'
+        | 'past_deadline';
+      /** past_deadline: the latest day a snooze may reach (W-22). */
+      latest?: string;
     };
 
 interface Ctx {
@@ -80,6 +84,15 @@ export async function snoozeItem(
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
     const item = await locked(tx, itemId);
     if (!item) return { ok: false, reason: 'not_found' };
+    // W-22: a timely-filing item cannot be snoozed past the claim's filing limit.
+    if (item.type === 'timely_filing_risk' && item.claimId) {
+      const [c] = await tx
+        .select({ deadline: claims.filingDeadline })
+        .from(claims)
+        .where(eq(claims.id, item.claimId));
+      if (c?.deadline && !work.snoozeBeforeDeadline(until, c.deadline))
+        return { ok: false, reason: 'past_deadline', latest: c.deadline };
+    }
     return move(tx, item, 'snooze', { snoozedUntil: until }, `user:${ctx.userId}`, 'work_item.snoozed', {
       until: until.toISOString(),
     });
@@ -173,6 +186,8 @@ export async function assignItem(
   ctx: Ctx,
   itemId: string,
   assigneeId: string | null,
+  /** W-22 Escalate to admin: the assignee is told at once (urgent), with a link to the item. */
+  opts: { escalated?: boolean } = {},
 ): Promise<WorkActionResult> {
   return withTenant(db, { tenantId: ctx.tenantId, userId: ctx.userId }, async (tx) => {
     const item = await locked(tx, itemId);
@@ -212,14 +227,26 @@ export async function assignItem(
         metadata: { assigneeId },
       });
     }
+    const label = work.WORK_TYPE_LABEL[item.type as work.WorkItemType] ?? item.type;
+    if (opts.escalated)
+      await recordAudit(tx, {
+        actor,
+        action: 'work_item.escalated',
+        entityType: 'work_item',
+        entityId: item.id,
+        clientId: item.clientId,
+        metadata: { type: item.type, assigneeId },
+      });
     if (assigneeId && assigneeId !== ctx.userId) {
       await tx.insert(notifications).values({
         tenantId: ctx.tenantId,
         userId: assigneeId,
-        type: 'work_item.assigned',
+        clientId: item.clientId,
+        type: opts.escalated ? 'work_item.escalated' : 'work_item.assigned',
         entityType: 'work_item',
         entityId: item.id,
-        summary: `Assigned to you: ${work.WORK_TYPE_LABEL[item.type as work.WorkItemType] ?? item.type}`,
+        summary: opts.escalated ? `Escalated to you: ${label}` : `Assigned to you: ${label}`,
+        ...(opts.escalated ? { urgent: true, link: `/work?item=${item.id}`, detail: item.summary } : {}),
       });
     }
     return { ok: true };

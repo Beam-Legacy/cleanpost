@@ -161,6 +161,27 @@ export function checkSnooze(now: Date, until: Date): { ok: true } | { ok: false;
   return { ok: true };
 }
 
+/** The calendar day (Pacific, where the billing day is kept) of a moment, as YYYY-MM-DD. */
+const pacificDay = (d: Date) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles' }).format(d);
+
+/** W-22: a timely-filing item may be snoozed up to the claim's filing deadline, not past it. */
+export function snoozeBeforeDeadline(until: Date, deadline: string): boolean {
+  return pacificDay(until) <= deadline;
+}
+
+/** Whole days from today to a filing deadline (negative once it has passed). */
+export function daysUntil(deadline: string, today: string): number {
+  return Math.round((Date.parse(`${deadline}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+}
+
+/** W-22 and C-02: red within 3 days of the filing limit (or past it), amber within 14. */
+export function filingUrgency(daysLeft: number): 'past' | 'red' | 'amber' | 'ok' {
+  if (daysLeft < 0) return 'past';
+  if (daysLeft <= 3) return 'red';
+  return daysLeft <= 14 ? 'amber' : 'ok';
+}
+
 /** W-01 due chip: amber within 4 hours of the SLA, red past it. */
 export function dueState(dueAt: Date, now: Date): 'over' | 'soon' | 'ok' {
   const ms = dueAt.getTime() - now.getTime();

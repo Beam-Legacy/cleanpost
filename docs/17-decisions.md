@@ -252,6 +252,12 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 - **Decision:** a person always confirms (P-05 or W-14; the model reads, deterministic code saves). Fields under 0.9 are marked and the first is focused. Confirm card goes through P-02's path (DEC-30) with source `card`: the coverage changes in Cleanpost, the PM gets its task, claims wait for the PM; eligibility is checked after saving by default. The card becomes `accepted` or `corrected`; what the person changed from the reading is kept as corrections on the document (training data, and the payer aliases to add later: payers are a global table the app cannot write).
 - **Decision:** for the demo, local and preview offer "Use a sample card": the mock PM says what the patient's primary card shows (the plan the patient really has, which may not be the one the practice entered, as for a "member not found" claim), and the browser draws a synthetic photo with the app's tokens and its answer embedded. The group number is given 84% confidence so W-14's marking shows.
 
+## DEC-32 — W-22 timely filing: proof, escalation, snooze (Nov 6, 2026)
+
+- **Decision:** W-22 shows the days left in the billing day (Pacific), the deadline, and where the limit comes from: the client's setting for that payer (CL-05) or Cleanpost's 90-day default, said as such. "What holds it" is the claim's open pre-release item (review, blocked, eligibility, a PM task, a rejection) with Fix blocker opening it; a claim nothing holds offers Release now (the W-10 approve and release, with its Undo).
+- **Decision:** Document proof of timely filing stores a PDF or a photo (a clearinghouse acceptance report, a payer letter) the same way as card photos (DEC-31) as a `timely_filing_proof` document linked to the item, and resolves the item "Documented with payer". Escalate to admin assigns the item to an active admin and tells them at once with an urgent in-app notification linked to the item (`work_item.escalated`, audited); the daily email within 3 days of the limit stays DEC-28's.
+- **Decision:** a timely-filing item cannot be snoozed past the claim's filing deadline (a snooze may reach the end of that day, Pacific). C-02's filing banner turns red within 3 days and after the deadline, using the same day count as W-22.
+
 ## Open questions
 
 | Question | Owner | Needed by |

@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { auditEvents, createDatabase, notifications, users, withTenant, workItems } from '@cleanpost/db';
 import { testDatabaseUrls } from '@cleanpost/db/testing';
@@ -163,5 +163,54 @@ describe('work item actions', () => {
     expect(await get(c.id)).toMatchObject({ status: 'open', assigneeId: null });
     expect(await unassignItemsOf(app.db, ctx(), dana!.id, 'none')).toBeGreaterThanOrEqual(1);
     expect(await get(a.id)).toMatchObject({ status: 'open', assigneeId: null });
+  });
+
+  it('W-22: never snoozes a timely-filing item past its filing limit', async () => {
+    const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+    const c = await admin.db.execute<{ id: string }>(sql`
+      with p as (
+        insert into patients (tenant_id, client_id, first_name, last_name, dob, sex)
+        values (${NORTHWIND}, ${CLIENTS[0]!.id}, 'Ana', 'Quillon', '1984-03-07', 'F') returning id),
+      e as (
+        insert into encounters (tenant_id, client_id, patient_id, date_of_service, rendering_provider_id, location_id)
+        select ${NORTHWIND}, ${CLIENTS[0]!.id}, p.id, ${day(-80)}::date,
+          (select id from providers where client_id = ${CLIENTS[0]!.id} limit 1),
+          (select id from locations where client_id = ${CLIENTS[0]!.id} limit 1)
+        from p returning id, patient_id)
+      insert into claims (tenant_id, client_id, patient_id, encounter_id, mode, total_charge_cents, status, filing_deadline)
+      select ${NORTHWIND}, ${CLIENTS[0]!.id}, e.patient_id, e.id, 'A', 14500, 'needs_review', ${day(2)}::date from e
+      returning id`);
+    const item = await newItem('timely_filing_risk');
+    await admin.db.update(workItems).set({ claimId: c.rows[0]!.id }).where(eq(workItems.id, item.id));
+    expect(await snoozeItem(app.db, ctx(), item.id, new Date(Date.now() + 5 * 86_400_000))).toEqual({
+      ok: false,
+      reason: 'past_deadline',
+      latest: day(2),
+    });
+    expect(await snoozeItem(app.db, ctx(), item.id, new Date(Date.now() + 86_400_000))).toEqual({ ok: true });
+  });
+
+  it('W-22: escalating assigns to the admin with an urgent notification that links to the item', async () => {
+    const item = await newItem('timely_filing_risk');
+    const [priya] = await admin.db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, 'priya@northwind.test'));
+    expect(await assignItem(app.db, ctx(), item.id, priya!.id, { escalated: true })).toEqual({ ok: true });
+    const [note] = await admin.db
+      .select()
+      .from(notifications)
+      .where(and(eq(notifications.userId, priya!.id), eq(notifications.entityId, item.id)));
+    expect(note).toMatchObject({
+      summary: 'Escalated to you: Timely filing',
+      urgent: true,
+      link: `/work?item=${item.id}`,
+      type: 'work_item.escalated',
+    });
+    const audit = await admin.db
+      .select()
+      .from(auditEvents)
+      .where(and(eq(auditEvents.action, 'work_item.escalated'), eq(auditEvents.entityId, item.id)));
+    expect(audit).toHaveLength(1);
   });
 });

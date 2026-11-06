@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 import { policy, state, work } from '@cleanpost/domain';
+import { todayPacific } from '@cleanpost/reports';
 import {
   Banner,
   ConfidenceMeter,
@@ -71,9 +72,8 @@ export default async function ClaimPage({
     !d.scrub?.findings.some((f) => f.severity === 'block') &&
     !d.correctionPending;
   const now = clockNow();
-  const deadlineDays = c.filingDeadline
-    ? Math.ceil((Date.parse(`${c.filingDeadline}T00:00:00Z`) - now.getTime()) / 86_400_000)
-    : null;
+  // Whole days in the billing day (Pacific), the same count W-22 and the timely-filing watch use.
+  const deadlineDays = c.filingDeadline ? work.daysUntil(c.filingDeadline, todayPacific(now)) : null;
   const editing = sp.edit === '1' && canEdit;
   const canNote = policy.authorize(ctx.actor, 'work.resolve', { clientId: c.clientId }).allowed;
   // C-15: a claim that is out can be checked; one with an answer shows it.
@@ -177,9 +177,18 @@ export default async function ClaimPage({
       {deadlineDays !== null &&
         deadlineDays <= 14 &&
         !['submitted', 'accepted', 'paid', 'closed', 'voided'].includes(c.status) && (
-          <Banner tone="warn">
-            <b>Filing deadline in {Math.max(0, deadlineDays)} days.</b> Release or correct this claim before{' '}
-            {formatDate(c.filingDeadline)}.
+          // W-22: red within 3 days of the filing limit or past it, amber within 14.
+          <Banner tone={work.filingUrgency(deadlineDays) === 'amber' ? 'warn' : 'bad'}>
+            <b>
+              {deadlineDays < 0
+                ? `Filing deadline passed ${-deadlineDays} ${deadlineDays === -1 ? 'day' : 'days'} ago.`
+                : deadlineDays === 0
+                  ? 'Filing deadline today.'
+                  : `Filing deadline in ${deadlineDays} ${deadlineDays === 1 ? 'day' : 'days'}.`}
+            </b>{' '}
+            {deadlineDays < 0
+              ? `It was due on ${formatDate(c.filingDeadline)}; document proof of timely filing if it was sent in time.`
+              : `Release or correct this claim before ${formatDate(c.filingDeadline)}.`}
           </Banner>
         )}
       {statusView?.last && (

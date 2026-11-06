@@ -18,6 +18,7 @@ import {
 } from 'drizzle-orm';
 import {
   claimEvents,
+  clientPayerSettings,
   claims,
   claimVersions,
   clients,
@@ -52,7 +53,8 @@ import {
   type Finding,
   records,
 } from '@cleanpost/domain';
-import { payerClaimNumber } from '@cleanpost/claims';
+import { payerClaimNumber, PRE_RELEASE_ITEM_TYPES } from '@cleanpost/claims';
+import { todayPacific } from '@cleanpost/reports';
 import { linkCandidates } from '@cleanpost/remit';
 import { wakeDueItems } from '@cleanpost/work';
 import { formatDate, pacificDay } from '../format';
@@ -414,6 +416,19 @@ export interface WorkDetail {
     /** Local and preview: P-04 can draw a sample card. */
     demo: boolean;
   } | null;
+  /** W-22: the claim's filing limit, what holds it, and who it can be escalated to. */
+  filing: {
+    deadline: string;
+    daysLeft: number;
+    limitDays: number;
+    /** client_payer: set for this client and payer (CL-05); default: Cleanpost's 90 days. */
+    limitSource: 'client_payer' | 'default';
+    payerName: string | null;
+    blocker: { id: string; type: string; summary: string } | null;
+    correctionPending: boolean;
+    admins: { id: string; name: string }[];
+    proofDocumentId: string | null;
+  } | null;
   /** W-14: the card to review (its patient, for Upload clearer photo). */
   card: { documentId: string; patientId: string; demo: boolean } | null;
   /** W-16 to W-20: the payment the item is about, and for a denial the denied lines' codes. */
@@ -664,6 +679,59 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
       .where(eq(patients.id, item.patientId));
     if (p) patient = { id: p.id, name: patientLabel(p) ?? '' };
   }
+  let filing: WorkDetail['filing'] = null;
+  if (item.type === 'timely_filing_risk' && item.claimId) {
+    const [c] = await tx
+      .select({
+        deadline: claims.filingDeadline,
+        payerId: claims.payerId,
+        clientId: claims.clientId,
+        payerName: payers.name,
+      })
+      .from(claims)
+      .leftJoin(payers, eq(payers.id, claims.payerId))
+      .where(eq(claims.id, item.claimId));
+    if (c?.deadline) {
+      const [cps] = c.payerId
+        ? await tx
+            .select({ days: clientPayerSettings.timelyFilingDays })
+            .from(clientPayerSettings)
+            .where(
+              and(eq(clientPayerSettings.clientId, c.clientId), eq(clientPayerSettings.payerId, c.payerId)),
+            )
+        : [];
+      const [blocker] = await tx
+        .select({ id: workItems.id, type: workItems.type, summary: workItems.summary })
+        .from(workItems)
+        .where(
+          and(
+            eq(workItems.claimId, item.claimId),
+            ne(workItems.id, item.id),
+            ne(workItems.status, 'resolved'),
+            inArray(workItems.type, [...PRE_RELEASE_ITEM_TYPES, 'manual_task', 'rejection']),
+          ),
+        )
+        .orderBy(asc(workItems.priority))
+        .limit(1);
+      const admins = await tx
+        .select({ id: users.id, name: users.name })
+        .from(memberships)
+        .innerJoin(users, eq(users.id, memberships.userId))
+        .where(and(eq(memberships.role, 'admin'), eq(memberships.status, 'active')))
+        .orderBy(asc(users.name));
+      filing = {
+        deadline: c.deadline,
+        daysLeft: work.daysUntil(c.deadline, todayPacific()),
+        limitDays: cps?.days ?? 90,
+        limitSource: cps ? 'client_payer' : 'default',
+        payerName: c.payerName,
+        blocker: blocker ?? null,
+        correctionPending: claim?.correctionPending ?? false,
+        admins,
+        proofDocumentId: item.documentId,
+      };
+    }
+  }
   let eligibility: WorkDetail['eligibility'] = null;
   if (item.type === 'eligibility_issue' && item.claimId) {
     const [c] = await tx
@@ -735,6 +803,7 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
     remittance,
     denial,
     eligibility,
+    filing,
     card:
       item.type === 'card_review' && item.documentId && item.patientId
         ? { documentId: item.documentId, patientId: item.patientId, demo: Boolean(simConfig()) }
