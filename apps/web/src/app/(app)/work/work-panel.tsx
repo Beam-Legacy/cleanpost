@@ -1,6 +1,7 @@
 'use client';
 /**
- * W-01 side panel, by item type: W-10 claim review, W-11 claim blocked, W-12 rejection, W-16
+ * W-01 side panel, by item type: W-10 claim review, W-11 claim blocked, W-12 rejection, W-13
+ * eligibility issue, W-16
  * denial, W-15 no response, W-17 to W-19 payments, W-21 manual task, W-23 connection problem, the write-off approval
  * (D-03), and a plain panel for types whose screens come later.
  * Codes only, never CPT descriptions (CLAUDE.md rule 11). AI text is labelled "Suggested".
@@ -26,6 +27,7 @@ import { CheckStatusButton, CreateStatusTaskButton, StatusResult } from '@/compo
 import { ApprovalPanel } from './approval-panel';
 import { LinkPayment } from './link-payment';
 import { DenialPanel } from './denial-panel';
+import { EligibilityPanel } from './eligibility-panel';
 import { MappingForm } from './mapping-form';
 import { PostingTask } from './posting-task';
 import type { Permissions } from './work-queue';
@@ -90,6 +92,10 @@ function whyHere(d: WorkDetail): string {
     }
     case 'claim_blocked':
       return 'Blocked: release is unavailable while any blocking finding remains.';
+    case 'eligibility_issue':
+      return d.eligibility?.pmTasks.length
+        ? `The coverage is being corrected in ${d.connection?.pmName ?? 'the PM'}; this closes itself when the claim checks out.`
+        : 'The payer could not confirm this coverage, so the claim does not go out until the coverage is fixed, another coverage is billed, or the patient pays.';
     case 'rejection':
       return 'Rejected before adjudication, so the fix goes out as a new claim (frequency 1), not a replacement.';
     case 'manual_task':
@@ -182,6 +188,12 @@ export function WorkPanel({
             : label}
         </h2>
         <div className="muted dense">
+          {!c && d.patient && (
+            <>
+              <Link href={`/patients/${d.patient.id}`}>{d.patient.name}</Link>
+              {' · '}
+            </>
+          )}
           {[d.clientName, c?.payerName].filter(Boolean).join(' · ')}
           {c?.pcn && (
             <>
@@ -265,6 +277,23 @@ export function WorkPanel({
               ))}
             </tbody>
           </table>
+        )}
+
+        {d.item.type === 'eligibility_issue' && (
+          <div className="stack-sm">
+            <span className="overline">Reason</span>
+            <div>{d.item.summary}</div>
+          </div>
+        )}
+
+        {d.item.type === 'eligibility_issue' && d.eligibility && c && d.item.status !== 'resolved' && (
+          <EligibilityPanel
+            claimId={c.id}
+            eligibility={d.eligibility}
+            pmName={d.connection?.pmName ?? 'the PM'}
+            canEdit={can.edit}
+            onDone={onClose}
+          />
         )}
 
         {d.item.type === 'rejection' && (
@@ -408,6 +437,7 @@ export function WorkPanel({
             'sync_failure',
             'system',
             'write_off_approval',
+            'eligibility_issue',
           ].includes(d.item.type) && <div>{d.item.summary}</div>}
 
         <div className="why">

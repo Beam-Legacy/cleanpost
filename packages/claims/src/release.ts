@@ -35,7 +35,13 @@ import { state } from '@cleanpost/domain';
 import type { Logger } from '@cleanpost/log';
 import { resubmissionTask } from './correct';
 import { applyClaimEvent } from './events';
-import { correctionPending, ensureManualTask } from './tasks';
+import {
+  correctionPending,
+  ensureManualTask,
+  noteRecordWait,
+  PRE_RELEASE_ITEM_TYPES,
+  recordPending,
+} from './tasks';
 import { now as clockNow } from '@cleanpost/clock';
 
 export { ensureManualTask } from './tasks';
@@ -60,6 +66,7 @@ export type ReleaseOutcome =
         | 'no_connection'
         /** A correction is waiting to be made in the PM; releasing now would bill the old charge. */
         | 'pm_correction_pending'
+        | 'pm_record_pending'
         /** CL-08: the client is paused; the claim waits in ready and goes out on resume. */
         | 'client_paused';
     }
@@ -148,6 +155,11 @@ async function load(
   });
   if (!allowed.ok) return { status: 'refused', reason: allowed.error };
   if (await correctionPending(tx, claim.id)) return { status: 'refused', reason: 'pm_correction_pending' };
+  // A corrected coverage or patient the PM does not show yet would go out with the old values.
+  if (await recordPending(tx, claim.id)) {
+    await noteRecordWait(tx, claim);
+    return { status: 'refused', reason: 'pm_record_pending' };
+  }
   const target = await pmTarget(tx, claim);
   if (!target) return { status: 'refused', reason: 'no_connection' };
   return { claim, ...target };
@@ -569,7 +581,7 @@ export async function holdClaim(
       .where(
         and(
           eq(workItems.claimId, claim.id),
-          inArray(workItems.type, ['claim_review', 'claim_blocked']),
+          inArray(workItems.type, [...PRE_RELEASE_ITEM_TYPES]),
           ne(workItems.status, 'resolved'),
         ),
       );

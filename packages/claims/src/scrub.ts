@@ -50,6 +50,7 @@ import type { Logger } from '@cleanpost/log';
 import { applyClaimEvent } from './events';
 import type { ClaimReviewer } from './review';
 import { now as clockNow } from '@cleanpost/clock';
+import { PRE_RELEASE_ITEM_TYPES } from './tasks';
 
 export interface ScrubDeps {
   db: Database;
@@ -300,11 +301,21 @@ async function routeWorkItem(
     .where(
       and(
         eq(workItems.claimId, claim.id),
-        inArray(workItems.type, ['claim_review', 'claim_blocked']),
+        inArray(workItems.type, [...PRE_RELEASE_ITEM_TYPES]),
         ne(workItems.status, 'resolved'),
       ),
     );
-  const wanted = decision === 'review' ? 'claim_review' : decision === 'blocked' ? 'claim_blocked' : null;
+  const blocks = findings.filter((f) => f.severity === 'block');
+  // W-13: a claim held only by its coverage is an eligibility issue about the patient (DEC-30).
+  const eligibilityOnly = blocks.length > 0 && blocks.every((f) => f.step === 'eligibility');
+  const wanted =
+    decision === 'review'
+      ? 'claim_review'
+      : decision === 'blocked'
+        ? eligibilityOnly
+          ? 'eligibility_issue'
+          : 'claim_blocked'
+        : null;
   for (const item of open) {
     if (item.type === wanted) continue;
     const next = state.nextWorkItemState(item.status as state.WorkItemState, 'auto_resolve');
@@ -327,15 +338,17 @@ async function routeWorkItem(
     findings.find((f) => f.severity === 'warn' && f.step !== 'ai') ??
     findings.find((f) => f.severity === 'warn');
   const summary =
-    wanted === 'claim_blocked'
-      ? `Blocked: ${firstBlock?.message ?? 'a check failed.'}`
-      : topWarn
-        ? topWarn.message
-        : firstClaim
-          ? `First claim for this client and payer (confidence ${confidence}).`
-          : `Confidence ${confidence} is below the release threshold.`;
+    wanted === 'eligibility_issue'
+      ? (firstBlock?.message ?? 'The payer could not confirm coverage.')
+      : wanted === 'claim_blocked'
+        ? `Blocked: ${firstBlock?.message ?? 'a check failed.'}`
+        : topWarn
+          ? topWarn.message
+          : firstClaim
+            ? `First claim for this client and payer (confidence ${confidence}).`
+            : `Confidence ${confidence} is below the release threshold.`;
   const reasonCode =
-    wanted === 'claim_blocked' ? (firstBlock?.ruleId ?? 'blocked') : 'confidence_below_threshold';
+    wanted === 'claim_review' ? 'confidence_below_threshold' : (firstBlock?.ruleId ?? 'blocked');
   const existing = open.find((i) => i.type === wanted);
   if (existing) {
     await tx
@@ -350,9 +363,12 @@ async function routeWorkItem(
       tenantId: claim.tenantId,
       clientId: claim.clientId,
       type: wanted,
-      priority: 2,
-      dueAt: new Date(now.getTime() + REVIEW_SLA_HOURS * 3_600_000),
+      // docs/08: eligibility issues are priority 1 with a 24-hour SLA (4 hours before a known visit;
+      // no PM sends appointments yet).
+      priority: wanted === 'eligibility_issue' ? 1 : 2,
+      dueAt: new Date(now.getTime() + (wanted === 'eligibility_issue' ? 24 : REVIEW_SLA_HOURS) * 3_600_000),
       claimId: claim.id,
+      patientId: claim.patientId,
       encounterId: claim.encounterId,
       reasonCode,
       summary,

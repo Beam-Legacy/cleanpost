@@ -29,8 +29,8 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `patients` | client_id, external_ids jsonb (per connection), first/last name, dob, sex, address, phone | PHI |
-| `coverages` | patient_id, payer_id, priority (1,2,3), member_id, group_number, subscriber relationship, subscriber demographics, effective/termination dates, source (`pm`,`card`,`user`) | |
+| `patients` | client_id, external_ids jsonb (per connection), first/last name, dob, sex, address, phone, source (`pm`, `user`: corrected in Cleanpost, not yet in the PM; DEC-30) | PHI |
+| `coverages` | patient_id, payer_id, priority (1,2,3), member_id, group_number, subscriber relationship, subscriber demographics, effective/termination dates, source (`pm`,`card`,`user`; `card`/`user` = corrected in Cleanpost, not yet in the PM, DEC-30) | |
 | `eligibility_checks` | coverage_id, requested_at, status (`active`,`inactive`,`error`,`unknown`), summary jsonb (copay, deductible remaining, coinsurance), raw_ref (storage key) | Raw 271 in object storage |
 | `documents` | client_id, patient_id?, type (`insurance_card_front`,`insurance_card_back`,`payer_letter`,`eob`,`other`), storage_key, extracted jsonb, extraction_confidence, review_status | |
 
@@ -66,8 +66,8 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `work_items` | client_id, type, status, priority (1–4), due_at, assignee_id?, claim_id?, remittance_id?, remit_claim_id? (the payment an unmatched-payment item is about), encounter_id?, document_id?, connection_id?, reason_code, summary (no PHI beyond what the UI shows), snoozed_until?, resolved_by, resolution | See `docs/08-work-queue.md` |
-| `corrections` | work_item_id, field_path, before jsonb, after jsonb, user_id, promoted_rule_id? | Training data for rules |
+| `work_items` | client_id, type, status, priority (1–4), due_at, assignee_id?, claim_id?, remittance_id?, remit_claim_id? (the payment an unmatched-payment item is about), encounter_id?, document_id?, patient_id? (patient-level items: W-13, W-14, PM tasks after P-02/P-06), connection_id?, reason_code, summary (no PHI beyond what the UI shows), snoozed_until?, resolved_by, resolution | See `docs/08-work-queue.md` |
+| `corrections` | work_item_id, claim_id?, entity_type?/entity_id? (coverage or patient corrections, DEC-30), field_path, before jsonb, after jsonb, user_id, promoted_rule_id? | Training data for rules |
 | `write_off_requests` | client_id, claim_id, denial_item_id?, approval_item_id?, amount_cents, reason, note?, pm_code, requested_by, status (`pending`,`approved`,`declined`,`cancelled`), decided_by?, decision_note?, decided_at? | D-03 write-offs over the tenant's approval limit; state machine in `docs/03-state-machines.md`. The note is free text: it stays out of the audit metadata |
 | `rules` | scope (`global`,`tenant`,`client`,`payer`,`client_payer`), scope ids, name, kind (`validate`,`transform`,`route`), condition jsonb, action jsonb, severity, enabled, source (`seed`,`user`,`promoted`), version | |
 

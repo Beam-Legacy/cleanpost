@@ -31,11 +31,14 @@ export const patients = pgTable(
     sex: text('sex').notNull().default('U'),
     address: jsonb('address'),
     phone: text('phone'),
+    /** pm, or user: a person corrected it in Cleanpost (P-06) and the PM does not show it yet (DEC-30). */
+    source: text('source').notNull().default('pm'),
     ...timestamps,
   },
   (t) => [
     index('patients_client_name_idx').on(t.clientId, t.lastName, t.firstName),
     check('patients_sex_check', sql`${t.sex} in ('M', 'F', 'U')`),
+    check('patients_source_check', sql`${t.source} in ('pm', 'user')`),
   ],
 );
 
@@ -61,7 +64,7 @@ export const coverages = pgTable(
     subscriber: jsonb('subscriber'),
     effectiveDate: date('effective_date'),
     terminationDate: date('termination_date'),
-    /** pm | card | user */
+    /** pm | card | user. card and user: corrected in Cleanpost (P-02, P-05), not yet shown by the PM (DEC-30). */
     source: text('source').notNull().default('pm'),
     ...timestamps,
   },

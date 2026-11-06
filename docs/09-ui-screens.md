@@ -78,6 +78,8 @@ Table with saved views (All open, Needs review, Rejected, Denied, Awaiting payme
 
 Demographics, coverages ordered by priority with eligibility status and last check time ("Check now" button), card images with extraction results, encounters and claims history, balance summary. Edits here write back to the PM through the adapter (or create a manual task) and say so before saving.
 
+Built (DEC-30): Edit details (P-06) and Edit on each coverage (P-02). No PM can be written yet, so saving keeps the correction in Cleanpost and puts a task to make it in the PM in the queue; the page says so while the PM has not caught up, and the patient's claims wait for it. W-13 (eligibility issue) shows the patient's coverages with each one's latest 271 and offers Check again, Bill the other coverage, Update coverage, Mark self-pay and Open patient.
+
 ## O-01 to O-11 Client onboarding wizard
 
 Full-page stepper with progress saved at each step. The designs split the dry run into its own step and add a confirmation page, so the wizard is O-01 to O-10 plus O-11 (Live); follow the designs for step order. Steps:

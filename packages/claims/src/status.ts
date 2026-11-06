@@ -21,6 +21,7 @@ import { applyClaimEvent } from './events';
 import { resolveAnsweredDenials, resolveFollowUps } from './answered';
 import { markReleased } from './release';
 import { now as clockNow } from '@cleanpost/clock';
+import { PRE_RELEASE_ITEM_TYPES } from './tasks';
 
 export interface StatusContext {
   tenantId: string;
@@ -52,7 +53,7 @@ async function closeReviewItems(
     .where(
       and(
         eq(workItems.claimId, claim.id),
-        inArray(workItems.type, ['claim_review', 'claim_blocked']),
+        inArray(workItems.type, [...PRE_RELEASE_ITEM_TYPES]),
         ne(workItems.status, 'resolved'),
       ),
     );

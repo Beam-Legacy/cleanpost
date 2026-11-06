@@ -16,6 +16,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { id, tenantId, timestamps } from './_columns';
 import { users } from './auth';
+import { patients } from './patients';
 import { clients } from './organization';
 
 export const workItems = pgTable(
@@ -36,6 +37,8 @@ export const workItems = pgTable(
     remitClaimId: uuid('remit_claim_id'),
     encounterId: uuid('encounter_id'),
     documentId: uuid('document_id'),
+    /** Patient-level items: eligibility (W-13), card review (W-14), a PM update after P-02 / P-06. */
+    patientId: uuid('patient_id').references(() => patients.id),
     connectionId: uuid('connection_id'),
     reasonCode: text('reason_code').notNull(),
     /** One line, plain language, no PHI beyond what the UI shows. */
@@ -50,6 +53,9 @@ export const workItems = pgTable(
   (t) => [
     index('work_items_queue_idx').on(t.tenantId, t.status, t.priority, t.dueAt),
     index('work_items_assignee_idx').on(t.assigneeId, t.status),
+    index('work_items_patient_idx')
+      .on(t.patientId)
+      .where(sql`${t.patientId} is not null`),
     check('work_items_priority_check', sql`${t.priority} between 1 and 4`),
   ],
 );
@@ -99,6 +105,9 @@ export const corrections = pgTable('corrections', {
   clientId: uuid('client_id').references(() => clients.id),
   workItemId: uuid('work_item_id').references(() => workItems.id),
   claimId: uuid('claim_id'),
+  /** Corrections to a coverage or patient (P-02, P-06): what was changed; claimId is null. */
+  entityType: text('entity_type'),
+  entityId: uuid('entity_id'),
   fieldPath: text('field_path').notNull(),
   before: jsonb('before'),
   after: jsonb('after'),

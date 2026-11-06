@@ -61,10 +61,10 @@ export default async function globalSetup() {
         throw new Error('No claims in review: start the worker and pm-mock (pnpm dev) before the e2e run');
       await new Promise((r) => setTimeout(r, 2000));
     }
-    // Flow 5 and D-01 to D-03 need denials, C-15 and W-15 a follow-up with a status answer: made
-    // through the app's own code (e2e/fixtures).
+    // Flow 5 and D-01 to D-03 need denials, C-15 and W-15 a follow-up with a status answer, W-13 an
+    // eligibility issue: made through the app's own code (e2e/fixtures).
     const here = dirname(fileURLToPath(import.meta.url));
-    for (const fixture of ['denial.ts', 'status.ts'])
+    for (const fixture of ['denial.ts', 'status.ts', 'eligibility.ts'])
       execFileSync(join(here, '..', 'node_modules', '.bin', 'tsx'), [join(here, 'fixtures', fixture)], {
         env: process.env,
         stdio: ['ignore', 'ignore', 'inherit'],

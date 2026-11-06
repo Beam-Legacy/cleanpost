@@ -31,7 +31,7 @@ import {
   type EncounterForClaim,
 } from '@cleanpost/domain';
 import { applyClaimEvent } from './events';
-import { resolveCorrectionTasks } from './tasks';
+import { recordPending, resolveCorrectionTasks, waitedForRecord } from './tasks';
 import { insertVersion, lastPmVersion } from './versions';
 import { now as clockNow } from '@cleanpost/clock';
 
@@ -208,8 +208,11 @@ async function buildOne(
     await resolveCorrectionTasks(tx, existing.id, opts.actor, opts.now);
   }
   if (!pmChanged || (current && samePayload(current.payload as ClaimPayload, payload))) {
-    // Caught up with a person's edit: the claim may now go, if it was waiting for that.
-    const waiting = pmChanged && existing.status === 'ready';
+    // Caught up with a person's edit: the claim may now go, if it was waiting for that. Likewise a
+    // claim that waited for a corrected coverage or patient the PM now shows (DEC-30).
+    const waiting =
+      existing.status === 'ready' &&
+      (pmChanged || ((await waitedForRecord(tx, existing.id)) && !(await recordPending(tx, existing.id))));
     return waiting ? { kind: 'caught_up', claimId: existing.id } : { kind: 'unchanged' };
   }
 

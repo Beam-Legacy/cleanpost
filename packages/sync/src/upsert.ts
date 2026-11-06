@@ -4,10 +4,12 @@
  * page twice changes nothing. Each record created or changed is audit-logged (rule 7); reads made
  * only to compare are logged once per page.
  */
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, ne } from 'drizzle-orm';
 import type { ExtEncounter, ExtPatient } from '@cleanpost/adapters';
+import { records, state } from '@cleanpost/domain';
 import {
   chargeLines,
+  connections,
   coverages,
   decryptField,
   diagnoses,
@@ -15,10 +17,12 @@ import {
   encryptField,
   externalRefs,
   last4,
+  manualTasks,
   patients,
   providers,
   recordAudit,
   withAudit,
+  workItems,
   type AuditActor,
   type Tx,
 } from '@cleanpost/db';
@@ -122,7 +126,7 @@ async function upsertCoverages(
   patientId: string,
   list: ExtPatient['coverages'],
   payers: PayerMatcher,
-): Promise<{ added: number; changed: number }> {
+): Promise<{ added: number; changed: number; pending: number; caughtUp: number }> {
   const refs = await refsFor(
     tx,
     ctx,
@@ -131,6 +135,8 @@ async function upsertCoverages(
   );
   let added = 0;
   let changed = 0;
+  let pending = 0;
+  let caughtUp = 0;
   for (const c of list) {
     const fields = {
       payerId: payers.match(c.payerName),
@@ -162,8 +168,19 @@ async function upsertCoverages(
     }
     const [existing] = await tx.select().from(coverages).where(eq(coverages.id, id));
     if (!existing) continue;
-    const diff = changedFields(existing as unknown as Record<string, unknown>, fields);
+    const diff = changedFields(existing as unknown as Record<string, unknown>, fields).filter(
+      // The payer as matched decides; the PM may spell its name differently from Cleanpost's list.
+      (f) => !(f === 'payerName' && existing.payerId && existing.payerId === fields.payerId),
+    );
     const memberChanged = decryptField(existing.memberIdEncrypted) !== c.memberId;
+    if (existing.source !== 'pm') {
+      // Corrected in Cleanpost (P-02, P-05): left alone until the PM shows the same (DEC-30).
+      if (!diff.length && !memberChanged && existing.patientId === patientId) {
+        await tx.update(coverages).set({ source: 'pm', updatedAt: clockNow() }).where(eq(coverages.id, id));
+        caughtUp++;
+      } else pending++;
+      continue;
+    }
     if (diff.length || memberChanged || existing.patientId !== patientId) {
       await tx
         .update(coverages)
@@ -177,7 +194,98 @@ async function upsertCoverages(
       changed++;
     }
   }
-  return { added, changed };
+  return { added, changed, pending, caughtUp };
+}
+
+/**
+ * DEC-30: once the PM shows a correction made in Cleanpost, the task to make it there closes itself.
+ * If the PM still differs and nobody has that task open (a person closed it), a new task says so:
+ * the sync conflict note, never a silent overwrite (P-06).
+ */
+async function settleCorrection(
+  tx: Tx,
+  ctx: SyncContext,
+  patient: { id: string },
+  what: 'coverage' | 'details',
+  caughtUp: boolean,
+) {
+  const operation = what === 'coverage' ? records.UPDATE_COVERAGE : records.UPDATE_PATIENT;
+  const open = await tx
+    .select({ id: workItems.id, status: workItems.status })
+    .from(workItems)
+    .where(
+      and(
+        eq(workItems.patientId, patient.id),
+        eq(workItems.type, 'manual_task'),
+        eq(workItems.reasonCode, operation),
+        ne(workItems.status, 'resolved'),
+      ),
+    );
+  const now = clockNow();
+  if (caughtUp) {
+    for (const item of open) {
+      const next = state.nextWorkItemState(item.status as state.WorkItemState, 'auto_resolve');
+      if (!next.ok) continue;
+      await tx
+        .update(workItems)
+        .set({
+          status: next.value,
+          resolvedBy: ctx.actor,
+          resolution: 'PM updated',
+          resolvedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(workItems.id, item.id));
+      await tx
+        .update(manualTasks)
+        .set({ status: 'done', updatedAt: now })
+        .where(and(eq(manualTasks.workItemId, item.id), eq(manualTasks.status, 'open')));
+      await recordAudit(tx, {
+        actor: ctx.actor,
+        action: 'work_item.auto_resolved',
+        entityType: 'work_item',
+        entityId: item.id,
+        clientId: ctx.clientId,
+        metadata: { operation, syncRunId: ctx.syncRunId },
+      });
+    }
+    return;
+  }
+  if (open.length) return;
+  const [conn] = await tx.select().from(connections).where(eq(connections.id, ctx.connectionId));
+  const pmName = ((conn?.settings ?? {}) as { pmName?: string }).pmName ?? 'the PM';
+  const text = records.conflictTask({ what, pmName });
+  const [item] = await tx
+    .insert(workItems)
+    .values({
+      tenantId: ctx.tenantId,
+      clientId: ctx.clientId,
+      type: 'manual_task',
+      priority: 2,
+      dueAt: new Date(now.getTime() + 24 * 3_600_000),
+      patientId: patient.id,
+      connectionId: ctx.connectionId,
+      reasonCode: operation,
+      summary: text.title,
+    })
+    .returning({ id: workItems.id });
+  await tx.insert(manualTasks).values({
+    tenantId: ctx.tenantId,
+    clientId: ctx.clientId,
+    connectionId: ctx.connectionId,
+    operation,
+    workItemId: item!.id,
+    title: text.title,
+    instructions: text.instructions,
+  });
+  await recordAudit(tx, {
+    actor: ctx.actor,
+    action: 'manual_task.created',
+    entityType: 'work_item',
+    entityId: item!.id,
+    clientId: ctx.clientId,
+    metadata: { operation, patientId: patient.id, conflict: true },
+  });
 }
 
 export async function upsertPatients(
@@ -242,14 +350,29 @@ export async function upsertPatients(
       counts.failed++;
       continue;
     }
-    const diff = changedFields(existing as unknown as Record<string, unknown>, fields);
-    if (diff.length) {
+    let diff = changedFields(existing as unknown as Record<string, unknown>, fields);
+    if (existing.source !== 'pm') {
+      // Corrected in Cleanpost (P-06): left alone until the PM shows the same (DEC-30).
+      const caughtUp = diff.length === 0;
+      if (caughtUp)
+        await tx.update(patients).set({ source: 'pm', updatedAt: clockNow() }).where(eq(patients.id, id));
+      await settleCorrection(tx, ctx, existing, 'details', caughtUp);
+      diff = [];
+    } else if (diff.length) {
       await tx
         .update(patients)
         .set({ ...fields, updatedAt: clockNow() })
         .where(eq(patients.id, id));
     }
     const cov = await upsertCoverages(tx, ctx, id, p.coverages, payers);
+    if (cov.pending || cov.caughtUp) {
+      const stillPending = await tx
+        .select({ id: coverages.id })
+        .from(coverages)
+        .where(and(eq(coverages.patientId, id), ne(coverages.source, 'pm')))
+        .limit(1);
+      await settleCorrection(tx, ctx, existing, 'coverage', stillPending.length === 0);
+    }
     if (diff.length || cov.added || cov.changed) {
       await recordAudit(tx, {
         actor: ctx.actor,

@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft, ShieldOff } from 'lucide-react';
 import { z } from 'zod';
 import { policy } from '@cleanpost/domain';
-import { EmptyState, StatusChip } from '@cleanpost/ui';
+import { Banner, Button, EmptyState, StatusChip } from '@cleanpost/ui';
+import { CoverageDialog, PatientDialog } from '@/components/record-dialogs';
 import { CLAIM_STATUS } from '@/lib/claim-display';
 import { formatDate, formatMoney, formatWhen } from '@/lib/format';
 import { getPatient } from '@/lib/queries/patients';
@@ -32,6 +33,8 @@ export default async function PatientPage({
   const p = await getPatient(ctx, id);
   if (!p) notFound();
   const canCheck = policy.authorize(ctx.actor, 'work.resolve', { clientId: p.clientId }).allowed;
+  const canEdit = policy.authorize(ctx.actor, 'claim.edit', { clientId: p.clientId }).allowed;
+  const corrected = p.source !== 'pm' || p.coverages.some((c) => c.source !== 'pm');
   const label = `${p.lastName}, ${p.firstName}`;
   const open = sp.eligibility ? p.coverages.find((c) => c.latest?.id === sp.eligibility) : undefined;
 
@@ -66,7 +69,14 @@ export default async function PatientPage({
               </span>
             </div>
           </div>
+          {canEdit && <PatientDialog patientId={p.id} trigger={<Button size="sm">Edit details</Button>} />}
         </div>
+        {corrected && (
+          <Banner tone="warn">
+            Corrected in Cleanpost and waiting for {p.pmName} to show it. Claims for this patient do not go
+            out until a sync from {p.pmName} matches; the task is in the work queue.
+          </Banner>
+        )}
         <dl className="dl" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
           <div>
             <dt>Open balance</dt>
@@ -126,6 +136,18 @@ export default async function PatientPage({
                     </Link>
                   )}
                   {canCheck && <CheckEligibilityButton coverage={c} patientId={p.id} />}
+                  {canEdit && (
+                    <CoverageDialog
+                      coverage={c}
+                      payers={p.payers}
+                      pmName={p.pmName}
+                      trigger={
+                        <Button size="sm" variant="ghost" aria-label={`Edit ${c.payerName} coverage`}>
+                          Edit
+                        </Button>
+                      }
+                    />
+                  )}
                 </div>
               </div>
             ))

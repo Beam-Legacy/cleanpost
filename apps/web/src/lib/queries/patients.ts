@@ -46,6 +46,7 @@ export interface CoverageView {
   payerId: string | null;
   priority: number;
   memberIdMasked: string;
+  memberIdLast4: string;
   groupNumber: string | null;
   relationship: string;
   effectiveDate: string | null;
@@ -57,6 +58,8 @@ export interface CoverageView {
 export interface PatientView {
   id: string;
   clientId: string;
+  /** user: corrected in Cleanpost, waiting for the PM to show it (DEC-30). */
+  source: string;
   firstName: string;
   lastName: string;
   ageYears: number;
@@ -71,6 +74,8 @@ export interface PatientView {
   openClaims: number;
   lastVisit: string | null;
   coverages: CoverageView[];
+  /** P-02: payers a coverage can be moved to. */
+  payers: { id: string; name: string }[];
   cards: { id: string; type: string; createdAt: Date; reviewStatus: string }[];
   claims: {
     id: string;
@@ -122,6 +127,94 @@ export function eligibilityView(row: typeof eligibilityChecks.$inferSelect): Eli
   };
 }
 
+/** The patient's coverages in order, each with its latest 271 (P-01, W-13, P-02). */
+export async function coverageViews(tx: Tx, patientId: string): Promise<CoverageView[]> {
+  const covRows = await tx
+    .select()
+    .from(coverages)
+    .where(eq(coverages.patientId, patientId))
+    .orderBy(asc(coverages.priority));
+  const checks = covRows.length
+    ? await tx
+        .select()
+        .from(eligibilityChecks)
+        .where(
+          inArray(
+            eligibilityChecks.coverageId,
+            covRows.map((c) => c.id),
+          ),
+        )
+        .orderBy(desc(eligibilityChecks.requestedAt))
+    : [];
+  return covRows.map((c) => {
+    const latest = checks.find((k) => k.coverageId === c.id);
+    return {
+      id: c.id,
+      payerName: c.payerName,
+      payerId: c.payerId,
+      priority: c.priority,
+      memberIdMasked: `•••••${c.memberIdLast4}`,
+      memberIdLast4: c.memberIdLast4,
+      groupNumber: c.groupNumber,
+      relationship: c.relationship,
+      effectiveDate: c.effectiveDate,
+      terminationDate: c.terminationDate,
+      source: c.source,
+      latest: latest ? eligibilityView(latest) : null,
+    };
+  });
+}
+
+/** Payers a coverage can be moved to (P-02), by name. */
+export async function payerOptions(tx: Tx): Promise<{ id: string; name: string }[]> {
+  return tx.select({ id: payers.id, name: payers.name }).from(payers).orderBy(asc(payers.name));
+}
+
+export interface PatientEditView {
+  id: string;
+  firstName: string;
+  lastName: string;
+  dob: string;
+  sex: 'M' | 'F' | 'U';
+  address: { line1?: string; line2?: string; city?: string; state?: string; zip?: string } | null;
+  phone: string | null;
+  pmName: string;
+}
+
+/** P-06: the details being corrected, shown in full to edit them. A PHI read, audited as a reveal. */
+export async function getPatientForEdit(ctx: ActiveContext, id: string): Promise<PatientEditView | null> {
+  return withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const [p] = await tx.select().from(patients).where(eq(patients.id, id));
+    if (!p || !policy.authorize(ctx.actor, 'claim.edit', { clientId: p.clientId }).allowed) return null;
+    const [conn] = await tx
+      .select({ settings: connections.settings })
+      .from(connections)
+      .where(eq(connections.clientId, p.clientId))
+      .limit(1);
+    return withAudit(
+      tx,
+      {
+        actor: `user:${ctx.user.id}`,
+        action: 'phi.revealed',
+        entityType: 'patient',
+        entityId: p.id,
+        clientId: p.clientId,
+        metadata: { fields: ['dob', 'address', 'phone'], purpose: 'edit' },
+      },
+      async () => ({
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        dob: p.dob,
+        sex: p.sex as 'M' | 'F' | 'U',
+        address: (p.address ?? null) as PatientEditView['address'],
+        phone: p.phone,
+        pmName: ((conn?.settings ?? {}) as { pmName?: string }).pmName ?? 'the PM',
+      }),
+    );
+  });
+}
+
 async function load(tx: Tx, ctx: ActiveContext, id: string): Promise<PatientView | null> {
   const scope = policy.clientFilter(ctx.actor);
   const [row] = await tx
@@ -146,23 +239,6 @@ async function load(tx: Tx, ctx: ActiveContext, id: string): Promise<PatientView
     .from(externalRefs)
     .where(and(eq(externalRefs.entityType, 'patient'), eq(externalRefs.entityId, p.id)))
     .limit(1);
-  const covRows = await tx
-    .select()
-    .from(coverages)
-    .where(eq(coverages.patientId, p.id))
-    .orderBy(asc(coverages.priority));
-  const checks = covRows.length
-    ? await tx
-        .select()
-        .from(eligibilityChecks)
-        .where(
-          inArray(
-            eligibilityChecks.coverageId,
-            covRows.map((c) => c.id),
-          ),
-        )
-        .orderBy(desc(eligibilityChecks.requestedAt))
-    : [];
   const cards = await tx
     .select({
       id: documents.id,
@@ -206,6 +282,7 @@ async function load(tx: Tx, ctx: ActiveContext, id: string): Promise<PatientView
   return {
     id: p.id,
     clientId: p.clientId,
+    source: p.source,
     firstName: p.firstName,
     lastName: p.lastName,
     ageYears: ageAt(p.dob),
@@ -218,22 +295,8 @@ async function load(tx: Tx, ctx: ActiveContext, id: string): Promise<PatientView
     patientRespCents: claimRows.reduce((s, r) => s + (paidBy.get(r.c.id)?.patient ?? 0), 0),
     openClaims: open.length,
     lastVisit: claimRows[0]?.dos ?? null,
-    coverages: covRows.map((c) => {
-      const latest = checks.find((k) => k.coverageId === c.id);
-      return {
-        id: c.id,
-        payerName: c.payerName,
-        payerId: c.payerId,
-        priority: c.priority,
-        memberIdMasked: `•••••${c.memberIdLast4}`,
-        groupNumber: c.groupNumber,
-        relationship: c.relationship,
-        effectiveDate: c.effectiveDate,
-        terminationDate: c.terminationDate,
-        source: c.source,
-        latest: latest ? eligibilityView(latest) : null,
-      };
-    }),
+    coverages: await coverageViews(tx, p.id),
+    payers: await payerOptions(tx),
     cards,
     claims: claimRows.map((r) => ({
       id: r.c.id,

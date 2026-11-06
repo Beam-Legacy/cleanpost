@@ -94,7 +94,10 @@ describe('claim.scrub on synced data', () => {
       .select({ type: workItems.type, claimId: workItems.claimId })
       .from(workItems)
       .where(
-        and(inArray(workItems.type, ['claim_review', 'claim_blocked']), ne(workItems.status, 'resolved')),
+        and(
+          inArray(workItems.type, ['claim_review', 'claim_blocked', 'eligibility_issue']),
+          ne(workItems.status, 'resolved'),
+        ),
       );
     const statuses = await admin.db
       .select({ id: claims.id, status: claims.status })
@@ -112,7 +115,10 @@ describe('claim.scrub on synced data', () => {
         continue;
       }
       expect(items).toHaveLength(1);
-      expect(items[0]!.type).toBe(c.status === 'blocked' ? 'claim_blocked' : 'claim_review');
+      // A claim held only by its coverage is an eligibility issue (W-13, DEC-30).
+      expect(items[0]!.type).toMatch(
+        c.status === 'blocked' ? /^(claim_blocked|eligibility_issue)$/ : /^claim_review$/,
+      );
     }
   });
 

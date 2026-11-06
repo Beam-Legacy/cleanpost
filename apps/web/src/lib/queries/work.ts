@@ -50,6 +50,7 @@ import {
   work,
   type ClaimPayload,
   type Finding,
+  records,
 } from '@cleanpost/domain';
 import { payerClaimNumber } from '@cleanpost/claims';
 import { linkCandidates } from '@cleanpost/remit';
@@ -57,6 +58,7 @@ import { wakeDueItems } from '@cleanpost/work';
 import { formatDate, pacificDay } from '../format';
 import { statusViewInTx, typicalDaysToPay, type StatusView } from './claim-status';
 import { patientLabel } from './labels';
+import { coverageViews, payerOptions, type CoverageView } from './patients';
 import {
   pendingWriteOff,
   requestOfApproval,
@@ -191,7 +193,8 @@ export async function listWork(ctx: ActiveContext, f: WorkFilters, now = clockNo
           .from(workItems)
           .leftJoin(clients, eq(clients.id, workItems.clientId))
           .leftJoin(claims, eq(claims.id, workItems.claimId))
-          .leftJoin(patients, eq(patients.id, claims.patientId))
+          // Patient-level items (W-13, PM tasks after P-02 / P-06) name their patient directly.
+          .leftJoin(patients, eq(patients.id, sql`coalesce(${claims.patientId}, ${workItems.patientId})`))
           .leftJoin(payers, eq(payers.id, claims.payerId))
           .leftJoin(users, eq(users.id, workItems.assigneeId))
           .where(and(...scope, ...state, ...filters, ...(types ? [inArray(workItems.type, [...types])] : [])))
@@ -355,6 +358,8 @@ export interface WorkDetail {
   } | null;
   connection: { id: string; status: string; pmName: string } | null;
   manualTask: { title: string; instructions: string[]; status: string } | null;
+  /** The patient a patient-level item is about ("Last, F."), with a link to P-01. */
+  patient: { id: string; name: string } | null;
   /** W-16: the denied lines with their category, explanation and suggested fix (rules, not AI). */
   denial: {
     advice: {
@@ -398,6 +403,14 @@ export interface WorkDetail {
         codesMatch: boolean;
       }[]
     | null;
+  /** W-13: the patient's coverages with their latest 271, and what is already asked of the PM. */
+  eligibility: {
+    patientId: string;
+    claimCoverageId: string | null;
+    coverages: CoverageView[];
+    pmTasks: { id: string; title: string; operation: string }[];
+    payers: { id: string; name: string }[];
+  } | null;
   /** W-16 to W-20: the payment the item is about, and for a denial the denied lines' codes. */
   remittance: {
     id: string;
@@ -638,6 +651,45 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
         status,
       };
   }
+  let patient: WorkDetail['patient'] = null;
+  if (item.patientId) {
+    const [p] = await tx
+      .select({ id: patients.id, lastName: patients.lastName, firstName: patients.firstName })
+      .from(patients)
+      .where(eq(patients.id, item.patientId));
+    if (p) patient = { id: p.id, name: patientLabel(p) ?? '' };
+  }
+  let eligibility: WorkDetail['eligibility'] = null;
+  if (item.type === 'eligibility_issue' && item.claimId) {
+    const [c] = await tx
+      .select({ patientId: claims.patientId, coverageId: claims.coverageId })
+      .from(claims)
+      .where(eq(claims.id, item.claimId));
+    if (c) {
+      const tasks = await tx
+        .select({ id: workItems.id, title: workItems.summary, operation: workItems.reasonCode })
+        .from(workItems)
+        .where(
+          and(
+            eq(workItems.patientId, c.patientId),
+            eq(workItems.type, 'manual_task'),
+            inArray(workItems.reasonCode, [
+              records.UPDATE_COVERAGE,
+              records.UPDATE_PATIENT,
+              records.CHANGE_VISIT_COVERAGE,
+            ]),
+            ne(workItems.status, 'resolved'),
+          ),
+        );
+      eligibility = {
+        patientId: c.patientId,
+        claimCoverageId: c.coverageId,
+        coverages: await coverageViews(tx, c.patientId),
+        pmTasks: tasks,
+        payers: await payerOptions(tx),
+      };
+    }
+  }
   let writeOffRequest: WorkDetail['writeOffRequest'] = null;
   if (item.type === 'write_off_approval' && item.clientId) {
     const r = await requestOfApproval(tx, item.id);
@@ -676,6 +728,7 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
     threshold: client?.autoReleaseThreshold ?? companyReleaseThreshold(company?.settings),
     remittance,
     denial,
+    eligibility,
     writeOffRequest,
     followUp,
     linkCandidates: candidates,
@@ -689,6 +742,7 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
         }
       : null,
     manualTask: task ?? null,
+    patient,
   };
 }
 

@@ -39,8 +39,22 @@ export {
   CORRECTION_OPERATION,
   correctionPending,
   openCorrectionTasks,
+  PRE_RELEASE_ITEM_TYPES,
+  RECORD_WAIT_EVENT,
+  recordPending,
   resolveCorrectionTasks,
 } from './tasks';
+export {
+  editCoverage,
+  editPatient,
+  latestChecks,
+  markSelfPay,
+  rescrubForCoverage,
+  useOtherCoverage,
+  type RecordEditOutcome,
+  type RecordEditRefusal,
+  type W13Outcome,
+} from './records';
 export { insertVersion, lastPmVersion } from './versions';
 export {
   buildCorrection,

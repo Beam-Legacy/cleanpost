@@ -2,8 +2,19 @@
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Connection, OpResult } from '@cleanpost/adapters';
 import type { claims } from '@cleanpost/db';
-import { claimEvents, manualTasks, recordAudit, workItems, type AuditActor, type Tx } from '@cleanpost/db';
+import {
+  claimEvents,
+  claims as claimsTable,
+  coverages,
+  manualTasks,
+  patients,
+  recordAudit,
+  workItems,
+  type AuditActor,
+  type Tx,
+} from '@cleanpost/db';
 import { state } from '@cleanpost/domain';
+import { recordClaimEvent } from './events';
 
 export const CORRECTION_OPERATION = 'pushChargeCorrection';
 
@@ -140,4 +151,38 @@ export async function correctionPending(tx: Tx, claimId: string): Promise<boolea
   if (requested > Math.max(pushed, manual)) return true;
   if (manual > pushed) return (await openCorrectionTasks(tx, claimId)).length > 0;
   return false;
+}
+
+/** Work item types that hold a claim before release (W-10, W-11, W-13). */
+export const PRE_RELEASE_ITEM_TYPES = ['claim_review', 'claim_blocked', 'eligibility_issue'] as const;
+
+/** Claim event recorded when release waited for the PM to show a correction (DEC-30). */
+export const RECORD_WAIT_EVENT = 'pm_record_wait';
+
+/** Is a correction to this claim's coverage or patient still on its way to the PM? */
+export async function recordPending(tx: Tx, claimId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ coverage: coverages.source, patient: patients.source })
+    .from(claimsTable)
+    .innerJoin(patients, eq(patients.id, claimsTable.patientId))
+    .leftJoin(coverages, eq(coverages.id, claimsTable.coverageId))
+    .where(eq(claimsTable.id, claimId));
+  if (!row) return false;
+  return row.patient === 'user' || row.coverage === 'user' || row.coverage === 'card';
+}
+
+/** Has this claim waited for a correction to reach the PM (and not been released since)? */
+export async function waitedForRecord(tx: Tx, claimId: string): Promise<boolean> {
+  const [e] = await tx
+    .select({ id: claimEvents.id })
+    .from(claimEvents)
+    .where(and(eq(claimEvents.claimId, claimId), eq(claimEvents.type, RECORD_WAIT_EVENT)))
+    .limit(1);
+  return Boolean(e);
+}
+
+/** Release waited for the PM: remembered so the next build that finds the PM caught up releases it. */
+export async function noteRecordWait(tx: Tx, claim: { id: string; tenantId: string; clientId: string }) {
+  if (await waitedForRecord(tx, claim.id)) return;
+  await recordClaimEvent(tx, claim, RECORD_WAIT_EVENT, { actor: 'automation:claim.release' });
 }
