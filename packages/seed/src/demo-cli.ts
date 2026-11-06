@@ -49,9 +49,12 @@ if (!env.PAYER_SIM_URL || !env.PM_MOCK_URL || !env.PM_MOCK_ADMIN_PASSWORD) {
 const handle = createSystemDatabase(env.DATABASE_ADMIN_URL);
 try {
   const current = await readDemoHistory(handle.db);
-  if (args.has('--if-new') && current.state && (current.version ?? 1) >= DEMO_HISTORY_VERSION) {
+  // A history an older replay built (or is building) is started over: the deploy that brought the
+  // new replay also replaces the worker running the old one.
+  const outdated = Boolean(current.state) && (current.version ?? 1) < DEMO_HISTORY_VERSION;
+  if (args.has('--if-new') && current.state && !outdated) {
     log.info({ state: current.state }, 'demo history already built; skipped');
-  } else if (current.state === 'running' && !args.has('--force')) {
+  } else if (current.state === 'running' && !args.has('--force') && !(args.has('--if-new') && outdated)) {
     log.error({ day: current.day }, 'a replay is running; wait for it, or pass --force');
     process.exitCode = 1;
   } else {
