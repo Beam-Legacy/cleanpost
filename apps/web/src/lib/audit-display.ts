@@ -71,6 +71,8 @@ const VERB: Record<string, string> = {
   settings_changed: 'Changed settings',
   reset: 'Reset to default',
   added: 'Added',
+  performed: 'Searched',
+  recents_viewed: 'Viewed recent records',
 };
 
 const RECORD: Record<string, string> = {
@@ -96,6 +98,7 @@ const RECORD: Record<string, string> = {
   manual_task: 'Manual task',
   write_off_request: 'Write-off request',
   eligibility_check: 'Eligibility check',
+  search: 'Search',
 };
 
 export function actionLabel(action: string): string {
@@ -107,12 +110,26 @@ export function recordLabel(entityType: string): string {
   return RECORD[entityType] ?? entityType.replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
 }
 
+/** G-03 searches record what they found per group: "2 patients, 1 claim". */
+function foundText(found: unknown): string | null {
+  if (!found || typeof found !== 'object') return null;
+  const parts = Object.entries(found as Record<string, unknown>)
+    .filter((e): e is [string, number] => typeof e[1] === 'number' && e[1] > 0)
+    .map(([k, n]) => `${n} ${n === 1 ? k.replace(/s$/, '') : k}`);
+  return parts.length ? parts.join(', ') : 'nothing';
+}
+
 /** Up to three metadata fields as "key: value" (metadata never carries patient data). */
 export function detailsOf(metadata: unknown): string {
   if (!metadata || typeof metadata !== 'object') return '';
   const parts: string[] = [];
   for (const [k, v] of Object.entries(metadata as Record<string, unknown>)) {
     if (parts.length === 3) break;
+    if (k === 'found') {
+      const text = foundText(v);
+      if (text) parts.push(`found: ${text}`);
+      continue;
+    }
     if (v === null || v === undefined || typeof v === 'object') continue;
     // Record IDs are in the record column already.
     if (/id$/i.test(k) || (typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(v))) continue;

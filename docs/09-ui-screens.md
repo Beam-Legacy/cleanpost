@@ -160,6 +160,8 @@ Built (DEC-28): the bell in the top bar with the unread count opens the drawer (
 
 Search patients (name, DOB), claims (patient control number, payer claim number), remittances (trace number), clients, and commands ("Go to denials", "Upload 835"). Results respect client scope. Searches are audit-logged.
 
+Built (DEC-29): ⌘K, Ctrl+K, "/" or the top-bar search opens it. Results by group (Patients, Claims, Remittances, Clients, Commands) as you type, with loading rows; ↑↓ move, Enter opens, Tab and Shift+Tab jump between groups, ">" lists commands only. With nothing typed it shows the records you opened last and suggested commands. Patients show as "Last, F." and an age; the date of birth only on a date-of-birth match. Each search is recorded by hash and counts, never its text.
+
 ## S-13 Audit log (admin)
 
 Filter by user, action, entity, date. Shows who viewed or changed what. Export for compliance requests.

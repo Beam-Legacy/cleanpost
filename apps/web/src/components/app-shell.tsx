@@ -1,10 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { CircleHelp, PanelLeft } from 'lucide-react';
 import type { policy } from '@cleanpost/domain';
 import { IconButton, LogoMark, cx } from '@cleanpost/ui';
+import { commandsFor } from '@/lib/commands';
 import { NAV } from '@/lib/nav';
 import { NAV_ICONS } from './icons';
 import { ClientSwitcher, type ClientOption } from './client-switcher';
@@ -84,6 +85,25 @@ export function AppShell({
   }
 
   const visible = NAV.filter((n) => allowedActions.includes(n.action));
+  // G-03: going to a section keeps the client filter, like the sidebar.
+  const commands = useMemo(
+    () =>
+      commandsFor(allowedActions).map((c) =>
+        c.id.startsWith('go-') && client
+          ? { ...c, href: `${c.href}?client=${encodeURIComponent(client)}` }
+          : c,
+      ),
+    [allowedActions, client],
+  );
+  const scope = useMemo(
+    () => ({
+      patients: allowedActions.includes('patient.view'),
+      claims: allowedActions.includes('claim.view'),
+      remittances: allowedActions.includes('remittance.view'),
+      clients: allowedActions.includes('client.view'),
+    }),
+    [allowedActions],
+  );
   const main = visible.filter((n) => !n.admin);
   const admin = visible.filter((n) => n.admin);
 
@@ -160,11 +180,7 @@ export function AppShell({
           {children}
         </main>
       </div>
-      <CommandPalette
-        open={paletteOpen}
-        onOpenChange={setPaletteOpen}
-        nav={visible.map((n) => ({ ...n, href: withClient(n.href) }))}
-      />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} commands={commands} scope={scope} />
       <SessionTimeout />
     </div>
   );

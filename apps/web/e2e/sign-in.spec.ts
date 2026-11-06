@@ -65,7 +65,7 @@ test('first sign-in: password, required two-factor setup, company choice, app sh
   await page
     .getByRole('combobox', { name: 'Search or type a command' })
     .or(page.getByLabel('Search or type a command'))
-    .fill('rem');
+    .fill('>rem');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/remittances\?client=/);
   await expect(page.getByRole('button', { name: /Lakeside Family Medicine/ })).toBeVisible();

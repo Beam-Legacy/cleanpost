@@ -10,8 +10,9 @@ import { Banner, Button, Modal, useToast } from '@cleanpost/ui';
 import { formatDate, formatMoney } from '@/lib/format';
 import { importUpload, previewUpload, type UploadPayment } from './actions';
 
-export function UploadButton() {
-  const [open, setOpen] = useState(false);
+/** G-03 "Upload 835 file" opens the page with the dialog open (?upload=1). */
+export function UploadButton({ defaultOpen = false }: { defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <>
       <Button variant="primary" size="sm" onClick={() => setOpen(true)}>

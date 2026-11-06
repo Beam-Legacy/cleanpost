@@ -18,8 +18,15 @@ const ROLES: { value: Role; label: string; help: string }[] = [
   { value: 'viewer', label: 'Viewer', help: 'reports and claims, read only' },
 ];
 
-export function InviteDialog({ clients }: { clients: { id: string; name: string }[] }) {
-  const [open, setOpen] = useState(false);
+export function InviteDialog({
+  clients,
+  defaultOpen = false,
+}: {
+  clients: { id: string; name: string }[];
+  /** G-03 "Invite user" opens the page with the dialog open (?invite=1). */
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   const [emails, setEmails] = useState('');
   const [role, setRole] = useState<Role>('biller');
   const [picked, setPicked] = useState<string[]>([]);

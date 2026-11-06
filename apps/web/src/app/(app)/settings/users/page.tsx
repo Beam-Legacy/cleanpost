@@ -36,8 +36,13 @@ function clientsText(m: Pick<MemberRow, 'clients'>) {
 }
 
 /** S-01 Users and roles: who can use the workspace, with which role, for which clients. */
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const ctx = await requireActiveContext();
+  const sp = await searchParams;
   const now = clockNow();
   const [members, invites, clientChoices, company] = await Promise.all([
     listMembers(ctx),
@@ -61,7 +66,7 @@ export default async function UsersPage() {
             required for everyone
           </p>
         </div>
-        <InviteDialog clients={clientChoices} />
+        <InviteDialog clients={clientChoices} defaultOpen={sp.invite === '1'} />
       </div>
       <div className="card flush">
         <div className="table-wrap">

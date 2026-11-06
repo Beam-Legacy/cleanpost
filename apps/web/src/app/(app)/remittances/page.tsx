@@ -45,7 +45,7 @@ export default async function RemittancesPage({
       <PageHead
         title="Remittances"
         subtitle={`${formatCount(data.month.count)} ${data.month.count === 1 ? 'payment' : 'payments'} in ${monthName} · ${formatMoney(data.month.totalCents)}`}
-        actions={canUpload ? <UploadButton /> : undefined}
+        actions={canUpload ? <UploadButton defaultOpen={sp.upload === '1'} /> : undefined}
       />
       <SimClockSlot ctx={ctx} />
       {data.counts.all === 0 ? (
