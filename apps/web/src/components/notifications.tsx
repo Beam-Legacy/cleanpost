@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
+import { now as clockNow } from '@cleanpost/clock';
 import {
   Bell,
   CircleCheck,
@@ -94,7 +95,8 @@ export function NotificationBell({
       .catch(() => setItems([]));
   }, [open]);
 
-  const now = new Date();
+  // Demo time (DEC-18): alerts carry the demo date, so group them by it too.
+  const now = clockNow();
   const shown = (items ?? []).filter((n) =>
     filter === 'unread' ? !n.read : filter === 'urgent' ? n.urgent : true,
   );

@@ -105,9 +105,7 @@ export function ConnectStep({
           <div className="card-head">
             <h2>Connection test</h2>
             <span className="spacer" />
-            {test && !testing && (
-              <span className="subtle dense">{formatWhen(new Date(test.checkedAt), new Date())}</span>
-            )}
+            {test && !testing && <span className="subtle dense">{formatWhen(new Date(test.checkedAt))}</span>}
           </div>
           <div className="card-body stack-sm" aria-live="polite">
             {testing ? (
