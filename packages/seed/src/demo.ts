@@ -19,8 +19,9 @@ export const DEMO_HISTORY_DAYS = 90;
  * step's `--if-new` starts over a history built by an older version (once).
  * 2: daily visits carry defects; the simulated billers fix, correct and resubmit, and close old work.
  * 3: corrections that drop a line reach the PM; pointer blocks fixed by hand; billed ones let go.
+ * 4: the sync carries on when the PM removes a charge line a claim in review still has.
  */
-export const DEMO_HISTORY_VERSION = 3;
+export const DEMO_HISTORY_VERSION = 4;
 
 /** Tables holding what the PMs and payers produced and what people did with it. */
 const ACTIVITY_TABLES = [

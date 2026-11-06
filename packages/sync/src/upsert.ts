@@ -4,11 +4,13 @@
  * page twice changes nothing. Each record created or changed is audit-logged (rule 7); reads made
  * only to compare are logged once per page.
  */
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 import type { ExtEncounter, ExtPatient } from '@cleanpost/adapters';
 import { records, state } from '@cleanpost/domain';
 import {
   chargeLines,
+  claimLines,
+  claimVersions,
   connections,
   coverages,
   decryptField,
@@ -443,8 +445,21 @@ async function syncLines(tx: Tx, ctx: SyncContext, encounterId: string, e: ExtEn
   const keep = new Set(e.lines.map((l) => l.externalId));
   const gone = existing.filter((l) => !l.externalId || !keep.has(l.externalId)).map((l) => l.id);
   if (gone.length) {
-    await tx.delete(chargeLines).where(inArray(chargeLines.id, gone));
-    removed = gone.length;
+    // A line the PM removed (a bundled code dropped, as a correction task may ask). Claim versions
+    // not yet released let go of it; a released version keeps it as its record of what was sent
+    // (a PM does not change a billed encounter, so that is rare).
+    const held = await tx
+      .select({ id: claimLines.chargeLineId })
+      .from(claimLines)
+      .innerJoin(claimVersions, eq(claimVersions.id, claimLines.claimVersionId))
+      .where(and(inArray(claimLines.chargeLineId, gone), isNotNull(claimVersions.releasedAt)));
+    const heldIds = new Set(held.map((h) => h.id));
+    const free = gone.filter((id) => !heldIds.has(id));
+    if (free.length) {
+      await tx.update(claimLines).set({ chargeLineId: null }).where(inArray(claimLines.chargeLineId, free));
+      await tx.delete(chargeLines).where(inArray(chargeLines.id, free));
+      removed = free.length;
+    }
   }
 
   const dx = await tx.select().from(diagnoses).where(eq(diagnoses.encounterId, encounterId));

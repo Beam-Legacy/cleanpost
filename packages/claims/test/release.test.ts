@@ -401,6 +401,53 @@ describe('release (Mode A, Tebra profile)', () => {
     expect((await admin.db.select().from(claims).where(eq(claims.id, c!.id)))[0]!.status).toBe('accepted');
   });
 
+  it('carries on when the PM removes a charge line a claim in review still has', async () => {
+    // A two-line visit in review; a person removes the second line in the PM (a bundled code).
+    const reviews = await inReview(20);
+    let target: { claimId: string; pmId: string } | null = null;
+    for (const c of reviews) {
+      const e = await pmEncounterOf(c.id);
+      const lines = await pm.db.select().from(pmSchema.charges).where(eq(pmSchema.charges.encounterId, e.id));
+      if (lines.length >= 2) {
+        target = { claimId: c.id, pmId: e.id };
+        break;
+      }
+    }
+    expect(target, 'a claim in review with two lines').not.toBeNull();
+    const lines = await pm.db
+      .select()
+      .from(pmSchema.charges)
+      .where(eq(pmSchema.charges.encounterId, target!.pmId))
+      .orderBy(pmSchema.charges.lineNumber);
+    await pm.db.delete(pmSchema.charges).where(eq(pmSchema.charges.id, lines[lines.length - 1]!.id));
+    await pm.db
+      .update(pmSchema.encounters)
+      .set({ updatedAt: new Date() })
+      .where(eq(pmSchema.encounters.id, target!.pmId));
+    const conn = await connectionOf('Willamette');
+    const res = await runSync(
+      {
+        db: app.db,
+        registry,
+        log,
+        retryDelaysMs: [10],
+        appliers: { pullClaimsAndStatus: applyClaimStatuses },
+      },
+      { tenantId: NORTHWIND, connectionId: conn.id, trigger: 'manual' },
+    );
+    if (res.status !== 'done') throw new Error('sync skipped');
+    expect(res.operations.every((o) => o.ok)).toBe(true);
+    // The build that follows a sync: the claim is rebuilt without the line.
+    await buildClaimsForClient(
+      app.db,
+      { tenantId: NORTHWIND, clientId: willamette().id },
+      { quietPeriodMinutes: 0 },
+    );
+    const [c] = await admin.db.select().from(claims).where(eq(claims.id, target!.claimId));
+    const [v] = await admin.db.select().from(claimVersions).where(eq(claimVersions.id, c!.currentVersionId!));
+    expect((v!.payload as ClaimPayload).lines).toHaveLength(lines.length - 1);
+  });
+
   it('records a claim the PM sent while it was still in review, and closes its review item', async () => {
     const [c] = await inReview();
     const pmEnc = await pmEncounterOf(c!.id);
