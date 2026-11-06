@@ -275,6 +275,28 @@ describe('faults', () => {
     const [account] = await handle.db.select().from(accounts).where(eq(accounts.id, 'northwind-billing'));
     expect(account!.faults).toEqual([]);
   });
+
+  it('breaks and clears the login behind a practice (the demo)', async () => {
+    const res = await app.request('/admin/api/practices/lakeside/faults', {
+      method: 'POST',
+      headers: { ...adminAuth, 'content-type': 'application/json' },
+      body: JSON.stringify({ kind: 'auth_expired' }),
+    });
+    expect(await res.json()).toEqual({ ok: true, accountId: 'northwind-billing' });
+    const path = `/practices/lakeside/patients?since=${SINCE}`;
+    expect((await get(path, 'northwind-billing')).status).toBe(401);
+    expect((await get(path, 'northwind-billing')).status).toBe(401);
+    const cleared = await app.request('/admin/api/practices/lakeside/faults', {
+      method: 'DELETE',
+      headers: adminAuth,
+    });
+    expect(cleared.status).toBe(200);
+    expect((await get(path, 'northwind-billing')).status).toBe(200);
+    expect(
+      (await app.request('/admin/api/practices/nowhere/faults', { method: 'DELETE', headers: adminAuth }))
+        .status,
+    ).toBe(404);
+  });
 });
 
 describe('rate limits', () => {

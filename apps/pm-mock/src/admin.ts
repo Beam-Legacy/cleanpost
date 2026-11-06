@@ -178,6 +178,30 @@ export function adminRoutes(deps: AdminDeps) {
       : c.json({ error: 'not_found' }, 404);
   });
 
+  // Demo (preview only, docs/18): break or clear the PM login behind one practice's account.
+  app.post('/api/practices/:id/faults', async (c) => {
+    const body = faultBody.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return c.json({ error: 'invalid' }, 422);
+    const [p] = await db
+      .select({ accountId: practices.accountId })
+      .from(practices)
+      .where(eq(practices.id, c.req.param('id')));
+    if (!p) return c.json({ error: 'not_found' }, 404);
+    return (await setFault(p.accountId, body.data))
+      ? c.json({ ok: true, accountId: p.accountId })
+      : c.json({ error: 'not_found' }, 404);
+  });
+
+  app.delete('/api/practices/:id/faults', async (c) => {
+    const [p] = await db
+      .select({ accountId: practices.accountId })
+      .from(practices)
+      .where(eq(practices.id, c.req.param('id')));
+    if (!p) return c.json({ error: 'not_found' }, 404);
+    await db.update(accounts).set({ faults: [] }).where(eq(accounts.id, p.accountId));
+    return c.json({ ok: true, accountId: p.accountId });
+  });
+
   app.delete('/api/accounts/:id/faults', async (c) => {
     await db
       .update(accounts)

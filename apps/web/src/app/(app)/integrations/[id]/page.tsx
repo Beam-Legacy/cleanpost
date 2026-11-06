@@ -16,7 +16,9 @@ import { SYNC_OPERATIONS } from '@cleanpost/sync';
 import { Banner, EmptyState, ModeBadge, StatusChip, cx } from '@cleanpost/ui';
 import { ConnectionChip } from '@/components/connection-status';
 import { NoAccess } from '@/components/page';
+import { DemoFaultControls } from '@/components/demo-fault';
 import { SyncControls } from '@/components/sync-controls';
+import { simConfig } from '@/lib/sim';
 import { formatDuration, formatWhen } from '@/lib/format';
 import { getConnection, listSyncRuns } from '@/lib/queries/integrations';
 import { requireActiveContext } from '@/lib/session';
@@ -90,7 +92,11 @@ export default async function ConnectionPage({ params }: { params: Promise<{ id:
         />
       </div>
       {c.adapterKey === 'mock' && (
-        <Banner>
+        <Banner
+          action={
+            simConfig() ? <DemoFaultControls connectionId={c.id} failed={c.status === 'failed'} /> : undefined
+          }
+        >
           This preview practice connects to Cleanpost&apos;s mock PM, which behaves like {c.pmName}. No real{' '}
           {c.pmName} account is involved.
         </Banner>

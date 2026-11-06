@@ -89,5 +89,6 @@ Out of MVP (later):
 | 15-integrations-reference | Stedi endpoints, X12 reference, code sets |
 | 16-milestones | Build order with acceptance criteria |
 | 17-decisions | Decisions that changed the spec, and open questions |
+| 18-demo-script | Walk-through for demos on preview, with the demo clock and a broken PM login |
 
 The designs for every view, email, PDF and website page are in `ui/` (open `ui/index.html`).

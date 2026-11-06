@@ -193,7 +193,10 @@ async function timelyFilingWatch(tx: Tx, tenantId: string, today: string, now: D
     )})
       and c.filing_deadline is not null and c.filing_deadline <= ${horizon}::date
       and not exists (select 1 from work_items w where w.claim_id = c.id
-        and w.type = 'timely_filing_risk' and w.status <> 'resolved')`);
+        and w.type = 'timely_filing_risk'
+        -- One open item at a time, and none again once a person has dealt with it (proof saved,
+        -- sent, escalated): W-22 is not reopened by the next sweep.
+        and (w.status <> 'resolved' or w.resolved_by like 'user:%'))`);
   let opened = 0;
   for (const c of atRisk.rows) {
     const days = Math.round((Date.parse(c.filing_deadline) - Date.parse(today)) / 86_400_000);

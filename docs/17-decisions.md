@@ -256,7 +256,7 @@ Every decision that changes the spec gets an entry here, in the same commit as t
 
 - **Decision:** W-22 shows the days left in the billing day (Pacific), the deadline, and where the limit comes from: the client's setting for that payer (CL-05) or Cleanpost's 90-day default, said as such. "What holds it" is the claim's open pre-release item (review, blocked, eligibility, a PM task, a rejection) with Fix blocker opening it; a claim nothing holds offers Release now (the W-10 approve and release, with its Undo).
 - **Decision:** Document proof of timely filing stores a PDF or a photo (a clearinghouse acceptance report, a payer letter) the same way as card photos (DEC-31) as a `timely_filing_proof` document linked to the item, and resolves the item "Documented with payer". Escalate to admin assigns the item to an active admin and tells them at once with an urgent in-app notification linked to the item (`work_item.escalated`, audited); the daily email within 3 days of the limit stays DEC-28's.
-- **Decision:** a timely-filing item cannot be snoozed past the claim's filing deadline (a snooze may reach the end of that day, Pacific). C-02's filing banner turns red within 3 days and after the deadline, using the same day count as W-22.
+- **Decision:** a timely-filing item cannot be snoozed past the claim's filing deadline (a snooze may reach the end of that day, Pacific). Once a person has resolved a claim's W-22 item (proof saved, sent, escalated and closed), the watch does not open another for it; an item the watch resolved itself (the payer accepted) does not count. C-02's filing banner turns red within 3 days and after the deadline, using the same day count as W-22.
 
 ## DEC-33 — Usage metering (Nov 6, 2026)
 

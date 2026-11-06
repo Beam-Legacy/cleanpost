@@ -49,6 +49,8 @@ async function main() {
           inArray(claims.status, ['needs_review', 'blocked']),
           inArray(workItems.type, ['claim_review', 'claim_blocked']),
           ne(workItems.status, 'resolved'),
+          // Never had a W-22 item: one a person resolved is not reopened (DEC-32).
+          sql`not exists (select 1 from work_items t where t.claim_id = ${claims.id} and t.type = 'timely_filing_risk')`,
         ),
       )
       .orderBy(desc(workItems.type), desc(claims.id))

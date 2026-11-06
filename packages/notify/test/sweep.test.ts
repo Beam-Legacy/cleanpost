@@ -277,6 +277,26 @@ describe('notification sweep', () => {
     expect(tf).toMatchObject({ status: 'resolved', resolution: 'Accepted by the payer' });
   });
 
+  it('does not reopen a timely-filing item a person resolved', async () => {
+    await sweepTenant(deps, NORTHWIND, hours(11));
+    const open = await admin.db
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.type, 'timely_filing_risk'), eq(workItems.claimId, ids.later!)));
+    expect(open.filter((w) => w.status !== 'resolved')).toHaveLength(1);
+    await admin.db
+      .update(workItems)
+      .set({ status: 'resolved', resolvedBy: 'user:someone', resolution: 'Documented with payer' })
+      .where(eq(workItems.id, open.find((w) => w.status !== 'resolved')!.id));
+    const r = await sweepTenant(deps, NORTHWIND, hours(11.5));
+    expect(r.itemsOpened).toBe(0);
+    const after = await admin.db
+      .select()
+      .from(workItems)
+      .where(and(eq(workItems.type, 'timely_filing_risk'), eq(workItems.claimId, ids.later!)));
+    expect(after.filter((w) => w.status !== 'resolved')).toHaveLength(0);
+  });
+
   it("follows the company's settings and the person's own switches", async () => {
     // Denials go to the digest only, from $1,200; a $1,300 denial is recorded but not shown in-app.
     await admin.db.insert(notificationRules).values({

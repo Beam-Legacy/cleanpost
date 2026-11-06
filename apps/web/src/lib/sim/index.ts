@@ -101,3 +101,22 @@ export async function sampleCard(
     return null;
   }
 }
+
+/** Demo: expire (or restore) the PM login behind one mock-PM practice; false if not reachable. */
+export async function setPracticeLoginExpired(c: SimConfig, practiceId: string, expired: boolean) {
+  if (!c.pmMockUrl || !c.pmMockAdminPassword) return false;
+  try {
+    const res = await fetch(`${c.pmMockUrl}/admin/api/practices/${encodeURIComponent(practiceId)}/faults`, {
+      method: expired ? 'POST' : 'DELETE',
+      headers: {
+        authorization: `Basic ${Buffer.from(`admin:${c.pmMockAdminPassword}`).toString('base64')}`,
+        'content-type': 'application/json',
+      },
+      ...(expired ? { body: JSON.stringify({ kind: 'auth_expired' }) } : {}),
+      signal: AbortSignal.timeout(10_000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

@@ -14,7 +14,7 @@ import { sendClaimStatusSweep, sendSyncPull } from '@cleanpost/jobs';
 import { getBoss } from '@/lib/jobs';
 import { getDb } from '@/lib/server';
 import { requireActiveContext } from '@/lib/session';
-import { advanceSimClock, runClearinghouse, simConfig } from '@/lib/sim';
+import { advanceSimClock, runClearinghouse, setPracticeLoginExpired, simConfig } from '@/lib/sim';
 
 export interface SimResult {
   ok: boolean;
@@ -78,5 +78,50 @@ export async function advanceClock(daysInput: number): Promise<SimResult> {
     ok: true,
     message: `Demo date is now ${day}. ${ran ? 'The clearinghouse ran; ' : ''}syncing ${conns.length} ${conns.length === 1 ? 'practice' : 'practices'} — refresh in a minute.${followed ? '' : ' Cleanpost stays on today: run the seed to turn demo time on.'}`,
     ...(followed ? { offsetMs } : {}),
+  };
+}
+
+/**
+ * Demo (preview and local, docs/18): expire the mock PM's login behind a connection, or restore it,
+ * then sync at once so the connection fails (or recovers) in front of the audience. A failed
+ * connection opens its work item and admins are told within seconds (DEC-28). Admins only; audited.
+ */
+export async function simulateLoginProblem(connectionId: string, expired: boolean): Promise<SimResult> {
+  const config = simConfig();
+  if (!config) return { ok: false, message: 'Demo tools are only available in preview.' };
+  const ctx = await requireActiveContext();
+  if (!policy.authorize(ctx.actor, 'integration.manage').allowed)
+    return { ok: false, message: 'Only admins can simulate a connection problem.' };
+  const id = z.uuid().parse(connectionId);
+  const conn = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
+    const [c] = await tx.select().from(connections).where(eq(connections.id, id));
+    return c ?? null;
+  });
+  const practiceId = ((conn?.settings ?? {}) as { practiceId?: string }).practiceId;
+  if (!conn || conn.adapterKey !== 'mock' || !practiceId)
+    return { ok: false, message: 'Only connections to the mock PM can be broken for a demo.' };
+  if (!(await setPracticeLoginExpired(config, practiceId, expired)))
+    return { ok: false, message: 'The mock PM did not answer. Try again in a moment.' };
+  await sendSyncPull(await getBoss(), {
+    tenantId: ctx.tenantId,
+    connectionId: id,
+    trigger: 'manual',
+    userId: ctx.user.id,
+  });
+  await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    recordAudit(tx, {
+      actor: `user:${ctx.user.id}`,
+      action: expired ? 'sim.login_expired' : 'sim.login_restored',
+      entityType: 'connection',
+      entityId: id,
+      clientId: conn.clientId,
+    }),
+  );
+  revalidatePath(`/integrations/${id}`);
+  return {
+    ok: true,
+    message: expired
+      ? 'The PM login is expired. The sync running now fails, and admins are told in a few seconds.'
+      : 'The PM login works again. The sync running now brings the connection back.',
   };
 }

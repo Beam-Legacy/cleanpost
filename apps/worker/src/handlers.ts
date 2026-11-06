@@ -170,6 +170,9 @@ const syncDeps = (deps: WorkerDeps): SyncDeps => ({
 export async function handleSyncPull(deps: WorkerDeps, data: unknown) {
   const payload = syncPullPayload.parse(data);
   const result = await runSync(syncDeps(deps), payload);
+  // A connection that just failed: admins hear now rather than at the next sweep (DEC-28, G-04).
+  if ('connectionStatus' in result && result.connectionStatus === 'failed')
+    await sendNotifySweep(deps.boss, { tenantId: payload.tenantId });
   // New or changed charges become claims (docs/04-modes.md step 3).
   if (result.status === 'done') {
     await sendClaimBuild(deps.boss, { tenantId: payload.tenantId, clientId: result.clientId });
