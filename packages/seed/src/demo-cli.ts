@@ -2,7 +2,8 @@
  * `pnpm demo:reset` (DEC-19): start the demo world over 90 days back; the worker then replays the
  * 90 days (30 to 45 minutes) and the Demo clock bar shows how far it has got. Local and preview only.
  *
- *   --if-new   only when no history was ever built (the preview's release step uses this)
+ *   --if-new   only when no history was built, or an older replay version built it (the preview's
+ *              release step uses this; DEMO_HISTORY_VERSION)
  *   --force    even while a replay is running (it stops at its next step)
  */
 import { z } from 'zod';
@@ -10,7 +11,13 @@ import { parseEnv } from '@cleanpost/config';
 import { readDemoHistory } from '@cleanpost/db';
 import { createSystemDatabase } from '@cleanpost/db/system';
 import { createLogger } from '@cleanpost/log';
-import { DEMO_HISTORY_DAYS, demoHistoryAllowed, demoStartOffset, wipeForDemoHistory } from './demo';
+import {
+  DEMO_HISTORY_DAYS,
+  DEMO_HISTORY_VERSION,
+  demoHistoryAllowed,
+  demoStartOffset,
+  wipeForDemoHistory,
+} from './demo';
 
 const log = createLogger({ name: 'demo-reset' });
 const env = parseEnv(
@@ -42,7 +49,7 @@ if (!env.PAYER_SIM_URL || !env.PM_MOCK_URL || !env.PM_MOCK_ADMIN_PASSWORD) {
 const handle = createSystemDatabase(env.DATABASE_ADMIN_URL);
 try {
   const current = await readDemoHistory(handle.db);
-  if (args.has('--if-new') && current.state) {
+  if (args.has('--if-new') && current.state && (current.version ?? 1) >= DEMO_HISTORY_VERSION) {
     log.info({ state: current.state }, 'demo history already built; skipped');
   } else if (current.state === 'running' && !args.has('--force')) {
     log.error({ day: current.day }, 'a replay is running; wait for it, or pass --force');

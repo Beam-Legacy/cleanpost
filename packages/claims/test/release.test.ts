@@ -365,6 +365,40 @@ describe('release (Mode A, Tebra profile)', () => {
       );
     expect(items).toHaveLength(1);
     expect(items[0]!.summary).toBe('Rejected: Subscriber not found');
+
+    // W-12: corrected in the PM and sent again from there. Queued is not sent yet.
+    const sync = () =>
+      runSync(
+        {
+          db: app.db,
+          registry,
+          log,
+          retryDelaysMs: [10],
+          appliers: { pullClaimsAndStatus: applyClaimStatuses },
+        },
+        { tenantId: NORTHWIND, connectionId: conn.id, trigger: 'manual' },
+      );
+    const pmClaim = (status: string) =>
+      pm.db
+        .update(pmSchema.claims)
+        .set({ status, rejectionReasons: [], frequencyCode: '1', updatedAt: new Date() })
+        .where(eq(pmSchema.claims.encounterId, pmEnc.id));
+    await pmClaim('queued');
+    await sync();
+    expect((await admin.db.select().from(claims).where(eq(claims.id, c!.id)))[0]!.status).toBe('rejected');
+    await pmClaim('sent');
+    await sync();
+    expect((await admin.db.select().from(claims).where(eq(claims.id, c!.id)))[0]!.status).toBe('submitted');
+    const [closed] = await admin.db.select().from(workItems).where(eq(workItems.id, items[0]!.id));
+    expect(closed).toMatchObject({ status: 'resolved', resolution: 'Resubmitted from the PM' });
+    // Sent again as a new claim: a new version with frequency 1 (the released one is never changed).
+    const versions = await admin.db.select().from(claimVersions).where(eq(claimVersions.claimId, c!.id));
+    const latest = versions.sort((a, b) => b.version - a.version)[0]!;
+    expect(latest).toMatchObject({ frequencyCode: '1', version: versions.length });
+    expect(latest.releasedAt).not.toBeNull();
+    await pmClaim('accepted');
+    await sync();
+    expect((await admin.db.select().from(claims).where(eq(claims.id, c!.id)))[0]!.status).toBe('accepted');
   });
 
   it('records a claim the PM sent while it was still in review, and closes its review item', async () => {

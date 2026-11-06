@@ -271,6 +271,8 @@ export async function addVisits(db: PmDb, input: VisitInput): Promise<string[]> 
     asOf: input.now,
     windowDays: 0,
     defectRates: { duplicate: 0 },
+    // A day's handful of visits: each draws its own defects, so the scrub has something to catch.
+    defectSampling: 'each',
   });
   const openEvery =
     input.openShare === undefined ? 3 : input.openShare > 0 ? Math.round(1 / input.openShare) : 0;

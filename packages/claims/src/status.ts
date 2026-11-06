@@ -10,15 +10,18 @@ import type { ExtClaimStatus } from '@cleanpost/adapters';
 import {
   claims,
   claimVersions,
+  clients,
   externalRefs,
   recordAudit,
   workItems,
   type AuditActor,
   type Tx,
 } from '@cleanpost/db';
-import { state } from '@cleanpost/domain';
+import { state, type ClaimPayload } from '@cleanpost/domain';
+import { payloadForEncounter } from './build';
 import { applyClaimEvent } from './events';
-import { resolveAnsweredDenials, resolveFollowUps } from './answered';
+import { insertVersion } from './versions';
+import { autoResolve, resolveAnsweredDenials, resolveFollowUps } from './answered';
 import { markReleased } from './release';
 import { now as clockNow } from '@cleanpost/clock';
 import { PRE_RELEASE_ITEM_TYPES } from './tasks';
@@ -39,6 +42,9 @@ export interface StatusCounts {
 
 /** Claim states a PM can bill from without Cleanpost (state machine: release or billed_outside). */
 const OUTSIDE_FROM = new Set(['built', 'needs_review', 'blocked', 'on_hold', 'ready']);
+
+/** PM claim statuses meaning a claim the payer rejected has been sent again (queued does not count). */
+const RESENT = new Set(['sent', 'accepted', 'paid', 'denied']);
 
 /** Review and blocked items for a claim that has left are moot: closed by automation. */
 async function closeReviewItems(
@@ -120,6 +126,43 @@ export async function applyClaimStatuses(
         .update(claims)
         .set({ patientControlNumber: item.patientControlNumber, updatedAt: now })
         .where(eq(claims.id, claim.id));
+      changed = true;
+    }
+    // W-12 in Mode A: a claim the payer rejected, corrected in the PM and sent again from there (a
+    // new claim, frequency 1): a new version from the encounter as the PM now has it (a released
+    // version is never changed), fixed, then tracked as sent below; its rejection item closes.
+    if (current.status === 'rejected' && RESENT.has(item.status) && current.currentVersionId) {
+      const [prev] = await tx
+        .select()
+        .from(claimVersions)
+        .where(eq(claimVersions.id, current.currentVersionId));
+      const [client] = await tx.select().from(clients).where(eq(clients.id, current.clientId));
+      const rebuilt = client ? await payloadForEncounter(tx, client, current.encounterId) : null;
+      const payload: ClaimPayload = { ...(rebuilt ?? (prev!.payload as ClaimPayload)), frequencyCode: '1' };
+      const versionId = await insertVersion(tx, current, (prev?.version ?? 0) + 1, payload, ctx.actor);
+      await tx
+        .update(claims)
+        .set({ currentVersionId: versionId, updatedAt: now })
+        .where(eq(claims.id, current.id));
+      current = { ...current, currentVersionId: versionId };
+      await applyClaimEvent(tx, current, 'fix', {
+        actor: ctx.actor,
+        versionId,
+        payload: { source: 'pm', reason: 'resubmitted' },
+        now,
+      });
+      const open = await tx
+        .select()
+        .from(workItems)
+        .where(
+          and(
+            eq(workItems.claimId, claim.id),
+            eq(workItems.type, 'rejection'),
+            ne(workItems.status, 'resolved'),
+          ),
+        );
+      for (const wi of open) await autoResolve(tx, wi, 'Resubmitted from the PM', ctx.actor, now);
+      current = { ...current, status: 'built' };
       changed = true;
     }
     // The claim left without Cleanpost's release: a biller approved the charge in the PM directly,

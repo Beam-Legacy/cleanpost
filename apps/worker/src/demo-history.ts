@@ -9,20 +9,34 @@
  *
  * Steps are three days apart until the last two weeks, then daily, and the last one lands on today.
  * The simulated billers are the seeded users (their actions are recorded as theirs, as a demo
- * needs), deterministic by item and day. They do the routine work: approve reviews, void
- * duplicates, write off small denials, map new adjustment codes and upload Tebra 835s. Fixes,
- * corrected claims, posting differences and eligibility problems are left as the open backlog.
- * Local and preview only; IDs only in the logs.
+ * needs), deterministic by item and day. They work the queue the way a team that keeps up does:
+ * approve reviews, apply the scrub's suggested fixes and make the same change in the PM, void
+ * duplicates, build corrected claims for denials with a mechanical fix and resubmit them from the
+ * PM (Flow 5), write off small denials and, after a while, the ones nothing can fix (an admin
+ * above the billers' limit), let coverage the payer rejects go to the patient, settle posting
+ * differences, map new adjustment codes and upload Tebra 835s. What is left open is mostly the
+ * last few days' work, as it would be. Local and preview only; IDs only in the logs.
  */
 import { createHash } from 'node:crypto';
 import { and, eq, inArray, lt, ne, sql } from 'drizzle-orm';
-import { approveClaim, voidClaim, WRITE_OFF_OPERATION, writeOffClaim } from '@cleanpost/claims';
+import {
+  approveClaim,
+  buildCorrection,
+  CORRECTION_OPERATION,
+  editClaim,
+  RESUBMIT_OPERATION,
+  voidClaim,
+  WRITE_OFF_OPERATION,
+  writeOffClaim,
+} from '@cleanpost/claims';
 import { getOffset, now as clockNow } from '@cleanpost/clock';
 import {
   adjustmentMappings,
   claimDemoHistory,
   claims,
+  claimVersions,
   connections,
+  externalRefs,
   memberships,
   reportDemoHistory,
   setDemoOffset,
@@ -31,7 +45,8 @@ import {
   workItems,
   type Database,
 } from '@cleanpost/db';
-import { JOBS, sendClaimRelease, sendSyncPull } from '@cleanpost/jobs';
+import { remit, type ClaimPayload } from '@cleanpost/domain';
+import { JOBS, sendClaimCorrect, sendClaimRelease, sendClaimScrub, sendSyncPull } from '@cleanpost/jobs';
 import type { Logger } from '@cleanpost/log';
 import { ingestInTx, saveMapping, verifyInTx } from '@cleanpost/remit';
 import { listCandidates } from '@cleanpost/sync';
@@ -89,6 +104,7 @@ export function createHistoryRunner(deps: HistoryDeps) {
     ? { authorization: `Bearer ${deps.payerSim.token}` }
     : {};
   const lastEra = new Map<string, string>();
+  const connectionsById = new Map<string, MockConnection>();
 
   async function pm(path: string, init: RequestInit = {}) {
     const res = await fetch(`${deps.pmMock.url}${path}`, {
@@ -201,6 +217,8 @@ export function createHistoryRunner(deps: HistoryDeps) {
             inArray(workItems.type, [
               'claim_review',
               'claim_blocked',
+              'eligibility_issue',
+              'rejection',
               'denial',
               'mapping_needed',
               'posting_exception',
@@ -209,7 +227,19 @@ export function createHistoryRunner(deps: HistoryDeps) {
           ),
         ),
     );
-    const done = { approved: 0, voided: 0, writtenOff: 0, mapped: 0, resolved: 0 };
+    const keepForDemo = open
+      .filter((o) => o.item.type === 'denial' && o.item.reasonCode === '4')
+      .sort((a, b) => b.item.createdAt.getTime() - a.item.createdAt.getTime())[0]?.item.id;
+    const done = {
+      approved: 0,
+      fixed: 0,
+      corrected: 0,
+      inPm: 0,
+      voided: 0,
+      writtenOff: 0,
+      mapped: 0,
+      resolved: 0,
+    };
     for (const { item, claimStatus, balance } of open) {
       const key = `${item.id}:${day}`;
       const biller = billerFor(staff, item.clientId, key);
@@ -224,7 +254,23 @@ export function createHistoryRunner(deps: HistoryDeps) {
           if (res.ok) done.resolved++;
           continue;
         }
-        if (item.type === 'posting_exception' && age > 4 * DAY && chance(key, 0.3)) {
+        // A charge correction the PM takes only by hand: the biller makes it in the PM; the next
+        // sync sees it, closes the task and lets the claim go.
+        if (item.type === 'manual_task' && item.reasonCode === CORRECTION_OPERATION && item.claimId) {
+          if (chance(key, 0.85) && (await changeInPm(tenantId, item.claimId, 'charges'))) done.inPm++;
+          continue;
+        }
+        // A corrected claim (Flow 5): resubmitted from the PM with the payer's claim number.
+        if (item.type === 'manual_task' && item.reasonCode === RESUBMIT_OPERATION && item.claimId) {
+          if (chance(key, 0.85) && (await changeInPm(tenantId, item.claimId, 'resubmit'))) {
+            const res = await resolveItem(deps.db, { tenantId, userId: biller, now }, item.id, {
+              reason: 'Done in the PM',
+            });
+            if (res.ok) done.inPm++;
+          }
+          continue;
+        }
+        if (item.type === 'posting_exception' && age > 4 * DAY && chance(key, 0.5)) {
           const reason = chance(`${item.id}:reason`, 0.5) ? 'Corrected in the PM' : 'Accepted as posted';
           const res = await resolveItem(deps.db, { tenantId, userId: biller, now }, item.id, { reason });
           if (res.ok) done.resolved++;
@@ -267,7 +313,26 @@ export function createHistoryRunner(deps: HistoryDeps) {
         if (res.ok) done.voided++;
       } else if (
         item.type === 'claim_blocked' &&
-        item.reasonCode.startsWith('eligibility.') &&
+        !item.reasonCode.startsWith('eligibility.') &&
+        item.reasonCode !== 'history.duplicate' &&
+        chance(key, 0.85)
+      ) {
+        // The scrub's suggested fix, as W-10's "Approve and release (fixes first)" applies it; in
+        // Mode A the change goes to the PM (by hand where the PM has no corrections API).
+        const res = await editClaim(
+          deps.db,
+          { tenantId, userId: biller, claimId: item.claimId, workItemId: item.id },
+          { kind: 'fix', ruleIds: [item.reasonCode] },
+        );
+        if (res.status === 'edited') {
+          if (res.writeBack)
+            await sendClaimCorrect(deps.boss, { tenantId, claimId: item.claimId, versionId: res.versionId });
+          await sendClaimScrub(deps.boss, { tenantId, claimVersionId: res.versionId });
+          done.fixed++;
+        }
+      } else if (
+        (item.type === 'eligibility_issue' ||
+          (item.type === 'claim_blocked' && item.reasonCode.startsWith('eligibility.'))) &&
         age > 4 * DAY &&
         chance(key, 0.3)
       ) {
@@ -279,6 +344,58 @@ export function createHistoryRunner(deps: HistoryDeps) {
           reason: 'Patient will pay',
         });
         if (res.ok) done.voided++;
+      } else if (item.type === 'rejection' && /subscriber|member|coverage/i.test(item.summary)) {
+        // The payer does not know the member: no other coverage turned up, so the claim is voided
+        // in the PM and the patient pays.
+        if (age > 4 * DAY && chance(key, 0.4)) {
+          const res = await resolveItem(deps.db, { tenantId, userId: biller, now }, item.id, {
+            reason: 'Voided',
+          });
+          if (res.ok) done.resolved++;
+        }
+      } else if (item.type === 'rejection' && /pointer/i.test(item.summary) && chance(key, 0.7)) {
+        // W-12: the pointer corrected in the PM and the claim sent again from there as a new claim
+        // (frequency 1). Other front-end rejections (an NPI, the totals) wait for a person.
+        if (await changeInPm(tenantId, item.claimId, 'resend')) done.inPm++;
+      } else if (item.type === 'denial' && item.id === keepForDemo) {
+        // The newest CO-4 waits for the demo's Flow 5 (docs/18).
+        return;
+      } else if (item.type === 'denial' && age > 5 * DAY && chance(key, 0.4)) {
+        // A denial with a mechanical fix (modifier 25 for CO-4, say): the corrected claim, built as
+        // W-16 builds it, then scrubbed; approval, release and the resubmission follow.
+        const fix = await denialFix(tenantId, item.claimId, item.reasonCode);
+        if (fix) {
+          const built = await buildCorrection(
+            deps.db,
+            { tenantId, userId: biller, claimId: item.claimId, workItemId: item.id },
+            { fix },
+          );
+          if (built.status === 'built') {
+            await sendClaimScrub(deps.boss, { tenantId, claimVersionId: built.versionId });
+            done.corrected++;
+          }
+        } else if (age > 10 * DAY) {
+          // Nothing to correct and nobody will pay it: written off, by an admin above the limit.
+          const amountCents = writeOffDefaultCents(item.amountCents ?? 0, Number(balance ?? 0));
+          if (amountCents <= 0) return;
+          const admin = pick(`${key}:admin`, staff.admins);
+          const overLimit = amountCents > 50_000;
+          const actor = overLimit ? admin : biller;
+          if (!actor) return;
+          const eligibility = item.reasonCode === '27' || item.reasonCode === '31';
+          const res = await writeOffClaim(
+            deps.db,
+            { tenantId, userId: actor, claimId: item.claimId, overLimit: overLimit ? 'allowed' : 'refused' },
+            {
+              amountCents,
+              reason: eligibility ? 'Patient not covered and not billable' : 'Not worth pursuing',
+              note: eligibility ? 'No other coverage found.' : 'Payer will not reconsider.',
+              pmCode: await writeOffCode(tenantId, item.clientId),
+              denialItemId: item.id,
+            },
+          );
+          if (res.status === 'written_off') done.writtenOff++;
+        }
       } else if (
         item.type === 'denial' &&
         (item.amountCents ?? 0) > 0 &&
@@ -329,6 +446,95 @@ export function createHistoryRunner(deps: HistoryDeps) {
         if (res.ok) done.mapped++;
       }
     return done;
+  }
+
+  /** The claim's current version and the PM's encounter it came from. */
+  async function claimInPm(tenantId: string, claimId: string) {
+    return withTenant(deps.db, { tenantId }, async (tx) => {
+      const [row] = await tx
+        .select({ claim: claims, payload: claimVersions.payload, originalRef: claimVersions.originalRef })
+        .from(claims)
+        .innerJoin(claimVersions, eq(claimVersions.id, claims.currentVersionId))
+        .where(eq(claims.id, claimId));
+      if (!row) return null;
+      const [ref] = await tx
+        .select({ externalId: externalRefs.externalId, connectionId: externalRefs.connectionId })
+        .from(externalRefs)
+        .where(
+          and(eq(externalRefs.entityType, 'encounter'), eq(externalRefs.entityId, row.claim.encounterId)),
+        );
+      return ref ? { payload: row.payload as ClaimPayload, originalRef: row.originalRef, ref } : null;
+    });
+  }
+
+  /**
+   * What a correction or resubmission task asks, done by hand in the PM: the lines' modifiers and
+   * pointers as the claim's current version has them, and for a corrected claim, sent again with
+   * frequency 7 and the payer's claim number.
+   */
+  async function changeInPm(tenantId: string, claimId: string, kind: 'charges' | 'resubmit' | 'resend') {
+    const found = await claimInPm(tenantId, claimId);
+    const conn = found && connectionsById.get(found.ref.connectionId);
+    if (!found || !conn) return false;
+    const path = `/admin/api/practices/${conn.practiceId}/encounters/${encodeURIComponent(found.ref.externalId)}`;
+    const lines = found.payload.lines;
+    if (kind === 'resend') {
+      // A pointer past the claim's diagnoses points at the first one.
+      const dx = found.payload.diagnoses.length;
+      await pm(`${path}/resubmit`, {
+        method: 'POST',
+        body: JSON.stringify({
+          frequencyCode: '1',
+          changes: lines.map((l) => {
+            const ok = l.dxPointers.filter((p) => p <= dx);
+            return { lineNumber: l.lineNumber, diagnosisPointers: ok.length ? ok : [1] };
+          }),
+        }),
+      });
+    } else if (kind === 'resubmit')
+      await pm(`${path}/resubmit`, {
+        method: 'POST',
+        body: JSON.stringify({
+          changes: lines.map((l) => ({ lineNumber: l.lineNumber, modifiers: l.modifiers })),
+          ...(found.originalRef ? { originalRef: found.originalRef } : {}),
+        }),
+      });
+    else
+      await pm(`${path}/charges`, {
+        method: 'POST',
+        body: JSON.stringify({
+          changes: lines.map((l) => ({
+            lineNumber: l.lineNumber,
+            modifiers: l.modifiers,
+            ...(l.dxPointers.length ? { diagnosisPointers: l.dxPointers } : {}),
+          })),
+        }),
+      });
+    return true;
+  }
+
+  /** The denial's suggested fix where it is mechanical (domain advice, as W-16 shows it). */
+  async function denialFix(tenantId: string, claimId: string, carc: string) {
+    const found = await claimInPm(tenantId, claimId);
+    if (!found) return null;
+    for (const l of found.payload.lines) {
+      const advice = remit.adviseDenial(
+        found.payload,
+        {
+          lineNumber: l.lineNumber,
+          code: l.code,
+          modifiers: l.modifiers,
+          group: 'CO',
+          carc,
+          amountCents: 0,
+          remarks: [],
+        },
+        [],
+      );
+      const s = advice.suggestion;
+      if (s && !s.needsInput) return { fix: s.fix, lineNumbers: s.lineNumbers };
+    }
+    return null;
   }
 
   async function writeOffCode(tenantId: string, clientId: string | null): Promise<string> {
@@ -432,6 +638,7 @@ export function createHistoryRunner(deps: HistoryDeps) {
     try {
       const conns = await mockConnections();
       if (!conns.length) throw new Error('no mock-PM connections to replay');
+      for (const c of conns) connectionsById.set(c.connectionId, c);
       while (-getOffset() > 60_000) {
         const left = -getOffset() / DAY;
         const days = left > 15 ? 3 : 1;

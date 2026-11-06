@@ -14,6 +14,13 @@ import type { Database } from '@cleanpost/db';
 
 export const DEMO_HISTORY_DAYS = 90;
 
+/**
+ * Raised when the replay changes enough that preview should build its history again: the release
+ * step's `--if-new` starts over a history built by an older version (once).
+ * 2: daily visits carry defects; the simulated billers fix, correct and resubmit, and close old work.
+ */
+export const DEMO_HISTORY_VERSION = 2;
+
 /** Tables holding what the PMs and payers produced and what people did with it. */
 const ACTIVITY_TABLES = [
   'write_off_requests',
@@ -97,7 +104,7 @@ export async function wipeForDemoHistory(
     await tx.execute(sql`update app.clock set enabled = true, offset_ms = ${Math.trunc(offsetMs)},
       updated_at = now(),
       demo = jsonb_build_object('state', 'pending', 'days', ${days}::int, 'day', 0,
-        'requestedAt', to_jsonb(now()))
+        'version', ${DEMO_HISTORY_VERSION}::int, 'requestedAt', to_jsonb(now()))
       where id = 1`);
   });
 }

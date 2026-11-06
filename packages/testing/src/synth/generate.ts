@@ -59,6 +59,12 @@ export interface PracticeInput {
   /** Dates of service fall within this many days before asOf. Default 60. */
   windowDays?: number;
   defectRates?: Partial<DefectRates>;
+  /**
+   * 'exact' (default): exactly round(encounters x rate) encounters carry each defect, so tests can
+   * count them. 'each': every encounter draws on its own, for a day's handful of visits, where
+   * exact counts round to none (5 visits x 5%).
+   */
+  defectSampling?: 'exact' | 'each';
   coverageRates?: Partial<CoverageRates>;
 }
 
@@ -158,6 +164,13 @@ function exactSample(rng: Rng, n: number, rate: number, exclude: Set<number> = n
   const want = Math.round(n * rate);
   const pool = rng.shuffle([...Array(n).keys()].filter((i) => !exclude.has(i)));
   return new Set(pool.slice(0, want));
+}
+
+/** Each index on its own with the given chance, the excluded ones aside. */
+function eachSample(rng: Rng, n: number, rate: number, exclude: Set<number> = new Set()): Set<number> {
+  const out = new Set<number>();
+  for (let i = 0; i < n; i++) if (rng.chance(rate) && !exclude.has(i)) out.add(i);
+  return out;
 }
 
 function generatePatients(input: PracticeInput, rng: Rng, answerKey: AnswerKey): SynthPatient[] {
@@ -270,9 +283,10 @@ export function generatePractice(input: PracticeInput): SynthPractice {
 
   const duplicates = Math.round(input.encounters * rates.duplicate);
   const originals = input.encounters - duplicates;
-  const missing = exactSample(rng, originals, rates.missingModifier);
-  const ncci = exactSample(rng, originals, rates.ncciConflict, missing);
-  const pointer = exactSample(rng, originals, rates.invalidPointer, new Set([...missing, ...ncci]));
+  const sample = input.defectSampling === 'each' ? eachSample : exactSample;
+  const missing = sample(rng, originals, rates.missingModifier);
+  const ncci = sample(rng, originals, rates.ncciConflict, missing);
+  const pointer = sample(rng, originals, rates.invalidPointer, new Set([...missing, ...ncci]));
 
   const drafts: Draft[] = [];
   for (let i = 0; i < originals; i++) {

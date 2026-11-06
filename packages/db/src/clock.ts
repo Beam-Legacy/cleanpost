@@ -48,6 +48,8 @@ export type DemoHistoryState = 'pending' | 'running' | 'done' | 'failed';
 /** The 90-day replay's progress (DEC-19); `{}` when no history was ever built. */
 export interface DemoHistory {
   state?: DemoHistoryState;
+  /** The replay's version when this history was started (DEMO_HISTORY_VERSION). */
+  version?: number;
   days?: number;
   /** Days replayed so far. */
   day?: number;

@@ -118,6 +118,43 @@ async function primaryCoverage(tx: Tx, patientId: string, dos: string) {
   return c ?? null;
 }
 
+/** The claim payload for an encounter as Cleanpost holds it now, with its coverage and payer settings. */
+async function assemble(
+  tx: Tx,
+  client: typeof clients.$inferSelect,
+  e: EncounterForClaim & { patientId: string },
+) {
+  const coverage = await primaryCoverage(tx, e.patientId, e.dateOfService);
+  const [settings] = coverage?.payerId
+    ? await tx
+        .select()
+        .from(clientPayerSettings)
+        .where(
+          and(eq(clientPayerSettings.clientId, client.id), eq(clientPayerSettings.payerId, coverage.payerId)),
+        )
+    : [];
+  const payload = buildClaimPayload(e, {
+    patientId: e.patientId,
+    coverage,
+    client: { billingNpi: client.billingNpi, taxonomy: client.taxonomy },
+    timelyFilingDays: settings?.timelyFilingDays ?? DEFAULT_FILING_DAYS,
+  });
+  return { coverage, settings, payload };
+}
+
+/**
+ * The payload a claim the PM sent again would carry: the encounter as the last sync left it (the
+ * PM's corrected charge), or null when the encounter is gone.
+ */
+export async function payloadForEncounter(
+  tx: Tx,
+  client: typeof clients.$inferSelect,
+  encounterId: string,
+): Promise<ClaimPayload | null> {
+  const e = await loadEncounter(tx, encounterId);
+  return e ? (await assemble(tx, client, e)).payload : null;
+}
+
 type Outcome =
   | { kind: 'created' | 'updated'; versionId: string; claimId: string }
   | { kind: 'unchanged' }
@@ -135,21 +172,7 @@ async function buildOne(
   const ready = readyToBuild(e, opts.now, opts.quietPeriodMinutes);
   if (!ready.ok) return { kind: 'skipped', reason: ready.reason };
 
-  const coverage = await primaryCoverage(tx, e.patientId, e.dateOfService);
-  const [settings] = coverage?.payerId
-    ? await tx
-        .select()
-        .from(clientPayerSettings)
-        .where(
-          and(eq(clientPayerSettings.clientId, client.id), eq(clientPayerSettings.payerId, coverage.payerId)),
-        )
-    : [];
-  const payload = buildClaimPayload(e, {
-    patientId: e.patientId,
-    coverage,
-    client: { billingNpi: client.billingNpi, taxonomy: client.taxonomy },
-    timelyFilingDays: settings?.timelyFilingDays ?? DEFAULT_FILING_DAYS,
-  });
+  const { coverage, settings, payload } = await assemble(tx, client, e);
   const mode = (settings?.modeOverride ?? client.defaultMode) as 'A' | 'B' | 'C';
   const claimFields = {
     payerId: coverage?.payerId ?? null,

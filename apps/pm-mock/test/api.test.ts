@@ -1,6 +1,6 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { accounts, encounters, patients, writeLog } from '../src/schema';
+import { accounts, charges, encounters, patients, writeLog } from '../src/schema';
 import { resetPmMockForHistory } from '../src/seed';
 import { adminAuth, bearer, handle, seedTestWorld, testApp } from './helpers';
 
@@ -296,6 +296,42 @@ describe('faults', () => {
       (await app.request('/admin/api/practices/nowhere/faults', { method: 'DELETE', headers: adminAuth }))
         .status,
     ).toBe(404);
+  });
+
+  it('lets a person correct an unbilled encounter’s charges in the PM, and refuses a billed one', async () => {
+    const [open] = await handle.db
+      .select()
+      .from(encounters)
+      .where(
+        and(eq(encounters.practiceId, 'lakeside'), inArray(encounters.status, ['open', 'review', 'ready'])),
+      )
+      .limit(1);
+    const edit = (eid: string, body: unknown) =>
+      app.request(`/admin/api/practices/lakeside/encounters/${eid}/charges`, {
+        method: 'POST',
+        headers: { ...adminAuth, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    const res = await edit(open!.id, {
+      changes: [{ lineNumber: 1, modifiers: ['25'], diagnosisPointers: [1] }],
+    });
+    expect(res.status).toBe(200);
+    const [line] = await handle.db
+      .select()
+      .from(charges)
+      .where(and(eq(charges.encounterId, open!.id), eq(charges.lineNumber, 1)));
+    expect(line).toMatchObject({ modifiers: ['25'], pointers: [1] });
+    const [after] = await handle.db.select().from(encounters).where(eq(encounters.id, open!.id));
+    expect(after!.updatedAt.getTime()).toBeGreaterThan(open!.updatedAt.getTime());
+
+    const [billed] = await handle.db
+      .select()
+      .from(encounters)
+      .where(and(eq(encounters.practiceId, 'lakeside'), eq(encounters.status, 'billed')))
+      .limit(1);
+    expect((await edit(billed!.id, { changes: [{ lineNumber: 1, modifiers: [] }] })).status).toBe(409);
+    expect((await edit('nowhere', { changes: [{ lineNumber: 1, modifiers: [] }] })).status).toBe(404);
+    expect((await edit(open!.id, { changes: [] })).status).toBe(422);
   });
 });
 

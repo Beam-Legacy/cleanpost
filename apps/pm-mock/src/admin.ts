@@ -46,10 +46,32 @@ export interface AdminDeps {
 
 const resubmitBody = z.object({
   changes: z
-    .array(z.object({ lineNumber: z.number().int().min(1), modifiers: z.array(z.string().max(2)).max(4) }))
+    .array(
+      z.object({
+        lineNumber: z.number().int().min(1),
+        modifiers: z.array(z.string().max(2)).max(4).optional(),
+        diagnosisPointers: z.array(z.number().int().min(1).max(12)).min(1).max(4).optional(),
+      }),
+    )
     .max(50)
     .optional(),
+  /** 7 replaces a claim the payer adjudicated (with originalRef); 1 resends one it rejected. */
+  frequencyCode: z.enum(['1', '7']).default('7'),
   originalRef: z.string().max(50).optional(),
+});
+
+/** What a person changes on an encounter's charges in the PM: modifiers and diagnosis pointers. */
+const chargesBody = z.object({
+  changes: z
+    .array(
+      z.object({
+        lineNumber: z.number().int().min(1),
+        modifiers: z.array(z.string().max(2)).max(4).optional(),
+        diagnosisPointers: z.array(z.number().int().min(1).max(12)).min(1).max(4).optional(),
+      }),
+    )
+    .min(1)
+    .max(50),
 });
 
 const faultBody = z.object({
@@ -145,29 +167,65 @@ export function adminRoutes(deps: AdminDeps) {
   // resubmit the claim as a corrected claim (frequency 7). Tests and demos stand in for that person.
   app.post('/api/practices/:id/encounters/:eid/resubmit', async (c) => {
     const body = resubmitBody.safeParse(await c.req.json().catch(() => ({})));
-    if (!body.success) return c.json({ error: 'changes must list lineNumber and modifiers' }, 422);
+    if (!body.success)
+      return c.json({ error: 'changes must list lineNumber with modifiers or pointers' }, 422);
     const [claim] = await db
       .select()
       .from(claims)
       .where(and(eq(claims.practiceId, c.req.param('id')), eq(claims.encounterId, c.req.param('eid'))));
     if (!claim) return c.json({ error: 'no claim for that encounter' }, 404);
     for (const ch of body.data.changes ?? []) {
+      const set = {
+        ...(ch.modifiers ? { modifiers: ch.modifiers } : {}),
+        ...(ch.diagnosisPointers ? { pointers: ch.diagnosisPointers } : {}),
+      };
+      if (!Object.keys(set).length) continue;
       await db
         .update(charges)
-        .set({ modifiers: ch.modifiers })
+        .set(set)
         .where(and(eq(charges.encounterId, claim.encounterId), eq(charges.lineNumber, ch.lineNumber)));
     }
+    const frequencyCode = body.data.frequencyCode;
     await db
       .update(claims)
       .set({
         status: 'queued',
-        frequencyCode: '7',
-        originalRef: body.data.originalRef ?? null,
+        frequencyCode,
+        originalRef: frequencyCode === '7' ? (body.data.originalRef ?? null) : null,
         rejectionReasons: [],
         updatedAt: deps.now(),
       })
       .where(eq(claims.encounterId, claim.encounterId));
-    return c.json({ ok: true, frequencyCode: '7' });
+    await db.update(encounters).set({ updatedAt: deps.now() }).where(eq(encounters.id, claim.encounterId));
+    return c.json({ ok: true, frequencyCode });
+  });
+
+  // A person corrects an encounter's charges in the PM's own screens, as a correction task asks
+  // (the demo history's billers; PM profiles without a corrections API).
+  app.post('/api/practices/:id/encounters/:eid/charges', async (c) => {
+    const body = chargesBody.safeParse(await c.req.json().catch(() => ({})));
+    if (!body.success)
+      return c.json({ error: 'changes must list lineNumber with modifiers or pointers' }, 422);
+    const [enc] = await db
+      .select()
+      .from(encounters)
+      .where(and(eq(encounters.practiceId, c.req.param('id')), eq(encounters.id, c.req.param('eid'))));
+    if (!enc) return c.json({ error: 'encounter not found' }, 404);
+    if (enc.status === 'billed' || enc.status === 'void')
+      return c.json({ error: 'billed or void encounters cannot be changed' }, 409);
+    for (const ch of body.data.changes) {
+      const set = {
+        ...(ch.modifiers ? { modifiers: ch.modifiers } : {}),
+        ...(ch.diagnosisPointers ? { pointers: ch.diagnosisPointers } : {}),
+      };
+      if (!Object.keys(set).length) continue;
+      await db
+        .update(charges)
+        .set(set)
+        .where(and(eq(charges.encounterId, enc.id), eq(charges.lineNumber, ch.lineNumber)));
+    }
+    await db.update(encounters).set({ updatedAt: deps.now() }).where(eq(encounters.id, enc.id));
+    return c.json({ ok: true });
   });
 
   app.post('/api/accounts/:id/faults', async (c) => {

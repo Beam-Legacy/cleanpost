@@ -94,6 +94,27 @@ describe('generatePractice', () => {
     expect(count('duplicate')).toBe(2);
   });
 
+  it('draws defects per visit for small daily batches, where exact counts round to none', () => {
+    const day = (k: number, sampling?: 'each') =>
+      generatePractice({
+        ...input(),
+        seed: `day-${k}`,
+        encounters: 6,
+        windowDays: 0,
+        defectRates: { duplicate: 0 },
+        ...(sampling ? { defectSampling: sampling } : {}),
+      }).answerKey.encounters;
+    const missing = (sampling?: 'each') =>
+      Array.from({ length: 200 }, (_, k) => day(k, sampling)).reduce(
+        (n, enc) => n + Object.values(enc).filter((d) => d.includes('missing_modifier')).length,
+        0,
+      );
+    // 200 days of 6 visits: exact sampling plants none; per visit about 5% of 1,200.
+    expect(missing()).toBe(0);
+    expect(missing('each')).toBeGreaterThan(30);
+    expect(missing('each')).toBeLessThan(95);
+  });
+
   it('makes each defect real in the data', () => {
     const { encounters, answerKey } = generatePractice(input());
     const byId = new Map(encounters.map((e) => [e.externalId, e]));
