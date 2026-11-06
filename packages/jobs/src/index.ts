@@ -27,12 +27,17 @@ export const JOBS = {
   notifySweep: 'notify.sweep',
   documentExtract: 'document.extract',
   usageMeter: 'usage.meter',
+  demoWorkday: 'demo.workday',
   deadLetter: 'system.dead_letter',
 } as const;
 
 /** P-04: read an uploaded insurance card (the document's ID only, never its contents). */
 export const documentExtractPayload = z.object({ tenantId: z.uuid(), documentId: z.uuid() });
 export type DocumentExtractPayload = z.infer<typeof documentExtractPayload>;
+
+/** The days the Demo clock just moved (local and preview). */
+export const demoWorkdayPayload = z.object({ days: z.number().int().min(1).max(30) });
+export type DemoWorkdayPayload = z.infer<typeof demoWorkdayPayload>;
 
 /** Daily usage records for invoicing (docs/01): one day, for every company. */
 export const usageMeterPayload = z.object({ day: z.iso.date().optional() });
@@ -145,6 +150,8 @@ export const QUEUES: { name: string; options: Parameters<PgBoss['createQueue']>[
   // One queued reading per document (singletonKey = document ID); the person waiting can retry.
   { name: JOBS.documentExtract, options: { policy: 'stately', expireInSeconds: 5 * 60, ...RETRIES } },
   { name: JOBS.usageMeter, options: { policy: 'singleton', expireInSeconds: 30 * 60, retryLimit: 2 } },
+  // Local and preview: the simulated team's day after the Demo clock moves (DEC-19). One at a time.
+  { name: JOBS.demoWorkday, options: { policy: 'singleton', expireInSeconds: 15 * 60, retryLimit: 0 } },
 ];
 
 export type Role = 'web' | 'worker';
@@ -272,6 +279,19 @@ export async function sendDocumentExtract(
 export async function sendUsageMeter(boss: PgBoss, payload: UsageMeterPayload = {}): Promise<string | null> {
   const data = usageMeterPayload.parse(payload);
   return boss.send(JOBS.usageMeter, data);
+}
+
+/**
+ * Local and preview: after the Demo clock moved this many days, the simulated team works the queue
+ * and the practices enter those days' visits (DEC-19).
+ */
+export async function sendDemoWorkday(
+  boss: PgBoss,
+  payload: DemoWorkdayPayload,
+  opts: { delaySeconds?: number } = {},
+): Promise<string | null> {
+  const data = demoWorkdayPayload.parse(payload);
+  return boss.send(JOBS.demoWorkday, data, { startAfter: opts.delaySeconds ?? 20 });
 }
 
 export async function sendClaimStatusCheck(

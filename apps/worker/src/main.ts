@@ -16,7 +16,7 @@ import { emailEnvSchema, parseEnv } from '@cleanpost/config';
 import { createDatabase, syncClock } from '@cleanpost/db';
 import { createStediClaimStatusClient, createStediEligibilityClient } from '@cleanpost/eligibility';
 import { createSmtpMailer } from '@cleanpost/email';
-import { createBoss, sendUsageMeter, waitForQueues } from '@cleanpost/jobs';
+import { createBoss, demoWorkdayPayload, JOBS, sendUsageMeter, waitForQueues } from '@cleanpost/jobs';
 import { createLogger } from '@cleanpost/log';
 import { createHistoryRunner } from './demo-history';
 import { buildRegistry, handleStatusSweep, registerWorkers } from './handlers';
@@ -215,6 +215,17 @@ const historyTimer = history
         });
     }, 15_000)
   : undefined;
+// After the Demo clock moves: the simulated team works the day (DEC-19), unless a replay is on.
+if (history)
+  await boss.work(JOBS.demoWorkday, async ([job]) => {
+    if (!job || replaying) return;
+    replaying = true;
+    try {
+      await history.workDay(demoWorkdayPayload.parse(job.data).days);
+    } finally {
+      replaying = false;
+    }
+  });
 
 log.info(
   {

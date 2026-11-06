@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JOBS, QUEUES, syncPullPayload, waitForQueues, type PgBoss } from '../src';
+import { demoWorkdayPayload, JOBS, QUEUES, syncPullPayload, waitForQueues, type PgBoss } from '../src';
 
 describe('job payloads', () => {
   it('carry IDs only', () => {
@@ -12,6 +12,12 @@ describe('job payloads', () => {
     expect(syncPullPayload.safeParse({ ...ok, connectionId: 'Lakeside' }).success).toBe(false);
     // Unknown keys are dropped, so nothing else rides along in a payload.
     expect(syncPullPayload.parse({ ...ok, patientName: 'x' })).not.toHaveProperty('patientName');
+  });
+
+  it('carry only the days the Demo clock moved for the simulated workday', () => {
+    expect(demoWorkdayPayload.parse({ days: 7, note: 'x' })).toEqual({ days: 7 });
+    for (const days of [0, 31, 1.5]) expect(demoWorkdayPayload.safeParse({ days }).success).toBe(false);
+    expect(QUEUES.find((q) => q.name === JOBS.demoWorkday)?.options).toMatchObject({ policy: 'singleton' });
   });
 });
 

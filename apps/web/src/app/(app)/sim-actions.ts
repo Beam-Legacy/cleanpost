@@ -10,11 +10,18 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { connections, readDemoHistory, recordAudit, setDemoOffset, withTenant } from '@cleanpost/db';
 import { policy } from '@cleanpost/domain';
-import { sendClaimStatusSweep, sendSyncPull } from '@cleanpost/jobs';
+import { sendClaimStatusSweep, sendDemoWorkday, sendSyncPull } from '@cleanpost/jobs';
 import { getBoss } from '@/lib/jobs';
 import { getDb } from '@/lib/server';
 import { requireActiveContext } from '@/lib/session';
-import { advanceSimClock, runClearinghouse, setPracticeLoginExpired, simConfig } from '@/lib/sim';
+import {
+  advanceSimClock,
+  enterVisits,
+  runClearinghouse,
+  setPracticeLoginExpired,
+  simConfig,
+  simNow,
+} from '@/lib/sim';
 
 export interface SimResult {
   ok: boolean;
@@ -33,6 +40,27 @@ export async function advanceClock(daysInput: number): Promise<SimResult> {
   const history = await readDemoHistory(getDb());
   if (history.state === 'pending' || history.state === 'running')
     return { ok: false, message: 'Demo history is being built; the clock moves on its own until today.' };
+  // The practices enter the visits of the days the clock passes (weekdays, two weeks at most), so
+  // the syncs below build them: the new day's reviews, blocks and eligibility issues (DEC-19).
+  const practices = await withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, (tx) =>
+    tx
+      .select({ settings: connections.settings })
+      .from(connections)
+      .where(and(eq(connections.adapterKey, 'mock'), inArray(connections.status, ['healthy', 'degraded']))),
+  );
+  const from = await simNow(config);
+  let visits = 0;
+  if (from)
+    for (let i = 0; i < Math.min(days, 14); i++) {
+      const d = new Date(from.getTime() + i * 86_400_000);
+      const day = d.toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      const weekday = new Date(`${day}T12:00:00Z`).getUTCDay();
+      if (weekday === 0 || weekday === 6) continue;
+      for (const p of practices) {
+        const practiceId = (p.settings as { practiceId?: string }).practiceId;
+        if (practiceId) visits += await enterVisits(config, practiceId, day);
+      }
+    }
   // Send what is queued at today's simulated date (with the PM's billing batch), move the clock,
   // then collect the 277CAs and 835s that came due.
   await runClearinghouse(config, { bill: true });
@@ -54,7 +82,7 @@ export async function advanceClock(daysInput: number): Promise<SimResult> {
       action: 'sim.clock_advanced',
       entityType: 'tenant',
       entityId: ctx.tenantId,
-      metadata: { days, clearinghouse: ran, syncs: rows.length, followed },
+      metadata: { days, clearinghouse: ran, syncs: rows.length, followed, visits },
     });
     return rows;
   });
@@ -68,6 +96,8 @@ export async function advanceClock(daysInput: number): Promise<SimResult> {
     });
   // The daily jobs run on the real clock; days skipped at once get their follow-up sweep now.
   if (followed) await sendClaimStatusSweep(boss);
+  // The simulated team works the day and the practices enter the skipped days' visits (DEC-19).
+  if (followed) await sendDemoWorkday(boss, { days });
   revalidatePath('/', 'layout');
   const day = now.toLocaleDateString('en-US', {
     month: 'short',
@@ -76,7 +106,7 @@ export async function advanceClock(daysInput: number): Promise<SimResult> {
   });
   return {
     ok: true,
-    message: `Demo date is now ${day}. ${ran ? 'The clearinghouse ran; ' : ''}syncing ${conns.length} ${conns.length === 1 ? 'practice' : 'practices'} — refresh in a minute.${followed ? '' : ' Cleanpost stays on today: run the seed to turn demo time on.'}`,
+    message: `Demo date is now ${day}. ${ran ? 'The clearinghouse ran; ' : ''}syncing ${conns.length} ${conns.length === 1 ? 'practice' : 'practices'}${visits ? ` with ${visits} new visits` : ''}; then the team works the queue. Refresh in a minute or two.${followed ? '' : ' Cleanpost stays on today: run the seed to turn demo time on.'}`,
     ...(followed ? { offsetMs } : {}),
   };
 }

@@ -141,7 +141,8 @@ export function createHistoryRunner(deps: HistoryDeps) {
       const res = await deps.db.execute<{ n: number }>(sql`
         select count(*)::int as n from pgboss.job
         where state in ('created', 'retry', 'active') and start_after <= now()
-          and name not in (${JOBS.syncTick}, ${JOBS.claimStatusSweep}) and name not like '\\_\\_pgboss%'`);
+          and name not in (${JOBS.syncTick}, ${JOBS.claimStatusSweep}, ${JOBS.demoWorkday})
+          and name not like '\\_\\_pgboss%'`);
       calm = res.rows[0]!.n === 0 ? calm + 1 : 0;
       if (Date.now() > deadline) throw new Error('the job queue did not go quiet');
       await new Promise((r) => setTimeout(r, 400));
@@ -249,6 +250,8 @@ export function createHistoryRunner(deps: HistoryDeps) {
       const biller = billerFor(staff, item.clientId, key);
       if (!biller) continue;
       const age = now.getTime() - item.createdAt.getTime();
+      // A team that keeps up gets to most items by their due time (docs/08 SLAs).
+      const due = item.dueAt.getTime() <= now.getTime() + 6 * 3_600_000;
       try {
         // Hand work done in the PM (posting a write-off there), and posting differences checked.
         if (item.type === 'manual_task' && item.reasonCode === WRITE_OFF_OPERATION && chance(key, 0.7)) {
@@ -284,14 +287,14 @@ export function createHistoryRunner(deps: HistoryDeps) {
           }
           continue;
         }
-        if (item.type === 'posting_exception' && age > 4 * DAY && chance(key, 0.5)) {
+        if (item.type === 'posting_exception' && due && chance(key, 0.85)) {
           const reason = chance(`${item.id}:reason`, 0.5) ? 'Corrected in the PM' : 'Accepted as posted';
           const res = await resolveItem(deps.db, { tenantId, userId: biller, now }, item.id, { reason });
           if (res.ok) done.resolved++;
           continue;
         }
         if (!item.claimId) continue;
-        await claimWork(item, claimStatus, balance, biller, key, age);
+        await claimWork(item, claimStatus, balance, biller, key, age, due);
       } catch (err) {
         // One item a simulated biller cannot work is left for the backlog; the replay goes on.
         deps.log.warn({ err, workItemId: item.id }, 'demo biller skipped an item');
@@ -305,6 +308,7 @@ export function createHistoryRunner(deps: HistoryDeps) {
       biller: string,
       key: string,
       age: number,
+      due: boolean,
     ) {
       if (!item.claimId) return;
       if (item.type === 'claim_review' && claimStatus === 'needs_review' && chance(key, 0.88)) {
@@ -374,8 +378,8 @@ export function createHistoryRunner(deps: HistoryDeps) {
       } else if (
         (item.type === 'eligibility_issue' ||
           (item.type === 'claim_blocked' && item.reasonCode.startsWith('eligibility.'))) &&
-        age > 4 * DAY &&
-        chance(key, 0.3)
+        due &&
+        chance(key, 0.8)
       ) {
         // Coverage the payer does not know or has ended: the practice bills the patient instead.
         const res = await voidClaim(deps.db, {
@@ -388,7 +392,7 @@ export function createHistoryRunner(deps: HistoryDeps) {
       } else if (item.type === 'rejection' && /subscriber|member|coverage/i.test(item.summary)) {
         // The payer does not know the member: no other coverage turned up, so the claim is voided
         // in the PM and the patient pays.
-        if (age > 4 * DAY && chance(key, 0.4)) {
+        if (due && chance(key, 0.8)) {
           const res = await resolveItem(deps.db, { tenantId, userId: biller, now }, item.id, {
             reason: 'Voided',
           });
@@ -401,7 +405,7 @@ export function createHistoryRunner(deps: HistoryDeps) {
       } else if (item.type === 'denial' && item.id === keepForDemo) {
         // The newest CO-4 waits for the demo's Flow 5 (docs/18).
         return;
-      } else if (item.type === 'denial' && age > 5 * DAY && chance(key, 0.4)) {
+      } else if (item.type === 'denial' && due && chance(key, 0.8)) {
         // A denial with a mechanical fix (modifier 25 for CO-4, say): the corrected claim, built as
         // W-16 builds it, then scrubbed; approval, release and the resubmission follow.
         const fix = await denialFix(tenantId, item.claimId, item.reasonCode);
@@ -415,7 +419,7 @@ export function createHistoryRunner(deps: HistoryDeps) {
             await sendClaimScrub(deps.boss, { tenantId, claimVersionId: built.versionId });
             done.corrected++;
           }
-        } else if (age > 10 * DAY) {
+        } else {
           // Nothing to correct and nobody will pay it: written off, by an admin above the limit.
           const amountCents = writeOffDefaultCents(item.amountCents ?? 0, Number(balance ?? 0));
           if (amountCents <= 0) return;
@@ -716,5 +720,24 @@ export function createHistoryRunner(deps: HistoryDeps) {
     return true;
   }
 
-  return { run };
+  /**
+   * The simulated team's working day, now (local and preview, after the Demo clock moved this many
+   * days; the web entered the practices' visits first): once the syncs the clock queued are in, the
+   * billers work the queue as they did through the history, so a demo given days after the history
+   * was built opens on a current queue, with the new day's work fresh in it.
+   */
+  async function workDay(days: number) {
+    await quiet(10 * 60_000);
+    const conns = await mockConnections();
+    for (const c of conns) connectionsById.set(c.connectionId, c);
+    const today = clockNow();
+    const worked = [];
+    for (const t of [...new Set(conns.map((c) => c.tenantId))])
+      worked.push(await workTheQueue(t, await staffOf(t), ymd(today)));
+    await quiet(10 * 60_000);
+    deps.log.info({ days, worked }, 'demo workday');
+    return worked;
+  }
+
+  return { run, workDay };
 }

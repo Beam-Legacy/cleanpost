@@ -1,4 +1,5 @@
 import 'server-only';
+import { createHash } from 'node:crypto';
 /**
  * The payer simulator's clock, for demos and tests in local and preview only (docs/12-testing.md).
  * Never available in staging or production: there is no payer-sim there, and this refuses to run.
@@ -118,5 +119,29 @@ export async function setPracticeLoginExpired(c: SimConfig, practiceId: string, 
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+/**
+ * The practices' visits for one day, entered in the mock PM before the Demo clock moves past it (as
+ * the demo history does, DEC-19), so the syncs that follow build them. 4 to 9 a practice, stable
+ * per practice and day.
+ */
+export async function enterVisits(c: SimConfig, practiceId: string, day: string): Promise<number> {
+  if (!c.pmMockUrl || !c.pmMockAdminPassword) return 0;
+  const count = 4 + (createHash('sha256').update(`${practiceId}:${day}`).digest()[0]! % 6);
+  try {
+    const res = await fetch(`${c.pmMockUrl}/admin/api/practices/${encodeURIComponent(practiceId)}/visits`, {
+      method: 'POST',
+      headers: {
+        authorization: `Basic ${Buffer.from(`admin:${c.pmMockAdminPassword}`).toString('base64')}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ count, dateOfService: day, openShare: 0 }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    return res.ok ? count : 0;
+  } catch {
+    return 0;
   }
 }
