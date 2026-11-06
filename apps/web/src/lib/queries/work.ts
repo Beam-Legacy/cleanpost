@@ -67,6 +67,7 @@ import {
   type WriteOffRequestView,
 } from './write-off';
 import { getDb } from '../server';
+import { simConfig } from '../sim';
 import type { ActiveContext } from '../session';
 
 const NONE = '00000000-0000-0000-0000-000000000000';
@@ -410,7 +411,11 @@ export interface WorkDetail {
     coverages: CoverageView[];
     pmTasks: { id: string; title: string; operation: string }[];
     payers: { id: string; name: string }[];
+    /** Local and preview: P-04 can draw a sample card. */
+    demo: boolean;
   } | null;
+  /** W-14: the card to review (its patient, for Upload clearer photo). */
+  card: { documentId: string; patientId: string; demo: boolean } | null;
   /** W-16 to W-20: the payment the item is about, and for a denial the denied lines' codes. */
   remittance: {
     id: string;
@@ -687,6 +692,7 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
         coverages: await coverageViews(tx, c.patientId),
         pmTasks: tasks,
         payers: await payerOptions(tx),
+        demo: Boolean(simConfig()),
       };
     }
   }
@@ -729,6 +735,10 @@ async function loadDetail(tx: Tx, ctx: ActiveContext, id: string): Promise<WorkD
     remittance,
     denial,
     eligibility,
+    card:
+      item.type === 'card_review' && item.documentId && item.patientId
+        ? { documentId: item.documentId, patientId: item.patientId, demo: Boolean(simConfig()) }
+        : null,
     writeOffRequest,
     followUp,
     linkCandidates: candidates,

@@ -20,6 +20,7 @@
     "@cleanpost/clock": "workspace:*",
     "@cleanpost/config": "workspace:*",
     "@cleanpost/db": "workspace:*",
+    "@cleanpost/documents": "workspace:*",
     "@cleanpost/domain": "workspace:*",
     "@cleanpost/eligibility": "workspace:*",
     "@cleanpost/email": "workspace:*",

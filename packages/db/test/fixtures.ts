@@ -71,6 +71,13 @@ export async function insertTenantFixture(db: Database, f: TenantFixture, label:
     .insert(s.documents)
     .values({ ...tc, patientId: patient!.id, type: 'insurance_card_front', storageKey: 'k' })
     .returning();
+  await db.insert(s.documentBlobs).values({
+    ...tc,
+    storageKey: `cards/${tc.tenantId}/front`,
+    contentType: 'image/png',
+    sizeBytes: 1,
+    contentEncrypted: 'v1:x:y:z',
+  });
   const [encounter] = await db
     .insert(s.encounters)
     .values({

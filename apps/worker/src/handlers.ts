@@ -51,6 +51,7 @@ import {
   claimStatusCheckPayload,
   connectionTestPayload,
   onboardingDryRunPayload,
+  documentExtractPayload,
   notifySweepPayload,
   sendNotifySweep,
   eligibilityCheckPayload,
@@ -69,6 +70,8 @@ import type { Logger } from '@cleanpost/log';
 import type { Mailer } from '@cleanpost/email';
 import { readOnboarding } from '@cleanpost/domain';
 import { sweepAll, sweepTenant } from '@cleanpost/notify';
+import { UNREADABLE, type CardReader } from '@cleanpost/ai';
+import { extractCard } from '@cleanpost/documents';
 import {
   createPgRateLimiter,
   listCandidates,
@@ -91,6 +94,8 @@ export interface WorkerDeps {
   appUrl?: string;
   /** Step 8 of the scrub (AI review); scrubs run without it when absent. */
   reviewer?: ClaimReviewer;
+  /** P-04 card reading; without it every card reads as unreadable (enter the fields by hand). */
+  cardReader?: CardReader;
   /** Stedi 270/271 (payer-sim in local and preview); scrubs read no check when absent. */
   eligibility?: EligibilityClient;
   /** Stedi 276/277 (payer-sim in local and preview); follow-ups open without checks when absent. */
@@ -290,6 +295,18 @@ async function waitForEligibility(deps: WorkerDeps, tenantId: string, versionIds
 }
 
 /** eligibility.check: store the 271 summary, then scrub the claims that waited for it. */
+/** P-04: read one side of an uploaded card (document ID only in the payload). */
+export async function handleDocumentExtract(deps: WorkerDeps, data: unknown) {
+  const payload = documentExtractPayload.parse(data);
+  const reader: CardReader = deps.cardReader ?? { name: 'off', readCard: async () => UNREADABLE };
+  const result = await extractCard(
+    { db: deps.db, reader, log: deps.log, ...(deps.now ? { now: deps.now } : {}) },
+    payload,
+  );
+  deps.log.info({ documentId: payload.documentId, status: result.status }, 'card read');
+  return result;
+}
+
 export async function handleEligibilityCheck(deps: WorkerDeps, data: unknown) {
   const payload = eligibilityCheckPayload.parse(data);
   const result = deps.eligibility
@@ -567,6 +584,9 @@ export async function registerWorkers(
   });
   await deps.boss.work(JOBS.notifySweep, async ([job]) => {
     await handleNotifySweep(deps, job?.data);
+  });
+  await deps.boss.work(JOBS.documentExtract, { batchSize: 1, localConcurrency: 2 }, async ([job]) => {
+    if (job) await handleDocumentExtract(deps, job.data);
   });
   await deps.boss.work(JOBS.deadLetter, async ([job]) => {
     if (job) await handleDeadLetter(deps, job.data);

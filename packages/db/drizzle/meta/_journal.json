@@ -169,6 +169,13 @@
       "when": 1793952000000,
       "tag": "0023_record_edits",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793952100000,
+      "tag": "0024_document_blobs",
+      "breakpoints": true
     }
   ]
 }

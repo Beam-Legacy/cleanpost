@@ -160,6 +160,9 @@ importers:
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@cleanpost/documents':
+        specifier: workspace:*
+        version: link:../../packages/documents
       '@cleanpost/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -281,6 +284,9 @@ importers:
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@cleanpost/documents':
+        specifier: workspace:*
+        version: link:../../packages/documents
       '@cleanpost/domain':
         specifier: workspace:*
         version: link:../../packages/domain
@@ -513,6 +519,43 @@ importers:
       tsx:
         specifier: ^4.23.15
         version: 4.23.15
+
+  packages/documents:
+    dependencies:
+      '@cleanpost/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@cleanpost/claims':
+        specifier: workspace:*
+        version: link:../claims
+      '@cleanpost/clock':
+        specifier: workspace:*
+        version: link:../clock
+      '@cleanpost/db':
+        specifier: workspace:*
+        version: link:../db
+      '@cleanpost/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@cleanpost/log':
+        specifier: workspace:*
+        version: link:../log
+      '@cleanpost/sync':
+        specifier: workspace:*
+        version: link:../sync
+      drizzle-orm:
+        specifier: ^0.45.4
+        version: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(kysely@0.29.8)(pg@8.23.1)
+      uuid:
+        specifier: ^14.0.3
+        version: 14.0.3
+    devDependencies:
+      '@cleanpost/seed':
+        specifier: workspace:*
+        version: link:../seed
+      '@cleanpost/testing':
+        specifier: workspace:*
+        version: link:../testing
 
   packages/domain:
     dependencies:

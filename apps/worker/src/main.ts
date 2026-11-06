@@ -5,8 +5,10 @@
 import { createServer } from 'node:http';
 import { z } from 'zod';
 import {
+  createBedrockCardReader,
   createBedrockReviewModel,
   createClaimReviewer,
+  createStandInCardReader,
   createStandInReviewModel,
   DEFAULT_MODELS,
 } from '@cleanpost/ai';
@@ -69,6 +71,18 @@ const reviewer =
       })
     : aiMode === 'stand-in'
       ? createClaimReviewer({ model: createStandInReviewModel(), log })
+      : undefined;
+
+// P-04 card reading follows the AI mode: Bedrock where synthetic data or a BAA covers it; the
+// stand-in (local and preview) reads only the synthetic cards the simulators make (DEC-31).
+const cardReader =
+  aiMode === 'bedrock'
+    ? createBedrockCardReader({
+        model: env.AI_MODEL_ROUTINE,
+        ...(env.AWS_REGION ? { awsRegion: env.AWS_REGION } : {}),
+      })
+    : aiMode === 'stand-in'
+      ? createStandInCardReader()
       : undefined;
 
 const eligibilityMode =
@@ -156,6 +170,7 @@ await registerWorkers(
     registry,
     ...(mailer && env.APP_URL ? { mailer, appUrl: env.APP_URL } : {}),
     ...(reviewer ? { reviewer } : {}),
+    ...(cardReader ? { cardReader } : {}),
     ...(eligibility ? { eligibility } : {}),
     ...(claimStatusClient ? { claimStatus: claimStatusClient } : {}),
   },

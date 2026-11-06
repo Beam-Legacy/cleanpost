@@ -266,11 +266,13 @@ describe('the Mode A cycle', () => {
       .select({ claimId: workItems.claimId, type: workItems.type })
       .from(workItems)
       .where(and(isNotNull(workItems.claimId), ne(workItems.status, 'resolved')));
-    const has = (id: string, type: string) => open.some((o) => o.claimId === id && o.type === type);
+    const has = (id: string, types: string | string[]) =>
+      open.some((o) => o.claimId === id && [types].flat().includes(o.type));
     // A claim the PM would not release waits in ready, with a manual task for a biller.
-    const NEEDS_ITEM: Record<string, string> = {
+    const NEEDS_ITEM: Record<string, string | string[]> = {
       ready: 'manual_task',
-      blocked: 'claim_blocked',
+      // Held only by its coverage, a blocked claim is an eligibility issue (W-13, DEC-30).
+      blocked: ['claim_blocked', 'eligibility_issue'],
       rejected: 'rejection',
       denied: 'denial',
       // Sent, but nothing back from the payer (or the PM never billed it): a person follows up.

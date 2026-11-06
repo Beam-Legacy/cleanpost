@@ -1,0 +1,29 @@
+{
+  "name": "@cleanpost/documents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cleanpost/ai": "workspace:*",
+    "@cleanpost/claims": "workspace:*",
+    "@cleanpost/clock": "workspace:*",
+    "@cleanpost/db": "workspace:*",
+    "@cleanpost/domain": "workspace:*",
+    "@cleanpost/log": "workspace:*",
+    "@cleanpost/sync": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "uuid": "^14.0.3"
+  },
+  "devDependencies": {
+    "@cleanpost/seed": "workspace:*",
+    "@cleanpost/testing": "workspace:*"
+  }
+}

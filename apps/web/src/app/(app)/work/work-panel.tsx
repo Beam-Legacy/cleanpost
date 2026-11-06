@@ -28,6 +28,7 @@ import { ApprovalPanel } from './approval-panel';
 import { LinkPayment } from './link-payment';
 import { DenialPanel } from './denial-panel';
 import { EligibilityPanel } from './eligibility-panel';
+import { CardReview, CardUploadDialog } from '@/components/card-capture';
 import { MappingForm } from './mapping-form';
 import { PostingTask } from './posting-task';
 import type { Permissions } from './work-queue';
@@ -92,6 +93,8 @@ function whyHere(d: WorkDetail): string {
     }
     case 'claim_blocked':
       return 'Blocked: release is unavailable while any blocking finding remains.';
+    case 'card_review':
+      return 'The card reader was not sure about some fields. Check them against the photo; confirming updates the coverage and asks the PM to follow.';
     case 'eligibility_issue':
       return d.eligibility?.pmTasks.length
         ? `The coverage is being corrected in ${d.connection?.pmName ?? 'the PM'}; this closes itself when the claim checks out.`
@@ -190,7 +193,9 @@ export function WorkPanel({
         <div className="muted dense">
           {!c && d.patient && (
             <>
-              <Link href={`/patients/${d.patient.id}`}>{d.patient.name}</Link>
+              <Link className="inline-link" href={`/patients/${d.patient.id}`}>
+                {d.patient.name}
+              </Link>
               {' · '}
             </>
           )}
@@ -294,6 +299,21 @@ export function WorkPanel({
             canEdit={can.edit}
             onDone={onClose}
           />
+        )}
+
+        {d.item.type === 'card_review' && d.card && d.item.status !== 'resolved' && can.edit && (
+          <div className="stack-sm">
+            <CardReview documentId={d.card.documentId} coverageId={null} onDone={onClose} />
+            <CardUploadDialog
+              patientId={d.card.patientId}
+              demo={d.card.demo}
+              trigger={
+                <Button size="sm" variant="ghost">
+                  Upload clearer photo
+                </Button>
+              }
+            />
+          </div>
         )}
 
         {d.item.type === 'rejection' && (
@@ -438,6 +458,7 @@ export function WorkPanel({
             'system',
             'write_off_approval',
             'eligibility_issue',
+            'card_review',
           ].includes(d.item.type) && <div>{d.item.summary}</div>}
 
         <div className="why">

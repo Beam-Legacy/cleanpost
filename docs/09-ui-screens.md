@@ -80,6 +80,8 @@ Demographics, coverages ordered by priority with eligibility status and last che
 
 Built (DEC-30): Edit details (P-06) and Edit on each coverage (P-02). No PM can be written yet, so saving keeps the correction in Cleanpost and puts a task to make it in the PM in the queue; the page says so while the PM has not caught up, and the patient's claims wait for it. W-13 (eligibility issue) shows the patient's coverages with each one's latest 271 and offers Check again, Bill the other coverage, Update coverage, Mark self-pay and Open patient.
 
+Built (DEC-31): P-04 Add card (front, optional back; stored encrypted, read by the worker), P-05 Review insurance card (the photo beside the reading, fields under 0.9 marked and focused first, the coverage to update, Confirm card or Upload clearer photo) and W-14 (the same review in the queue panel for cards left unconfirmed). W-13 has Upload card photo. Local and preview add "Use a sample card (demo)".
+
 ## O-01 to O-11 Client onboarding wizard
 
 Full-page stepper with progress saved at each step. The designs split the dry run into its own step and add a confirmation page, so the wizard is O-01 to O-10 plus O-11 (Live); follow the designs for step order. Steps:

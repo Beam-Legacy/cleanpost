@@ -38,5 +38,23 @@ export function decryptField(stored: string, source?: Record<string, string | un
   return Buffer.concat([decipher.update(Buffer.from(ct, 'base64')), decipher.final()]).toString('utf8');
 }
 
+/** Document contents (card images, DEC-31): the same scheme over raw bytes. */
+export function encryptBytes(plain: Uint8Array, source?: Record<string, string | undefined>): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key(source), iv);
+  const ct = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return ['v1', iv.toString('base64'), cipher.getAuthTag().toString('base64'), ct.toString('base64')].join(
+    ':',
+  );
+}
+
+export function decryptBytes(stored: string, source?: Record<string, string | undefined>): Uint8Array {
+  const [version, iv, tag, ct] = stored.split(':');
+  if (version !== 'v1' || !iv || !tag || !ct) throw new FieldCryptoError('unknown field encryption format');
+  const decipher = createDecipheriv('aes-256-gcm', key(source), Buffer.from(iv, 'base64'));
+  decipher.setAuthTag(Buffer.from(tag, 'base64'));
+  return new Uint8Array(Buffer.concat([decipher.update(Buffer.from(ct, 'base64')), decipher.final()]));
+}
+
 /** Last four characters for masked display, e.g. "•••••2210" (C-06). */
 export const last4 = (value: string) => value.slice(-4);

@@ -14,10 +14,12 @@ import { createPractice, createPracticeBody, listPractices } from './create';
 import { addVisits } from './load';
 import {
   accounts,
+  answerKey,
   charges,
   claims,
   encounters,
   patients,
+  policies,
   payments,
   practices,
   remittances,
@@ -243,6 +245,45 @@ export function adminRoutes(deps: AdminDeps) {
     const created = await createPractice(db, body.data, deps.now());
     await deps.refreshRoster?.();
     return c.json({ ok: true, ...created });
+  });
+
+  // P-04 demo (DEC-31): what the patient's primary insurance card says. A card shows the plan the
+  // patient really has (the answer key), which may not be the one the practice entered: the photo
+  // that fixes a "member not found" claim. Synthetic data only.
+  app.get('/api/practices/:id/patients/:pid/card', async (c) => {
+    const [p] = await db
+      .select()
+      .from(patients)
+      .where(and(eq(patients.practiceId, c.req.param('id')), eq(patients.id, c.req.param('pid'))));
+    if (!p) return c.json({ error: 'not_found' }, 404);
+    const [policy] = await db
+      .select()
+      .from(policies)
+      .where(eq(policies.patientId, p.id))
+      .orderBy(asc(policies.priority))
+      .limit(1);
+    if (!policy) return c.json({ error: 'no_insurance' }, 404);
+    const [fact] = await db
+      .select({ facts: answerKey.facts })
+      .from(answerKey)
+      .where(
+        and(
+          eq(answerKey.practiceId, p.practiceId),
+          eq(answerKey.recordType, 'coverage'),
+          eq(answerKey.recordId, policy.id),
+        ),
+      );
+    const f = (fact?.facts ?? {}) as { actualPayerName?: string };
+    const digits = [...policy.memberId].reduce((n, ch) => (n * 31 + ch.charCodeAt(0)) % 10_000, 7);
+    return c.json({
+      payerName: f.actualPayerName ?? policy.payerName,
+      memberId: policy.memberId,
+      groupNumber: policy.groupNumber,
+      subscriberName: `${p.firstName} ${p.lastName}`,
+      planType: ['PPO', 'HMO', 'EPO', 'POS'][digits % 4],
+      rxBin: String(600_000 + digits).padStart(6, '0'),
+      payerPhone: `1-800-555-${String(digits).padStart(4, '0')}`,
+    });
   });
 
   app.post('/api/demo/reset', async (c) => {

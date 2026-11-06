@@ -5,6 +5,7 @@ import {
   date,
   index,
   jsonb,
+  integer,
   numeric,
   pgTable,
   smallint,
@@ -113,3 +114,18 @@ export const documents = pgTable(
   },
   (t) => [index('documents_patient_idx').on(t.patientId)],
 );
+
+/**
+ * Document contents for local and preview (DEC-31): encrypted with the field key before they reach
+ * the database. Production stores them in S3 with SSE-KMS; `documents.storage_key` names either.
+ */
+export const documentBlobs = pgTable('document_blobs', {
+  id: id(),
+  tenantId: tenantId(),
+  clientId: clientId().references(() => clients.id),
+  storageKey: text('storage_key').notNull().unique(),
+  contentType: text('content_type').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  contentEncrypted: text('content_encrypted').notNull(),
+  ...timestamps,
+});

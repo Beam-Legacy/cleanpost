@@ -1,3 +1,4 @@
+import { crc32 } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { records } from '../src';
 
@@ -60,5 +61,26 @@ describe('coverage and patient corrections (P-02, P-06)', () => {
     const t = coverageTask({ payer: 'Aetna', fields: ['memberId'], pmName: 'Tebra' });
     expect(t.title).toBe('Update Aetna coverage in Tebra');
     expect(t.instructions[0]).toBe("In Tebra, open this patient's Aetna insurance and change the member ID.");
+  });
+});
+
+describe('PNG text chunks (DEC-31)', () => {
+  it('adds a text chunk a reader can find, with a valid checksum', () => {
+    const png = Uint8Array.from(
+      atob(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+      ),
+      (c) => c.charCodeAt(0),
+    );
+    const out = records.addPngText(png, 'k', records.asciiJson({ name: 'Peña' }));
+    expect(out.length).toBeGreaterThan(png.length);
+    expect(records.pngText(out).get('k')).toBe('{"name":"Pe\\u00f1a"}');
+    expect(JSON.parse(records.pngText(out).get('k')!)).toEqual({ name: 'Peña' });
+    expect(records.pngText(new Uint8Array([1, 2, 3])).size).toBe(0);
+    // CRC of the new chunk (zlib's crc32 over type and data).
+    const view = new DataView(out.buffer);
+    const len = view.getUint32(33);
+    expect(String.fromCharCode(...out.subarray(37, 41))).toBe('tEXt');
+    expect(view.getUint32(41 + len)).toBe(crc32(out.subarray(37, 41 + len)));
   });
 });

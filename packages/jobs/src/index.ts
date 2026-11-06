@@ -25,8 +25,18 @@ export const JOBS = {
   connectionTest: 'connection.test',
   onboardingDryRun: 'onboarding.dryRun',
   notifySweep: 'notify.sweep',
+  documentExtract: 'document.extract',
+  usageMeter: 'usage.meter',
   deadLetter: 'system.dead_letter',
 } as const;
+
+/** P-04: read an uploaded insurance card (the document's ID only, never its contents). */
+export const documentExtractPayload = z.object({ tenantId: z.uuid(), documentId: z.uuid() });
+export type DocumentExtractPayload = z.infer<typeof documentExtractPayload>;
+
+/** Daily usage records for invoicing (docs/01): one day, for every company. */
+export const usageMeterPayload = z.object({ day: z.iso.date().optional() });
+export type UsageMeterPayload = z.infer<typeof usageMeterPayload>;
 
 /** G-04, E-04, E-05: the notification sweep, for one company or (no tenant) all of them. */
 export const notifySweepPayload = z.object({ tenantId: z.uuid().optional() });
@@ -132,6 +142,9 @@ export const QUEUES: { name: string; options: Parameters<PgBoss['createQueue']>[
   { name: JOBS.onboardingDryRun, options: { policy: 'stately', expireInSeconds: 15 * 60, retryLimit: 0 } },
   // Every 15 minutes, and for one company after a newly live client's sync; the next run catches up.
   { name: JOBS.notifySweep, options: { policy: 'stately', expireInSeconds: 15 * 60, retryLimit: 0 } },
+  // One queued reading per document (singletonKey = document ID); the person waiting can retry.
+  { name: JOBS.documentExtract, options: { policy: 'stately', expireInSeconds: 5 * 60, ...RETRIES } },
+  { name: JOBS.usageMeter, options: { policy: 'singleton', expireInSeconds: 30 * 60, retryLimit: 2 } },
 ];
 
 export type Role = 'web' | 'worker';
@@ -246,6 +259,19 @@ export async function sendEligibilityCheck(
 ): Promise<string | null> {
   const data = eligibilityCheckPayload.parse(payload);
   return boss.send(JOBS.eligibilityCheck, data, { singletonKey: data.coverageId });
+}
+
+export async function sendDocumentExtract(
+  boss: PgBoss,
+  payload: DocumentExtractPayload,
+): Promise<string | null> {
+  const data = documentExtractPayload.parse(payload);
+  return boss.send(JOBS.documentExtract, data, { singletonKey: data.documentId });
+}
+
+export async function sendUsageMeter(boss: PgBoss, payload: UsageMeterPayload = {}): Promise<string | null> {
+  const data = usageMeterPayload.parse(payload);
+  return boss.send(JOBS.usageMeter, data);
 }
 
 export async function sendClaimStatusCheck(

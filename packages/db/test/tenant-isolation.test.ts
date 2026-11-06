@@ -45,6 +45,7 @@ const TENANT_TABLES: Record<string, 'tenant_id' | 'id'> = {
       'patients',
       'coverages',
       'eligibility_checks',
+      'document_blobs',
       'documents',
       'encounters',
       'charge_lines',

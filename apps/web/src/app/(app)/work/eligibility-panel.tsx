@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { Button, Callout, ConfirmDialog, StatusChip, useToast } from '@cleanpost/ui';
+import { CardUploadDialog } from '@/components/card-capture';
 import { CoverageDialog } from '@/components/record-dialogs';
 import { AAA_REASON, ELIGIBILITY_STATUS } from '@/lib/eligibility-display';
 import { formatDate, formatWhen } from '@/lib/format';
@@ -157,6 +158,16 @@ export function EligibilityPanel({
               }
             />
           )}
+          <CardUploadDialog
+            patientId={e.patientId}
+            coverageId={current?.id ?? null}
+            demo={e.demo}
+            trigger={
+              <Button size="sm" disabled={pending}>
+                Upload card photo
+              </Button>
+            }
+          />
           <Button size="sm" variant="ghost" disabled={pending} onClick={() => setSelfPay(true)}>
             Mark self-pay
           </Button>

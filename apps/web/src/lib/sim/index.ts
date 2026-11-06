@@ -66,3 +66,38 @@ export async function runClearinghouse(c: SimConfig, opts: { bill: boolean }): P
     return false;
   }
 }
+
+/** The patient's insurance card as the mock PM knows it (P-04 demo, DEC-31). */
+export interface SampleCard {
+  payerName: string;
+  memberId: string;
+  groupNumber: string | null;
+  subscriberName: string;
+  planType: string;
+  rxBin: string;
+  payerPhone: string;
+}
+
+/** What the mock PM's patient's primary card says; null when not reachable or not found. */
+export async function sampleCard(
+  c: SimConfig,
+  practiceId: string,
+  patientExternalId: string,
+): Promise<SampleCard | null> {
+  if (!c.pmMockUrl || !c.pmMockAdminPassword) return null;
+  try {
+    const res = await fetch(
+      `${c.pmMockUrl}/admin/api/practices/${encodeURIComponent(practiceId)}/patients/${encodeURIComponent(patientExternalId)}/card`,
+      {
+        headers: {
+          authorization: `Basic ${Buffer.from(`admin:${c.pmMockAdminPassword}`).toString('base64')}`,
+        },
+        signal: AbortSignal.timeout(10_000),
+        cache: 'no-store',
+      },
+    );
+    return res.ok ? ((await res.json()) as SampleCard) : null;
+  } catch {
+    return null;
+  }
+}

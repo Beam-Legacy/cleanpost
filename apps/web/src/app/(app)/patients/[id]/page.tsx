@@ -5,7 +5,9 @@ import { ArrowLeft, ShieldOff } from 'lucide-react';
 import { z } from 'zod';
 import { policy } from '@cleanpost/domain';
 import { Banner, Button, EmptyState, StatusChip } from '@cleanpost/ui';
+import { CardReviewDialog, CardUploadDialog } from '@/components/card-capture';
 import { CoverageDialog, PatientDialog } from '@/components/record-dialogs';
+import { simConfig } from '@/lib/sim';
 import { CLAIM_STATUS } from '@/lib/claim-display';
 import { formatDate, formatMoney, formatWhen } from '@/lib/format';
 import { getPatient } from '@/lib/queries/patients';
@@ -17,6 +19,12 @@ import { CheckEligibilityButton, EligibilityDrawer } from './eligibility';
 export const metadata: Metadata = { title: 'Patient' };
 
 const PRIORITY = ['', 'primary', 'secondary', 'tertiary'];
+const CARD_STATUS: Record<string, string> = {
+  pending: 'waiting for review',
+  accepted: 'confirmed',
+  corrected: 'confirmed with corrections',
+  rejected: 'rejected',
+};
 
 /** P-01 Patient detail: coverage with eligibility, insurance cards and claims (P-03 on ?eligibility=). */
 export default async function PatientPage({
@@ -35,6 +43,7 @@ export default async function PatientPage({
   const canCheck = policy.authorize(ctx.actor, 'work.resolve', { clientId: p.clientId }).allowed;
   const canEdit = policy.authorize(ctx.actor, 'claim.edit', { clientId: p.clientId }).allowed;
   const corrected = p.source !== 'pm' || p.coverages.some((c) => c.source !== 'pm');
+  const demo = Boolean(simConfig());
   const label = `${p.lastName}, ${p.firstName}`;
   const open = sp.eligibility ? p.coverages.find((c) => c.latest?.id === sp.eligibility) : undefined;
 
@@ -158,6 +167,17 @@ export default async function PatientPage({
       <div className="card">
         <div className="card-head">
           <h2>Insurance cards</h2>
+          {canEdit && (
+            <CardUploadDialog
+              patientId={p.id}
+              demo={demo}
+              trigger={
+                <Button size="sm" style={{ marginLeft: 'auto' }}>
+                  Add card
+                </Button>
+              }
+            />
+          )}
         </div>
         <div className="card-body">
           {p.cards.length === 0 ? (
@@ -165,9 +185,21 @@ export default async function PatientPage({
           ) : (
             <ul className="stack-sm" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {p.cards.map((d) => (
-                <li key={d.id}>
-                  {d.type === 'insurance_card_back' ? 'Back' : 'Front'} · {formatWhen(d.createdAt)} ·{' '}
-                  {d.reviewStatus}
+                <li key={d.id} className="row" style={{ gap: 8 }}>
+                  <span>
+                    {d.type === 'insurance_card_back' ? 'Back' : 'Front'} · {formatWhen(d.createdAt)} ·{' '}
+                    {CARD_STATUS[d.reviewStatus] ?? d.reviewStatus}
+                  </span>
+                  {canEdit && d.reviewStatus === 'pending' && d.type === 'insurance_card_front' && (
+                    <CardReviewDialog
+                      documentId={d.id}
+                      trigger={
+                        <Button size="sm" variant="ghost">
+                          Review
+                        </Button>
+                      }
+                    />
+                  )}
                 </li>
               ))}
             </ul>

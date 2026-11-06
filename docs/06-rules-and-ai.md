@@ -82,7 +82,7 @@ On denied or partially paid lines, map CARC/RARC and group code to a category: e
 
 ## Document AI
 
-Insurance card front and back → `{ payerName, memberId, groupNumber, subscriberName, rxBin?, payerPhone?, planType? }` with per-field confidence. Payer name maps to a `payers` row by alias matching (Stedi's member ID card payer lookup is an option at $0.20 per lookup). Fields below 0.9 confidence or with no payer match go to review. Payer letters → classification (`denial`, `records_request`, `refund_request`, `recoupment`, `other`) plus extracted claim references; always to a work item.
+Insurance card front and back → `{ payerName, memberId, groupNumber, subscriberName, rxBin?, payerPhone?, planType? }` with per-field confidence. Built (DEC-31): `createBedrockCardReader` reads the image with structured output; a person always confirms (P-05, W-14) before the coverage changes. Local and preview use a stand-in that reads only Cleanpost's synthetic cards (their answer is embedded) and never guesses at a real photo. Payer name maps to a `payers` row by alias matching (Stedi's member ID card payer lookup is an option at $0.20 per lookup). Fields below 0.9 confidence or with no payer match go to review. Payer letters → classification (`denial`, `records_request`, `refund_request`, `recoupment`, `other`) plus extracted claim references; always to a work item.
 
 ## LLM usage rules (`packages/ai`)
 

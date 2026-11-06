@@ -33,6 +33,7 @@ const config: NextConfig = {
     '@cleanpost/clock',
     '@cleanpost/config',
     '@cleanpost/db',
+    '@cleanpost/documents',
     '@cleanpost/domain',
     '@cleanpost/eligibility',
     '@cleanpost/email',
@@ -46,8 +47,8 @@ const config: NextConfig = {
     '@cleanpost/work',
     '@cleanpost/x12',
   ],
-  // 835 uploads (R-02) go through a server action; a month of payments for one payer fits easily.
-  experimental: { serverActions: { bodySizeLimit: '10mb' } },
+  // 835 uploads (R-02) and card photos (P-04, up to 15 MB a side) go through server actions.
+  experimental: { serverActions: { bodySizeLimit: '32mb' } },
   serverExternalPackages: ['pg', 'pg-boss', 'pino', 'nodemailer'],
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];
