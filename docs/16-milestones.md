@@ -117,6 +117,10 @@ Accept:
 - Restore-from-backup drill completed
 - Every item in `11-security-hipaa.md` "Before PHI" is checked
 
+Status (Nov 7, 2026):
+- Built (Nov 7, DEC-34): S-14 company profile (details, contacts, agreements to download, the no-BAA banner), S-12 security (passkeys, trusted devices, idle and absolute limits within the floors, IP allowlist, patient-level export permission; step-up on save; enforced per page view; company choice refuses a blocked company and A-07 says why) and S-10 branding with F-01 using it (name, logo, contact line, footer note, the Cleanpost credit only when on). Found while building S-12: someone whose only second factor was a passkey could sign in with the password alone; sessions now record their second factor and such a session goes to the passkey step. The seed gives Northwind its profile and two signed sample agreements; Harbor RCM has no BAA. Tests: the profile, security and branding rules (domain); the second factor per session, idle and absolute limits, the allowlist and refusals, trusted devices, step-up (auth); e2e for S-14, S-12 and S-10 with F-01, with axe.
+- Open in M5: step-up for exports and other settings changes (docs/11); blocking real patient data for a company without a BAA comes with the production environment.
+
 ## M6 — Tebra adapter and pilot (weeks 19–24)
 
 Build: the Tebra adapter against the test practice (contract tests, recorded fixtures), the 835 upload routine for Tebra clients, pilot with one client in "Review everything", then threshold tuning. If the Tebra test chose Mode C, M6 also builds Stedi claim submission, 999 and 277CA webhooks and `markChargeBilled` handling (estimate: 2–3 more weeks).

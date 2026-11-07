@@ -4,7 +4,14 @@ import Link from 'next/link';
 import { ArrowLeft, Download } from 'lucide-react';
 import { Button } from '@cleanpost/ui';
 
-export function PrintBar({ backHref }: { backHref: string }) {
+/** `noLogo` is the company name shown as text; admins get the way to Branding (S-10). */
+export function PrintBar({
+  backHref,
+  noLogo,
+}: {
+  backHref: string;
+  noLogo?: { company: string; canEdit: boolean } | null;
+}) {
   return (
     <div className="print-bar no-print">
       <Link className="breadcrumb" href={backHref}>
@@ -12,7 +19,23 @@ export function PrintBar({ backHref }: { backHref: string }) {
         Client report
       </Link>
       <span className="spacer" />
-      <span className="muted dense">Add a note below, then save it as a PDF from the print dialog.</span>
+      <span className="muted dense">
+        Add a note below, then save it as a PDF from the print dialog.
+        {noLogo && (
+          <>
+            {' '}
+            Uses {noLogo.company} as text.
+            {noLogo.canEdit && (
+              <>
+                {' '}
+                <Link className="inline-link" href="/settings/branding">
+                  Add a logo in Branding.
+                </Link>
+              </>
+            )}
+          </>
+        )}
+      </span>
       <Button variant="primary" size="sm" onClick={() => window.print()}>
         <Download aria-hidden />
         Download PDF

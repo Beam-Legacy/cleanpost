@@ -8,8 +8,8 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 
 | Table | Key columns | Notes |
 | --- | --- | --- |
-| `tenants` | name (display), legal_name, address, phone, timezone, plan, status, billing_email, security_contact jsonb, billing_contact jsonb, settings jsonb (branding, notification defaults) | Billing company (S-14, S-10) |
-| `users` | email, name, mfa_enrolled, status | Global identity managed by better-auth, alongside its sessions, accounts, verification, two-factor and passkey tables. No PHI; reached only through the auth module |
+| `tenants` | name (display), legal_name, address, phone, timezone, plan, status, billing_email, security_contact jsonb, billing_contact jsonb, settings jsonb (branding, security, notification defaults; DEC-34) | Billing company (S-14, S-10, S-12). `address` is `{ line }`, one line as the company writes it; the contacts are `{ name, email }` |
+| `users` | email, name, mfa_enrolled, status | Global identity managed by better-auth, alongside its sessions, accounts, verification, two-factor and passkey tables. `sessions` also records how the second factor was given (`second_factor`: `totp`, `backup_code`, `passkey`, `trusted_device`) and when (`second_factor_at`, renewed by a step-up; DEC-34). No PHI; reached only through the auth module |
 | `memberships` | tenant_id, user_id, role (`admin`, `biller`, `viewer`), client_scope (all or list) | A user can belong to more than one tenant. Extra RLS policy: a user can read their own memberships before a tenant is chosen (A-07) |
 | `clients` | tenant_id, name, tax_id (encrypted), billing_npi, taxonomy, address, timezone, status (`onboarding`, `live`, `paused`, `offboarded`), default_mode (`A`,`B`,`C`), auto_release_threshold (0–100, null = the company default in `tenants.settings.autoReleaseThreshold`; 100 = review everything, DEC-23), pm_batch_time (time, nullable: when the PM sends its daily batch; CL-03), go_live_at, offboarded_at, baseline (jsonb, the practice's figures before Cleanpost, DEC-25), pause (jsonb while paused: reason, note, resume on), review_until (date, DEC-26), primary_biller_id, backup_biller_id, onboarding (jsonb while onboarding: furthest step, PM chosen, last connection test and dry run with counts, payer names and sample encounter numbers, confirmations, tax ID last four, practice contact; no PHI, DEC-27) | A practice |
 | `client_payer_settings` | client_id, payer_id, mode_override, auto_release_threshold_override, era_enrollment_status, edi_enrollment_status, timely_filing_days | Per client and payer |
@@ -33,7 +33,7 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 | `coverages` | patient_id, payer_id, priority (1,2,3), member_id, group_number, subscriber relationship, subscriber demographics, effective/termination dates, source (`pm`,`card`,`user`; `card`/`user` = corrected in Cleanpost, not yet in the PM, DEC-30) | |
 | `eligibility_checks` | coverage_id, requested_at, status (`active`,`inactive`,`error`,`unknown`), summary jsonb (copay, deductible remaining, coinsurance), raw_ref (storage key) | Raw 271 in object storage |
 | `documents` | client_id, patient_id?, type (`insurance_card_front`,`insurance_card_back`,`timely_filing_proof` (W-22),`payer_letter`,`eob`,`other`), storage_key (`cards/<upload>/front` and `/back`), extracted jsonb (status, reader, fields, member ID encrypted, confidence per field, matched payer), extraction_confidence, review_status (`pending`,`accepted`,`corrected`,`rejected`) | PHI |
-| `document_blobs` | client_id, storage_key, content_type, size_bytes, content_encrypted | Local and preview document contents, encrypted with the field key (DEC-31); S3 with SSE-KMS in production |
+| `document_blobs` | client_id (null for the company's own files: logo, agreements), storage_key, content_type, size_bytes, content_encrypted | Local and preview document contents, encrypted with the field key (DEC-31); S3 with SSE-KMS in production |
 
 ## Encounters and claims
 
@@ -95,7 +95,7 @@ Global tables (no `tenant_id`, no RLS, no PHI): `users` and better-auth's own ta
 | Table | Key columns | Notes |
 | --- | --- | --- |
 | `audit_events` | tenant_id, actor, action, entity_type, entity_id, ip, user_agent, at | Append-only; PHI reads included |
-| `tenant_agreements` | tenant_id, type (`baa`,`customer_agreement`), version, signed_at, storage_key | S-14 |
+| `tenant_agreements` | tenant_id, type (`baa`,`customer_agreement`), version, signed_at, signed_by, storage_key | S-14 (DEC-34) |
 | `exports` | tenant_id, client_id?, type (`report_pdf`,`report_csv`,`claims_csv`,`audit_csv`,`offboarding`), requested_by, status, storage_key, expires_at | RP-06, F-03, CL-11. PHI exports admin-only and audited |
 | `invoices` | tenant_id, number, period_start, period_end, amount_cents, status, provider_ref, due_at | S-11, E-07. Built in M7 with the billing provider |
 | `integration_requests` | tenant_id, pm_name, client_ids, operations, monthly_volume_estimate, created_by, status | I-05 |

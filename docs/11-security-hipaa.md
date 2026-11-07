@@ -17,7 +17,7 @@ Cleanpost is a business associate of each billing company (itself a business ass
 
 | Area | Control |
 | --- | --- |
-| Identity | better-auth with mandatory MFA (TOTP or passkey); password policy per NIST 800-63B; lockout and alerting |
+| Identity | better-auth with mandatory MFA (TOTP or passkey; someone with a passkey only must use it after the password, DEC-34); password policy per NIST 800-63B; lockout and alerting |
 | Authorization | Role-based (admin, biller, viewer) plus client scope; checks in a single policy module used by every route and job |
 | Tenant isolation | Postgres RLS on every customer table, with `tenant_id` denormalized onto child tables; `app.tenant_id` set per transaction; automated cross-tenant tests in CI. Global tables (users and auth tables, reference data, banners) hold no PHI and are reached only through their owning module. The app role's only cross-tenant reads are `app.sync_candidates()` and `app.active_tenants()`, security-definer functions owned by the migration role (which must bypass RLS) that return connection IDs with schedule fields for the sync scheduler, and active tenant IDs for the notification sweep, nothing else; they are covered by the isolation tests. The job queue schema (`pgboss`) holds ID-only payloads and no customer data |
 | Encryption in transit | TLS 1.2+ everywhere; HSTS; internal service traffic over TLS |
@@ -25,7 +25,7 @@ Cleanpost is a business associate of each billing company (itself a business ass
 | Secrets | AWS Secrets Manager; no secrets in env files committed to git; rotation schedule |
 | Audit | `audit_events` append-only, PHI views included (detail views, reveals, exports, searches); retained 6 years |
 | Logging | pino with redaction paths; log scanning in CI for patterns (DOB, member ID, names from synthetic data) |
-| Sessions | 15-minute idle timeout, 12-hour absolute; re-auth for exports and settings changes |
+| Sessions | 15-minute idle timeout, 12-hour absolute by default; a company may choose 30 minutes idle and 4 or 8 hours absolute on S-12, never longer (DEC-34). Each session records how its second factor was given; a company can refuse passkeys, trusted devices or addresses outside its IP allowlist, checked on every page view. Re-auth (the second factor within 10 minutes) for security settings; exports and other settings changes still rely on the signed-in session (open, M5) |
 | Exports | PHI exports admin-only, watermarked with user and time, audit-logged |
 | Vendors | Only BAA-covered vendors receive PHI; analytics and error tracking configured to receive no PHI (scrub at SDK level) |
 | Backups | Daily snapshots, 35-day retention, cross-region copy, quarterly restore test |

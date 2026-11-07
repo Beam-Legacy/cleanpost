@@ -22,6 +22,7 @@ import {
   users,
 } from '@cleanpost/db';
 import { memoryMailer } from '@cleanpost/email';
+import { seedCompanyProfiles } from './company';
 import { seedReference } from './reference';
 import {
   CLIENTS,
@@ -120,6 +121,7 @@ export async function seed(systemDb: Database, password: string): Promise<{ crea
       { id: HARBOR_RCM, name: 'Harbor RCM', legalName: 'Harbor RCM Inc.', timezone: 'America/Los_Angeles' },
     ])
     .onConflictDoNothing();
+  await seedCompanyProfiles(systemDb);
 
   for (const c of CLIENTS) {
     const details = {

@@ -71,6 +71,11 @@ export async function setUpTwoFactor(page: Page, email: string, password = PASSW
 
 const stateFile = (email: string) => `${keyFile(email)}.state.json`;
 
+/** The authenticator key saved when this user set up two-factor in this run (for step-up codes). */
+export function savedKey(email: string): string {
+  return readFileSync(keyFile(email), 'utf8').trim();
+}
+
 /** Drop a user's saved key and session after their two-factor was reset in the database. */
 export function forgetKey(email: string): void {
   rmSync(keyFile(email), { force: true });

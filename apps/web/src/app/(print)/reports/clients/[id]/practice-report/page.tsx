@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { recordAudit, tenants, withTenant } from '@cleanpost/db';
-import { reports } from '@cleanpost/domain';
+import { company as companyDomain, policy, reports } from '@cleanpost/domain';
 import { formatDate, formatMoney } from '@/lib/format';
 import {
   DENIAL_GROUPS,
@@ -26,7 +26,8 @@ const pct = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}%`);
 
 /**
  * F-01 Client monthly report: the billing company's report to its practice, under its own name.
- * Totals only (no patient-level data); US Letter, 0.5 in margins; Cleanpost only in the footer.
+ * Totals only (no patient-level data); US Letter, 0.5 in margins. S-10 sets the name, logo, contact
+ * line and footer note; "Prepared with Cleanpost" shows only when the company turns it on (DEC-34).
  * Generating it is audit-logged as an export.
  */
 export default async function PracticeReportPage({
@@ -45,13 +46,16 @@ export default async function PracticeReportPage({
   const sp = await searchParams;
   const today = todayPacific();
   const { preset, period, label } = resolvePeriod(sp.period ?? 'last_month', today);
-  const [o, payers, aging, denials, company] = await Promise.all([
+  const [o, payers, aging, denials, brand] = await Promise.all([
     getOverview(ctx, period, id),
     getPayerResults(ctx, id, period),
     getAging(ctx, { view: 'insurance', groupBy: 'client', clientId: id }),
     getDenialsReport(ctx, period, { clientId: id }),
     withTenant(getDb(), { tenantId: ctx.tenantId, userId: ctx.user.id }, async (tx) => {
-      const [t] = await tx.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, ctx.tenantId));
+      const [t] = await tx
+        .select({ name: tenants.name, settings: tenants.settings })
+        .from(tenants)
+        .where(eq(tenants.id, ctx.tenantId));
       await recordAudit(tx, {
         actor: `user:${ctx.user.id}`,
         action: 'report.exported',
@@ -60,7 +64,10 @@ export default async function PracticeReportPage({
         clientId: id,
         metadata: { report: 'practice', format: 'pdf', from: period.from, to: period.to },
       });
-      return t?.name ?? 'Your billing company';
+      return companyDomain.reportBrand(
+        t?.name ?? 'Your billing company',
+        companyDomain.branding(t?.settings),
+      );
     }),
   ]);
   const k = o.kpis;
@@ -84,11 +91,27 @@ export default async function PracticeReportPage({
 
   return (
     <>
-      <PrintBar backHref={`/reports/clients/${id}?period=${preset}`} />
+      <PrintBar
+        backHref={`/reports/clients/${id}?period=${preset}`}
+        noLogo={
+          brand.hasLogo
+            ? null
+            : { company: brand.name, canEdit: policy.authorize(ctx.actor, 'users.manage').allowed }
+        }
+      />
       <article className="doc-page" aria-label={`Revenue cycle report for ${client.name}`}>
         <header className="doc-head">
-          <div>
-            <div className="doc-brand">{company}</div>
+          <div className="doc-brand-row">
+            {brand.hasLogo ? (
+              <img className="doc-logo" src="/api/branding/logo" alt={brand.name} />
+            ) : (
+              <>
+                <span className="doc-mark" aria-hidden>
+                  {brand.initials}
+                </span>
+                <div className="doc-brand">{brand.name}</div>
+              </>
+            )}
           </div>
           <div className="doc-meta">
             <span>Prepared {formatDate(today)}</span>
@@ -190,11 +213,15 @@ export default async function PracticeReportPage({
           </section>
         </div>
 
-        <PracticeNote company={company} />
+        <PracticeNote company={brand.name} />
 
         <footer className="doc-foot">
-          <span>{company} · Confidential · Contains no patient-level information</span>
-          <span>Prepared with Cleanpost</span>
+          <div>
+            <div>{brand.name} · Confidential · Contains no patient-level information</div>
+            {brand.contactLine && <div>Questions? {brand.contactLine}</div>}
+            {brand.footerNote && <div>{brand.footerNote}</div>}
+          </div>
+          {brand.credit && <span>Prepared with Cleanpost</span>}
         </footer>
       </article>
     </>

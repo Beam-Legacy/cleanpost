@@ -796,6 +796,9 @@ importers:
       '@cleanpost/db':
         specifier: workspace:*
         version: link:../db
+      '@cleanpost/documents':
+        specifier: workspace:*
+        version: link:../documents
       '@cleanpost/domain':
         specifier: workspace:*
         version: link:../domain

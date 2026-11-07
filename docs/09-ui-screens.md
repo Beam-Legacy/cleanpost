@@ -148,9 +148,10 @@ Every report exports to PDF (branded with the billing company's name and logo fo
 - **Rules**: list with scope, source, hit count, last 30 days precision (overrides by billers); proposed rules from corrections with evidence (examples) and Approve or Dismiss.
 - **Adjustment mappings**: per PM type and per client.
 - **Notifications**: which events notify whom (in-app, email digest), quiet hours.
-- **Branding**: logo and name used on client reports.
+- **Branding**: logo and name used on client reports. Built (DEC-34): the name, logo (PNG at least 200 px wide or plain SVG), contact line and footer note F-01 prints, with a live preview and Open full preview (F-01, last month, one client); "Prepared with Cleanpost" only when the company turns it on.
 - **Billing and usage**: claims this period by client and mode, invoices. Built (DEC-33): usage by client and mode for this month, last month or 90 days (today counted live); plan and invoices come with invoicing (M7).
-- **Security**: session length, IP allowlist (optional), device trust, audit log access (S-13).
+- **Security**: session length, IP allowlist (optional), device trust, audit log access (S-13). Built (DEC-34): passkeys, trusted devices (12 hours), sign out after 15 or 30 idle minutes, a 4, 8 or 12 hour maximum, the IP allowlist, who may export patient-level data; Save asks for the second factor again when it is over 10 minutes old, and refuses a list that leaves out the saver's own address. Enforced on every page view.
+- **Company profile** (S-14): legal and display name, address, phone, time zone, the signed agreements (BAA, customer agreement) to download, and the security and billing contacts. Built (DEC-34); without a signed BAA a danger banner says Cleanpost does not process real patient data for the company.
 
 ## I-01 to I-05 Integrations
 
