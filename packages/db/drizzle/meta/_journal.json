@@ -176,6 +176,13 @@
       "when": 1793952100000,
       "tag": "0024_document_blobs",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793952200000,
+      "tag": "0025_company_settings",
+      "breakpoints": true
     }
   ]
 }

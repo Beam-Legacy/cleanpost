@@ -122,7 +122,8 @@ export const documents = pgTable(
 export const documentBlobs = pgTable('document_blobs', {
   id: id(),
   tenantId: tenantId(),
-  clientId: clientId().references(() => clients.id),
+  /** Null for the company's own files (S-10 logo, S-14 agreements). */
+  clientId: uuid('client_id').references(() => clients.id),
   storageKey: text('storage_key').notNull().unique(),
   contentType: text('content_type').notNull(),
   sizeBytes: integer('size_bytes').notNull(),

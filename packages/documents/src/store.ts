@@ -20,7 +20,7 @@ export function sniffImage(bytes: Uint8Array): ImageType | null {
 
 export async function putBlob(
   tx: Tx,
-  b: { tenantId: string; clientId: string; key: string; contentType: string; bytes: Uint8Array },
+  b: { tenantId: string; clientId: string | null; key: string; contentType: string; bytes: Uint8Array },
 ) {
   await tx.insert(documentBlobs).values({
     tenantId: b.tenantId,

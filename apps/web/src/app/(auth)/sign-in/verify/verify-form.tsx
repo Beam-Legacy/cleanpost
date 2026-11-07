@@ -1,23 +1,24 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
-import { Button, Field, Input } from '@cleanpost/ui';
+import { Button, Checkbox, Field, Input } from '@cleanpost/ui';
 import { authClient } from '@/lib/auth-client';
 import { DEFAULT_NEXT } from '@/lib/next-path';
 
-export function VerifyForm({ next = DEFAULT_NEXT }: { next?: string }) {
+export function VerifyForm({ next = DEFAULT_NEXT, canTrust = false }: { next?: string; canTrust?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<'totp' | 'recovery'>('totp');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const [trust, setTrust] = useState(false);
 
   async function verify(code: string) {
     setBusy(true);
     setError(null);
     const result =
       mode === 'totp'
-        ? await authClient.twoFactor.verifyTotp({ code })
+        ? await authClient.twoFactor.verifyTotp({ code, ...(canTrust && trust ? { trustDevice: true } : {}) })
         : await authClient.twoFactor.verifyBackupCode({ code });
     setBusy(false);
     if (result.error) {
@@ -68,6 +69,13 @@ export function VerifyForm({ next = DEFAULT_NEXT }: { next?: string }) {
           />
         )}
       </Field>
+      {canTrust && mode === 'totp' && (
+        <Checkbox
+          label="Trust this device for 12 hours (only on a device nobody else uses)"
+          checked={trust}
+          onChange={(e) => setTrust(e.currentTarget.checked)}
+        />
+      )}
       <Button type="submit" variant="primary" size="lg" block disabled={busy} aria-busy={busy}>
         Verify
       </Button>

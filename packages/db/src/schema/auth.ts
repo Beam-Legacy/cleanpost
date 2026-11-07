@@ -43,6 +43,10 @@ export const sessions = pgTable(
     activeTenantId: uuid('active_tenant_id'),
     /** Preview only (PREVIEW_ALLOW_SKIP_2FA): the user skipped two-factor setup for this session. */
     secondFactorSkippedAt: timestamp('second_factor_skipped_at', { withTimezone: true }),
+    /** How the second step was done (DEC-34): totp | backup_code | passkey | trusted_device; null for a password alone. */
+    secondFactor: text('second_factor'),
+    /** When a second factor was last entered, at sign-in or to confirm a change (S-12 step-up). */
+    secondFactorAt: timestamp('second_factor_at', { withTimezone: true }),
     ...realTimestamps,
   },
   (t) => [index('sessions_user_id_idx').on(t.userId)],

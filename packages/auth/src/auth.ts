@@ -1,21 +1,31 @@
 import { passkey } from '@better-auth/passkey';
 import { betterAuth } from 'better-auth';
-import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { twoFactor } from 'better-auth/plugins/two-factor';
 import { eq, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import type { Database } from '@cleanpost/db';
 import { accounts, passkeys, sessions, twoFactors, users, verifications } from '@cleanpost/db';
+import { company } from '@cleanpost/domain';
 import { accountLockedEmail, newSignInEmail, passwordResetEmail, type Mailer } from '@cleanpost/email';
 import { createLogger } from '@cleanpost/log';
 import { describeDevice, deviceKey } from './device';
 
 const log = createLogger({ name: 'auth' });
 
-/** Session limits from docs/11-security-hipaa.md. */
+/** Session limits from docs/11-security-hipaa.md: each company picks within them (S-12, DEC-34). */
 export const SESSION_IDLE_SECONDS = 15 * 60;
+/** better-auth's own idle expiry: the longest a company may choose; getSessionContext applies its own. */
+export const SESSION_IDLE_MAX_SECONDS = 30 * 60;
 export const SESSION_ABSOLUTE_SECONDS = 12 * 60 * 60;
+
+/** The second step a session-creating request did (DEC-34); a password alone is null. */
+const FACTOR_BY_PATH: Record<string, 'totp' | 'backup_code' | 'passkey'> = {
+  '/two-factor/verify-totp': 'totp',
+  '/two-factor/verify-backup-code': 'backup_code',
+  '/passkey/verify-authentication': 'passkey',
+};
 export const PASSWORD_MIN_LENGTH = 12;
 /** A-08: lock after this many consecutive wrong passwords, for LOCK_MINUTES. */
 export const MAX_FAILED_SIGN_INS = 5;
@@ -37,8 +47,10 @@ export interface AuthConfig {
  * better-auth configured for Cleanpost:
  * - no public sign-up: people join through invites (A-06);
  * - email and password, then a second factor (TOTP or passkey) that the app requires (A-02, A-03);
- * - sessions expire after 15 idle minutes (each use extends them); the 12-hour absolute limit is
- *   enforced in getSessionContext();
+ * - sessions expire after 30 idle minutes at most (each use extends them); the company's own idle
+ *   limit (15 or 30), the absolute limit and its other S-12 settings are enforced in
+ *   getSessionContext();
+ * - each session records how its second step was done (DEC-34);
  * - better-auth's own telemetry is off.
  */
 export function createAuth(config: AuthConfig) {
@@ -60,6 +72,7 @@ export function createAuth(config: AuthConfig) {
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
+      await recordStepUp(ctx);
       if (ctx.path !== '/sign-in/email') return;
       const email = String((ctx.body as { email?: unknown } | undefined)?.email ?? '').toLowerCase();
       if (!email) return;
@@ -90,6 +103,40 @@ export function createAuth(config: AuthConfig) {
       }
     }),
   };
+
+  /**
+   * S-12 step-up: a person already signed in who enters their authenticator or recovery code (to
+   * confirm a security change) refreshes when their session last saw a second factor.
+   */
+  async function recordStepUp(ctx: Parameters<Parameters<typeof createAuthMiddleware>[0]>[0]) {
+    const factor = FACTOR_BY_PATH[ctx.path];
+    if (!factor || factor === 'passkey' || ctx.context.newSession) return;
+    if (ctx.context.returned instanceof APIError || ctx.context.returned instanceof Error) return;
+    const current = await getSessionFromCtx(ctx).catch(() => null);
+    if (!current) return;
+    await db.update(sessions).set({ secondFactorAt: new Date() }).where(eq(sessions.id, current.session.id));
+  }
+
+  /**
+   * DEC-34: what second step a new session had. A code or passkey says so; a password sign-in by
+   * someone with an authenticator can only have skipped it on a trusted device; anything else is a
+   * password alone (null), which getSessionContext() does not accept from someone who has a passkey.
+   */
+  async function secondFactorOf(
+    session: { userId: string },
+    path: string | undefined,
+  ): Promise<{ secondFactor: string | null; secondFactorAt: Date | null }> {
+    const factor = path ? FACTOR_BY_PATH[path] : undefined;
+    if (factor) return { secondFactor: factor, secondFactorAt: new Date() };
+    if (path === '/sign-in/email') {
+      const [u] = await db
+        .select({ totp: users.twoFactorEnabled })
+        .from(users)
+        .where(eq(users.id, session.userId));
+      if (u?.totp) return { secondFactor: 'trusted_device', secondFactorAt: null };
+    }
+    return { secondFactor: null, secondFactorAt: null };
+  }
 
   /** E-03: email the user when a session starts on a device family they have not used before. */
   async function alertOnNewDevice(session: { userId: string; userAgent?: string | null; createdAt: Date }) {
@@ -141,6 +188,9 @@ export function createAuth(config: AuthConfig) {
     databaseHooks: {
       session: {
         create: {
+          before: async (session, context) => ({
+            data: { ...session, ...(await secondFactorOf(session, context?.path)) },
+          }),
           after: async (session) => {
             await alertOnNewDevice(session).catch((err: unknown) =>
               log.error({ err }, 'new device alert failed'),
@@ -181,11 +231,13 @@ export function createAuth(config: AuthConfig) {
       },
     },
     session: {
-      expiresIn: SESSION_IDLE_SECONDS,
+      expiresIn: SESSION_IDLE_MAX_SECONDS,
       updateAge: 60,
       freshAge: 5 * 60,
       additionalFields: {
         activeTenantId: { type: 'string', required: false, input: false },
+        secondFactor: { type: 'string', required: false, input: false },
+        secondFactorAt: { type: 'date', required: false, input: false },
       },
     },
     user: {
@@ -194,7 +246,12 @@ export function createAuth(config: AuthConfig) {
       },
     },
     plugins: [
-      twoFactor({ issuer: 'Cleanpost', backupCodeOptions: { amount: 10 } }),
+      twoFactor({
+        issuer: 'Cleanpost',
+        backupCodeOptions: { amount: 10 },
+        // A-02 "Trust this device", offered only where every company allows it (S-12).
+        trustDeviceMaxAge: company.TRUSTED_DEVICE_HOURS * 60 * 60,
+      }),
       passkey({ rpID: appUrl.hostname, rpName: 'Cleanpost', origin: appUrl.origin }),
     ],
   });

@@ -48,6 +48,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           allowedActions={allowedNav}
           canSwitchCompany={companyCount > 1}
           unreadNotifications={unread}
+          idleMinutes={ctx.idleMinutes}
         >
           {children}
         </AppShell>

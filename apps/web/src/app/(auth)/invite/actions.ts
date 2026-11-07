@@ -5,6 +5,7 @@
  * so nobody gets a membership without a second factor. The token comes from the E-01 link;
  * packages/auth checks it against the stored hash and audits the accept.
  */
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import {
@@ -12,6 +13,7 @@ import {
   acceptInvitationAsNewUser,
   acceptInvitationAsUser,
   chooseCompany,
+  clientIp,
   type AcceptRefusal,
 } from '@cleanpost/auth';
 import { now as clockNow } from '@cleanpost/clock';
@@ -70,14 +72,21 @@ export async function joinAction(formData: FormData) {
   if (!token.success) redirect('/invite');
   const back = `/invite?token=${encodeURIComponent(token.data)}`;
   const ctx = await getContext();
-  if (ctx.status !== 'ok' && ctx.status !== 'choose_company')
+  if (ctx.status !== 'ok' && ctx.status !== 'choose_company' && ctx.status !== 'company_blocked')
     redirect(`/sign-in?next=${encodeURIComponent(back)}`);
   const db = getDb();
   const res = await acceptInvitationAsUser(db, token.data, ctx.user, clockNow());
   log.info({ outcome: res.ok ? 'accepted' : res.reason }, 'invite accept (signed in)');
   // A refused join goes back to the invite page, which says why (expired, used, another address).
   if (!res.ok) redirect(back);
-  await chooseCompany(db, ctx.sessionId, ctx.user.id, res.tenantId);
+  const blocked = await chooseCompany(
+    db,
+    ctx.sessionId,
+    ctx.user.id,
+    res.tenantId,
+    clientIp(await headers()),
+  );
+  if (blocked) redirect(`/choose-company?blocked=${blocked}&company=${res.tenantId}`);
   await withTenant(db, { tenantId: res.tenantId, userId: ctx.user.id }, (tx) =>
     recordAudit(tx, {
       actor: `user:${ctx.user.id}`,

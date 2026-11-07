@@ -23,6 +23,8 @@ export interface AppShellProps {
   canSwitchCompany: boolean;
   /** G-04: unread notifications when the page loaded. */
   unreadNotifications: number;
+  /** The company's idle limit (S-12), for the sign-out warning. */
+  idleMinutes?: number;
   children: ReactNode;
 }
 
@@ -36,6 +38,7 @@ export function AppShell({
   allowedActions,
   canSwitchCompany,
   unreadNotifications,
+  idleMinutes,
   children,
 }: AppShellProps) {
   const pathname = usePathname();
@@ -181,7 +184,7 @@ export function AppShell({
         </main>
       </div>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} commands={commands} scope={scope} />
-      <SessionTimeout />
+      <SessionTimeout idleMinutes={idleMinutes} />
     </div>
   );
 }

@@ -12,6 +12,8 @@ export const tenantAgreements = pgTable('tenant_agreements', {
   type: text('type').notNull(),
   version: text('version').notNull(),
   signedAt: timestamp('signed_at', { withTimezone: true }),
+  /** Who signed for the company (S-14 shows it). */
+  signedBy: text('signed_by'),
   storageKey: text('storage_key'),
   ...timestamps,
 });

@@ -1,8 +1,9 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { secondFactorSkipAllowed } from '@cleanpost/config';
-import { memberships, passkeys, sessions, withTenant, withUser, type Database } from '@cleanpost/db';
-import type { policy } from '@cleanpost/domain';
-import { SESSION_ABSOLUTE_SECONDS, type Auth } from './auth';
+import { memberships, passkeys, sessions, tenants, withTenant, withUser, type Database } from '@cleanpost/db';
+import { company, type policy } from '@cleanpost/domain';
+import { SESSION_IDLE_MAX_SECONDS, type Auth } from './auth';
+import { clientIp, companyAccess, membershipSecurity, type BlockReason } from './security';
 
 type Actor = policy.Actor;
 
@@ -19,32 +20,72 @@ export type SessionContext =
    * only in preview with PREVIEW_ALLOW_SKIP_2FA (skipSecondFactorForSession).
    */
   | { status: 'mfa_setup_required'; user: SignedInUser; sessionId: string; canSkip: boolean }
+  /**
+   * Signed in with a password alone by someone whose second factor is a passkey: the passkey is
+   * still owed (DEC-34). Only the passkey step is allowed.
+   */
+  | { status: 'second_factor_required'; user: SignedInUser; sessionId: string }
+  /** The chosen company turns this session away (S-12): A-07 says why. */
+  | {
+      status: 'company_blocked';
+      user: SignedInUser;
+      sessionId: string;
+      tenantId: string;
+      reason: BlockReason;
+    }
   /** Signed in with MFA but no company chosen: only A-07 is allowed. */
   | { status: 'choose_company'; user: SignedInUser; sessionId: string }
-  | { status: 'ok'; user: SignedInUser; sessionId: string; tenantId: string; actor: Actor };
+  | {
+      status: 'ok';
+      user: SignedInUser;
+      sessionId: string;
+      tenantId: string;
+      actor: Actor;
+      /** The company's idle limit, for the sign-out warning (G-10). */
+      idleMinutes: number;
+    };
 
 /**
  * Resolves who is calling and in which company, for every server route and action. Enforces the
- * 12-hour absolute session limit (idle expiry is better-auth's), the second-factor requirement and
- * an active membership in the chosen company.
+ * second-factor requirement, an active membership in the chosen company and that company's S-12
+ * settings (DEC-34): its idle and absolute session limits, whether it accepts passkeys and trusted
+ * devices, and its IP allowlist. Before a company is chosen, the default limits apply.
  */
 export async function getSessionContext(auth: Auth, db: Database, headers: Headers): Promise<SessionContext> {
-  const found = await auth.api.getSession({ headers, query: { disableRefresh: false } });
+  // Read without extending it first: the company's idle limit is judged on the last activity.
+  const found = await auth.api.getSession({ headers, query: { disableRefresh: true } });
   if (!found) return { status: 'signed_out' };
   const { session, user } = found;
-
-  const ageSeconds = (Date.now() - new Date(session.createdAt).getTime()) / 1000;
-  if (ageSeconds > SESSION_ABSOLUTE_SECONDS) {
+  const extra = session as { secondFactor?: string | null; activeTenantId?: string | null };
+  const now = Date.now();
+  const lastActive = new Date(session.expiresAt).getTime() - SESSION_IDLE_MAX_SECONDS * 1000;
+  const ageSeconds = (now - new Date(session.createdAt).getTime()) / 1000;
+  const idleSeconds = (now - lastActive) / 1000;
+  const expire = async () => {
     await db.delete(sessions).where(eq(sessions.id, session.id));
-    return { status: 'signed_out', reason: 'expired' };
-  }
+    return { status: 'signed_out', reason: 'expired' } as const;
+  };
+  const limits = (s: company.SecuritySettings) =>
+    ageSeconds > s.absoluteHours * 3600 || idleSeconds > s.idleMinutes * 60;
+  if (limits(company.SECURITY_DEFAULTS) && !extra.activeTenantId) return expire();
+  // Extend the session (better-auth's refresh) once the company has let it through.
+  const refresh = async () => {
+    if (idleSeconds > 60) await auth.api.getSession({ headers, query: { disableRefresh: false } });
+  };
   if ((user as { status?: string }).status && (user as { status?: string }).status !== 'active') {
     await db.delete(sessions).where(eq(sessions.userId, user.id));
     return { status: 'signed_out', reason: 'inactive_user' };
   }
 
   const who: SignedInUser = { id: user.id, name: user.name, email: user.email };
-  if (!(await hasSecondFactor(db, user.id, Boolean(user.twoFactorEnabled)))) {
+  const totp = Boolean(user.twoFactorEnabled);
+  const passkey = await hasPasskey(db, user.id);
+  // A password alone is one factor: someone whose second factor is a passkey still owes it.
+  if (!totp && passkey && !extra.secondFactor) {
+    await refresh();
+    return { status: 'second_factor_required', user: who, sessionId: session.id };
+  }
+  if (!totp && !passkey) {
     const canSkip = secondFactorSkipAllowed();
     const [row] = canSkip
       ? await db
@@ -52,23 +93,42 @@ export async function getSessionContext(auth: Auth, db: Database, headers: Heade
           .from(sessions)
           .where(eq(sessions.id, session.id))
       : [];
-    if (!row?.skipped) return { status: 'mfa_setup_required', user: who, sessionId: session.id, canSkip };
+    if (!row?.skipped) {
+      await refresh();
+      return { status: 'mfa_setup_required', user: who, sessionId: session.id, canSkip };
+    }
   }
 
-  const tenantId = (session as { activeTenantId?: string | null }).activeTenantId;
-  if (!tenantId) return { status: 'choose_company', user: who, sessionId: session.id };
+  const tenantId = extra.activeTenantId;
+  if (!tenantId) {
+    await refresh();
+    return { status: 'choose_company', user: who, sessionId: session.id };
+  }
 
-  const membership = await withTenant(db, { tenantId, userId: user.id }, async (tx) => {
+  const found2 = await withTenant(db, { tenantId, userId: user.id }, async (tx) => {
     const [m] = await tx
       .select()
       .from(memberships)
       .where(and(eq(memberships.userId, user.id), eq(memberships.status, 'active')));
-    return m;
+    const [t] = await tx
+      .select({ security: sql<unknown>`${tenants.settings}->'security'` })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId));
+    return { membership: m, security: company.securitySettings({ security: t?.security }) };
   });
+  const { membership, security } = found2;
   if (!membership) {
     await db.update(sessions).set({ activeTenantId: null }).where(eq(sessions.id, session.id));
+    await refresh();
     return { status: 'choose_company', user: who, sessionId: session.id };
   }
+  if (limits(security)) return expire();
+  const blocked = companyAccess(security, { secondFactor: extra.secondFactor ?? null }, clientIp(headers));
+  if (blocked) {
+    await db.update(sessions).set({ activeTenantId: null }).where(eq(sessions.id, session.id));
+    return { status: 'company_blocked', user: who, sessionId: session.id, tenantId, reason: blocked };
+  }
+  await refresh();
   return {
     status: 'ok',
     user: who,
@@ -81,11 +141,11 @@ export async function getSessionContext(auth: Auth, db: Database, headers: Heade
       clientScope: membership.clientScope as Actor['clientScope'],
       clientIds: membership.clientIds,
     },
+    idleMinutes: security.idleMinutes,
   };
 }
 
-async function hasSecondFactor(db: Database, userId: string, totpEnabled: boolean): Promise<boolean> {
-  if (totpEnabled) return true;
+async function hasPasskey(db: Database, userId: string): Promise<boolean> {
   const [pk] = await db
     .select({ id: passkeys.id })
     .from(passkeys)
@@ -112,11 +172,28 @@ export async function listCompanies(db: Database, userId: string) {
   );
 }
 
-/** A-07: switches the session to a company the user belongs to. */
-export async function chooseCompany(db: Database, sessionId: string, userId: string, tenantId: string) {
+/**
+ * A-07: switches the session to a company the user belongs to, unless that company turns this
+ * session away (S-12: passkeys, trusted devices, IP allowlist); then it says why and stays out.
+ */
+export async function chooseCompany(
+  db: Database,
+  sessionId: string,
+  userId: string,
+  tenantId: string,
+  ip: string | null = null,
+): Promise<BlockReason | null> {
   const companies = await listCompanies(db, userId);
   if (!companies.some((c) => c.tenantId === tenantId)) throw new NotAMemberError();
+  const [s] = await db
+    .select({ secondFactor: sessions.secondFactor })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId));
+  const security = (await membershipSecurity(db, userId)).find((c) => c.tenantId === tenantId)?.security;
+  const blocked = security ? companyAccess(security, { secondFactor: s?.secondFactor ?? null }, ip) : null;
+  if (blocked) return blocked;
   await db.update(sessions).set({ activeTenantId: tenantId }).where(eq(sessions.id, sessionId));
+  return null;
 }
 
 export class SkipNotAllowedError extends Error {

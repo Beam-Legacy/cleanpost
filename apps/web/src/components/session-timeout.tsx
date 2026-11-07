@@ -4,16 +4,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Modal } from '@cleanpost/ui';
 import { authClient } from '@/lib/auth-client';
 
-const IDLE_MS = 15 * 60 * 1000;
 const WARN_MS = 60 * 1000;
 const KEEPALIVE_MS = 60 * 1000;
 
 /**
  * G-09 Session timeout warning. Activity keeps the server session alive (at most one refresh a
- * minute); after 14 idle minutes a 60-second countdown starts; at zero the user is signed out (G-10).
- * The 12-hour absolute limit is enforced on the server and cannot be extended here.
+ * minute); a minute before the company's idle limit (S-12: 15 or 30 minutes) a 60-second countdown
+ * starts; at zero the user is signed out (G-10). The absolute limit is enforced on the server and
+ * cannot be extended here.
  */
-export function SessionTimeout() {
+export function SessionTimeout({ idleMinutes = 15 }: { idleMinutes?: number }) {
+  const IDLE_MS = idleMinutes * 60 * 1000;
   const router = useRouter();
   const lastActivity = useRef(Date.now());
   const lastKeepalive = useRef(Date.now());
@@ -51,7 +52,7 @@ export function SessionTimeout() {
       events.forEach((e) => window.removeEventListener(e, onActivity));
       clearInterval(timer);
     };
-  }, [secondsLeft, signOut]);
+  }, [secondsLeft, signOut, IDLE_MS]);
 
   const announce = secondsLeft !== null && [60, 30, 10].includes(secondsLeft);
   return (

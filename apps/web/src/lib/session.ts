@@ -20,5 +20,8 @@ export async function requireActiveContext(): Promise<ActiveContext> {
   if (ctx.status === 'signed_out')
     redirect(ctx.reason === 'expired' ? '/signed-out?reason=expired' : '/sign-in');
   if (ctx.status === 'mfa_setup_required') redirect('/setup/two-factor');
+  if (ctx.status === 'second_factor_required') redirect('/sign-in/passkey');
+  if (ctx.status === 'company_blocked')
+    redirect(`/choose-company?blocked=${ctx.reason}&company=${ctx.tenantId}`);
   redirect('/choose-company');
 }

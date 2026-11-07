@@ -13,3 +13,4 @@ export * as reports from './reports';
 export * as notify from './notify';
 export * as search from './search';
 export * as records from './records';
+export * as company from './company';

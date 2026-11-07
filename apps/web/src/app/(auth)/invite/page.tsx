@@ -80,7 +80,10 @@ export default async function InvitePage({
       </AuthCard>
     );
 
-  const signedIn = ctx.status === 'ok' || ctx.status === 'choose_company' ? ctx.user : null;
+  const signedIn =
+    ctx.status === 'ok' || ctx.status === 'choose_company' || ctx.status === 'company_blocked'
+      ? ctx.user
+      : null;
   if (signedIn && signedIn.email.toLowerCase() !== invite.email)
     return (
       <AuthCard title={`Join ${invite.tenantName}`}>
