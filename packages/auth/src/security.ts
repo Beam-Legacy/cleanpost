@@ -6,6 +6,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { and, eq, gt, inArray, like } from 'drizzle-orm';
 import { memberships, sessions, tenants, verifications, withUser, type Database } from '@cleanpost/db';
+import { secondFactorSkipAllowed } from '@cleanpost/config';
 import { company } from '@cleanpost/domain';
 
 /** How a session's second step was done; null for a password alone (or a session from before DEC-34). */
@@ -51,9 +52,12 @@ export function companyAccess(
 /** Was a second factor entered recently enough to change security settings (step-up)? */
 export async function stepUpFresh(db: Database, sessionId: string, now = new Date()): Promise<boolean> {
   const [s] = await db
-    .select({ at: sessions.secondFactorAt })
+    .select({ at: sessions.secondFactorAt, skipped: sessions.secondFactorSkippedAt })
     .from(sessions)
     .where(eq(sessions.id, sessionId));
+  // Preview only (PREVIEW_ALLOW_SKIP_2FA): a session that skipped two-factor setup has no second
+  // factor to enter again, so there is nothing to step up with.
+  if (s?.skipped && secondFactorSkipAllowed()) return true;
   return Boolean(s?.at && now.getTime() - s.at.getTime() <= company.STEP_UP_MINUTES * 60_000);
 }
 

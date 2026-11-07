@@ -150,6 +150,23 @@ describe('how a session was verified', () => {
     expect(await stepUpFresh(app.db, sessionId)).toBe(true);
   });
 
+  it('lets a preview session that skipped two-factor setup save without a step-up, nowhere else', async () => {
+    const { sessionId } = await signedIn();
+    await admin.db.execute(
+      sql`update sessions set second_factor_at = null, second_factor_skipped_at = now() where id = ${sessionId}`,
+    );
+    const before = process.env.PREVIEW_ALLOW_SKIP_2FA;
+    try {
+      process.env.PREVIEW_ALLOW_SKIP_2FA = 'false';
+      expect(await stepUpFresh(app.db, sessionId)).toBe(false);
+      process.env.PREVIEW_ALLOW_SKIP_2FA = 'true';
+      expect(await stepUpFresh(app.db, sessionId)).toBe(true);
+    } finally {
+      if (before === undefined) delete process.env.PREVIEW_ALLOW_SKIP_2FA;
+      else process.env.PREVIEW_ALLOW_SKIP_2FA = before;
+    }
+  });
+
   it('does not take a password alone from someone whose second factor is a passkey', async () => {
     const { headers } = await signIn(passkeyEmail);
     const ctx = await getSessionContext(auth, app.db, headers);
